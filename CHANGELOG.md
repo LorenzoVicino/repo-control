@@ -4,6 +4,20 @@ All notable changes to repo-control will be documented in this file.
 
 This project follows semantic versioning where practical.
 
+## [0.1.4] - 2026-06-29
+
+### Added
+
+- repo-control banner shown in the app bar.
+
+### Changed
+
+- Use the modern Windows folder picker for workspace selection.
+
+### Fixed
+
+- Corrected icon dimensions in the projects dashboard.
+
 ## [0.1.3] - 2026-06-29
 
 ### Changed
