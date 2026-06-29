@@ -1,6 +1,6 @@
 {
   "name": "repo-control",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "license": "MIT",
   "description": "Local dashboard to inspect and operate Git projects from one place.",

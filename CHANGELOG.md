@@ -4,6 +4,14 @@ All notable changes to repo-control will be documented in this file.
 
 This project follows semantic versioning where practical.
 
+## [0.1.3] - 2026-06-29
+
+### Changed
+
+- Refactored the frontend into focused modules and reusable dashboard/project components.
+- Reworked the workspace selector into a central click-only picker bar with no manual path editing.
+- Centered and widened repository search for faster filtering from the main dashboard.
+
 ## [0.1.2] - 2026-06-29
 
 ### Added
