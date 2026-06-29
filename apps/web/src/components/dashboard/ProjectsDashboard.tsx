@@ -20,8 +20,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Toolbar,
-  Tooltip,
-  Typography
+  Tooltip
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
@@ -143,9 +142,21 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
       <AppBar position="static" color="inherit" elevation={0}>
         <Toolbar sx={{ borderBottom: "1px solid", borderColor: "divider", gap: 1.5 }}>
-          <Typography component="h1" variant="h1" sx={{ flexGrow: 1 }}>
-            repo-control
-          </Typography>
+          <Stack component="h1" direction="row" alignItems="center" sx={{ flexGrow: 1, minWidth: 0, m: 0 }}>
+            <Box
+              component="img"
+              src="/repo-control.png"
+              alt="repo-control"
+              sx={{
+                display: "block",
+                height: { xs: 30, sm: 38 },
+                width: "auto",
+                maxWidth: { xs: 146, sm: 220 },
+                objectFit: "contain",
+                flexShrink: 0
+              }}
+            />
+          </Stack>
           <Chip size="small" variant="outlined" label={`v${APP_VERSION}`} />
           <Button
             size="small"
