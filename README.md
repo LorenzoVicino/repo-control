@@ -47,7 +47,7 @@ REPO_CONTROL_ROOT=~/projects npm run dev
 ```
 
 You can change the active workspace folder from the web UI without restarting the server.
-Use `Sfoglia` to open the native folder picker where supported. On WSL, Windows paths are converted back to WSL paths before scanning.
+Click the workspace folder bar to open the native folder picker where supported. On WSL, Windows paths are converted back to WSL paths before scanning.
 
 If VS Code is not in the server process `PATH`, set `REPO_CONTROL_VSCODE` to the full launcher path.
 

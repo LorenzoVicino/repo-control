@@ -1,5 +1,4 @@
 import DarkModeIcon from "@mui/icons-material/DarkMode";
-import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
@@ -31,6 +30,7 @@ import { APP_VERSION } from "../../config";
 import { AppUpdateDialog } from "./AppUpdateDialog";
 import { DashboardMetrics } from "./DashboardMetrics";
 import { ProjectTable } from "./ProjectTable";
+import { WorkspacePickerBar } from "./WorkspacePickerBar";
 import { WorkspaceMap } from "./WorkspaceMap";
 import { ProjectOverlay } from "../project/ProjectOverlay";
 import type { AppUpdateResult, ColorMode, ViewMode } from "../../types";
@@ -45,9 +45,7 @@ type ProjectsDashboardProps = {
 export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDashboardProps) {
   const [viewMode, setViewMode] = React.useState<ViewMode>("map");
   const [search, setSearch] = React.useState("");
-  const [rootDraft, setRootDraft] = React.useState("");
   const [rootError, setRootError] = React.useState<string | null>(null);
-  const [isChangingRoot, setIsChangingRoot] = React.useState(false);
   const [isPickingRoot, setIsPickingRoot] = React.useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = React.useState(false);
   const [appUpdateResult, setAppUpdateResult] = React.useState<AppUpdateResult | null>(null);
@@ -68,12 +66,7 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
     [openProjectIds, projects]
   );
   const stats = React.useMemo(() => getStats(projects), [projects]);
-
-  React.useEffect(() => {
-    if (data?.root) {
-      setRootDraft(data.root);
-    }
-  }, [data?.root]);
+  const workspaceRoot = data?.root ?? "";
 
   function handleViewChange(_: React.MouseEvent<HTMLElement>, nextMode: ViewMode | null) {
     if (nextMode) {
@@ -102,28 +95,14 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
     }
   }
 
-  async function handleRootSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setIsChangingRoot(true);
-    setRootError(null);
-
-    try {
-      await applyRootPath(rootDraft);
-    } catch (error) {
-      setRootError(error instanceof Error ? error.message : "Unable to change folder");
-    } finally {
-      setIsChangingRoot(false);
-    }
-  }
-
   async function handleFolderPick() {
     setIsPickingRoot(true);
     setRootError(null);
 
     try {
-      const pickedPath = await pickWorkspaceFolder(rootDraft || data?.root || "");
+      const pickedPath = await pickWorkspaceFolder(workspaceRoot);
 
-      if (pickedPath) {
+      if (pickedPath && pickedPath !== workspaceRoot) {
         await applyRootPath(pickedPath);
       }
     } catch (error) {
@@ -134,8 +113,7 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
   }
 
   async function applyRootPath(root: string) {
-    const result = await setRootPath(root);
-    setRootDraft(result.root);
+    await setRootPath(root);
     setOpenProjectIds([]);
     setActiveProjectId(null);
     setIsProjectOverlayOpen(false);
@@ -204,56 +182,25 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
 
       <Container maxWidth={false} sx={{ py: 3 }}>
         <Stack spacing={2.5}>
-          <Paper variant="outlined" sx={{ p: 1.5 }}>
-            <Box component="form" onSubmit={handleRootSubmit}>
-              <Stack direction={{ xs: "column", lg: "row" }} spacing={1.5} alignItems={{ lg: "flex-start" }}>
-                <TextField
-                  size="small"
-                  label="Workspace folder"
-                  value={rootDraft}
-                  onChange={(event) => setRootDraft(event.target.value)}
-                  error={Boolean(rootError)}
-                  helperText={rootError ?? "Usa un path assoluto o ~/projects"}
-                  sx={{ flexGrow: 1 }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <FolderOpenIcon fontSize="small" />
-                      </InputAdornment>
-                    )
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outlined"
-                  startIcon={isPickingRoot ? <CircularProgress color="inherit" size={16} /> : <FolderOpenIcon />}
-                  onClick={handleFolderPick}
-                  disabled={isPickingRoot || isChangingRoot}
-                  sx={{ minWidth: 116 }}
-                >
-                  Sfoglia
-                </Button>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  startIcon={isChangingRoot ? <CircularProgress color="inherit" size={16} /> : <FolderOpenIcon />}
-                  disabled={isChangingRoot || isPickingRoot || rootDraft.trim().length === 0}
-                  sx={{ minWidth: 116 }}
-                >
-                  Carica
-                </Button>
-              </Stack>
-            </Box>
-          </Paper>
+          <WorkspacePickerBar
+            root={workspaceRoot}
+            error={rootError}
+            isPicking={isPickingRoot}
+            onPick={handleFolderPick}
+          />
 
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }}>
-            <Chip label={`${filteredProjects.length}/${projects.length} repositories`} variant="outlined" />
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={1.5}
+            alignItems={{ md: "center" }}
+            justifyContent="center"
+          >
             <TextField
               size="small"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Cerca repo, branch o path"
-              sx={{ width: { xs: "100%", md: 360 } }}
+              sx={{ width: { xs: "100%", md: 520 } }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -262,6 +209,7 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
                 )
               }}
             />
+            <Chip label={`${filteredProjects.length}/${projects.length} repositories`} variant="outlined" />
           </Stack>
 
           <DashboardMetrics stats={stats} />
