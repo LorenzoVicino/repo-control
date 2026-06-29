@@ -48,9 +48,9 @@ You can change the active workspace folder from the web UI without restarting th
 
 If VS Code is not in the server process `PATH`, set `REPO_CONTROL_VSCODE` to the full launcher path.
 
-Frontend: <http://127.0.0.1:5173>
+Frontend: <http://localhost:5173>
 
-API: <http://127.0.0.1:3747>
+API: <http://localhost:3747>
 
 ## Configuration
 
