@@ -79,6 +79,10 @@ npm run typecheck
 npm run build
 ```
 
+## Releases
+
+Release notes are published in [CHANGELOG.md](CHANGELOG.md) and GitHub Releases.
+
 ## License
 
 MIT

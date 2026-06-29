@@ -59,6 +59,7 @@ import {
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import React from "react";
 import ReactDOM from "react-dom/client";
+import packageJson from "../../../package.json";
 
 type ProjectSummary = {
   id: string;
@@ -145,6 +146,7 @@ type ProjectTone = {
 const queryClient = new QueryClient();
 
 const COLOR_MODE_STORAGE_KEY = "repo-control-color-mode";
+const APP_VERSION = packageJson.version;
 
 function createAppTheme(colorMode: ColorMode) {
   return createTheme({
@@ -295,6 +297,7 @@ function ProjectsDashboard({
           <Typography component="h1" variant="h1" sx={{ flexGrow: 1 }}>
             repo-control
           </Typography>
+          <Chip size="small" variant="outlined" label={`v${APP_VERSION}`} />
           <ToggleButtonGroup value={viewMode} exclusive size="small" onChange={handleViewChange} aria-label="View mode">
             <ToggleButton value="map" aria-label="Workspace map">
               <ViewModuleIcon fontSize="small" />
