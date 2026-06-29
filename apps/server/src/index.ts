@@ -6,6 +6,7 @@ import path from "node:path";
 import { simpleGit } from "simple-git";
 import type { StatusResult } from "simple-git";
 import { z } from "zod";
+import { openNativeFolderPicker } from "./folderPicker.js";
 import { scanProjects } from "./gitScanner.js";
 
 const envSchema = z.object({
@@ -55,7 +56,7 @@ app.post("/api/root", async (request, reply) => {
 app.post("/api/folder-picker", async (request, reply) => {
   const body = z.object({ initialPath: z.string().optional() }).parse(request.body ?? {});
   const initialPath = body.initialPath ? resolveRootInput(body.initialPath) : activeRootPath;
-  const pickerResult = await openNativeFolderPicker(initialPath);
+  const pickerResult = await openNativeFolderPicker(initialPath, runProjectCommand);
 
   if (pickerResult.cancelled) {
     return {
@@ -416,13 +417,6 @@ type CommandResult = {
   durationMs: number;
 };
 
-type FolderPickerResult = {
-  ok: boolean;
-  path?: string;
-  cancelled?: boolean;
-  message?: string;
-};
-
 type AppUpdateResult = CommandResult & {
   restartScheduled: boolean;
 };
@@ -586,155 +580,6 @@ function scheduleServerRestart(): void {
 
 function getNpmCommand(): string {
   return process.platform === "win32" ? "npm.cmd" : "npm";
-}
-
-async function openNativeFolderPicker(initialPath: string): Promise<FolderPickerResult> {
-  const candidates = await getFolderPickerCandidates(initialPath);
-  const failures: string[] = [];
-
-  for (const candidate of candidates) {
-    const result = await runProjectCommand(process.cwd(), candidate.command, candidate.args, 1000 * 60 * 5);
-    const selectedPath = result.stdout.trim();
-
-    if (result.ok && selectedPath) {
-      return {
-        ok: true,
-        path: normalizePickedPath(selectedPath)
-      };
-    }
-
-    if (result.ok && !selectedPath) {
-      return {
-        ok: false,
-        cancelled: true
-      };
-    }
-
-    if (isFolderPickerCancel(result)) {
-      return {
-        ok: false,
-        cancelled: true
-      };
-    }
-
-    failures.push(`${result.command}\n${result.output || "No output"}`);
-  }
-
-  return {
-    ok: false,
-    message: [
-      "Unable to open a native folder picker.",
-      "Install zenity/kdialog on Linux, use macOS Finder, or run from Windows/WSL with PowerShell available.",
-      "",
-      "Tried:",
-      ...failures.map((failure) => `- ${failure.split("\n")[0]}`)
-    ].join("\n")
-  };
-}
-
-async function getFolderPickerCandidates(initialPath: string): Promise<Array<{ command: string; args: string[] }>> {
-  if (process.platform === "win32") {
-    return getPowerShellFolderPickerCandidates(initialPath);
-  }
-
-  if (process.platform === "darwin") {
-    return [
-      {
-        command: "osascript",
-        args: ["-e", `POSIX path of (choose folder with prompt "Select repo-control workspace folder")`]
-      }
-    ];
-  }
-
-  if (await isWsl()) {
-    return getPowerShellFolderPickerCandidates(toWindowsPickerPath(initialPath));
-  }
-
-  return [
-    {
-      command: "zenity",
-      args: ["--file-selection", "--directory", "--title=Select repo-control workspace folder", `--filename=${initialPath}`]
-    },
-    {
-      command: "kdialog",
-      args: ["--getexistingdirectory", initialPath, "--title", "Select repo-control workspace folder"]
-    }
-  ];
-}
-
-function getPowerShellFolderPickerCandidates(initialPath: string): Array<{ command: string; args: string[] }> {
-  const script = [
-    "Add-Type -AssemblyName System.Windows.Forms",
-    "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8",
-    "$dialog = New-Object System.Windows.Forms.FolderBrowserDialog",
-    "$dialog.Description = 'Select repo-control workspace folder'",
-    "$dialog.ShowNewFolderButton = $true",
-    initialPath ? `$dialog.SelectedPath = '${escapePowerShellString(initialPath)}'` : "",
-    "if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $dialog.SelectedPath }"
-  ]
-    .filter(Boolean)
-    .join("; ");
-
-  return [
-    {
-      command: "powershell.exe",
-      args: ["-NoProfile", "-STA", "-Command", script]
-    },
-    {
-      command: "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
-      args: ["-NoProfile", "-STA", "-Command", script]
-    }
-  ];
-}
-
-function isFolderPickerCancel(result: CommandResult): boolean {
-  const output = result.output.toLowerCase();
-
-  return result.exitCode !== null && !result.stdout.trim() && (output.includes("cancel") || output.trim().length === 0);
-}
-
-async function isWsl(): Promise<boolean> {
-  if (process.env.WSL_DISTRO_NAME) {
-    return true;
-  }
-
-  const version = await fs.readFile("/proc/version", "utf8").catch(() => "");
-  return version.toLowerCase().includes("microsoft") || version.toLowerCase().includes("wsl");
-}
-
-function toWindowsPickerPath(localPath: string): string {
-  const mountMatch = localPath.match(/^\/mnt\/([a-z])\/(.*)$/i);
-
-  if (mountMatch) {
-    return `${mountMatch[1].toUpperCase()}:\\${mountMatch[2].replaceAll("/", "\\")}`;
-  }
-
-  if (process.env.WSL_DISTRO_NAME && localPath.startsWith("/")) {
-    return `\\\\wsl.localhost\\${process.env.WSL_DISTRO_NAME}${localPath.replaceAll("/", "\\")}`;
-  }
-
-  return localPath;
-}
-
-function normalizePickedPath(pickedPath: string): string {
-  const normalized = pickedPath.replace(/\r/g, "").trim();
-  const driveMatch = normalized.match(/^([A-Za-z]):[\\/](.*)$/);
-
-  if (process.platform !== "win32" && driveMatch) {
-    return `/mnt/${driveMatch[1].toLowerCase()}/${driveMatch[2].replaceAll("\\", "/")}`;
-  }
-
-  const wslShareMatch = normalized.match(/^\\\\wsl(?:\.localhost)?\\[^\\]+\\(.+)$/i);
-
-  if (process.platform !== "win32" && wslShareMatch) {
-    return `/${wslShareMatch[1].replaceAll("\\", "/")}`;
-  }
-
-  return normalized;
-}
-
-function escapePowerShellString(value: string): string {
-  return value.replaceAll("'", "''");
 }
 
 function runShellCommand(cwd: string, commandLine: string, timeoutMs: number): Promise<CommandResult> {
