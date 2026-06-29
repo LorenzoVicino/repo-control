@@ -17,6 +17,7 @@ Local dashboard to inspect and operate Git projects from one place.
 - start or rebuild Docker Compose projects
 - run scoped terminal commands inside a selected project
 - pick the workspace folder from the local file picker where supported
+- update repo-control from the UI when a new release is available
 - stay local-first and bind to localhost by default
 
 ## Safety model
@@ -85,6 +86,8 @@ npm run build
 ## Releases
 
 Release notes are published in [CHANGELOG.md](CHANGELOG.md) and GitHub Releases.
+
+Use the `Aggiorna` button near the app version to update the local checkout. The update is blocked if repo-control has local changes.
 
 ## License
 

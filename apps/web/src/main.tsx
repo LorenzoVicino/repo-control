@@ -23,6 +23,7 @@ import UndoIcon from "@mui/icons-material/Undo";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import {
+  Alert,
   AppBar,
   Box,
   Button,
@@ -95,6 +96,10 @@ type CommandResult = {
   stderr: string;
   output: string;
   durationMs: number;
+};
+
+type AppUpdateResult = CommandResult & {
+  restartScheduled: boolean;
 };
 
 type GitChangeGroups = {
@@ -221,6 +226,9 @@ function ProjectsDashboard({
   const [rootError, setRootError] = React.useState<string | null>(null);
   const [isChangingRoot, setIsChangingRoot] = React.useState(false);
   const [isPickingRoot, setIsPickingRoot] = React.useState(false);
+  const [isUpdatingApp, setIsUpdatingApp] = React.useState(false);
+  const [appUpdateResult, setAppUpdateResult] = React.useState<AppUpdateResult | null>(null);
+  const [isAppUpdateDialogOpen, setIsAppUpdateDialogOpen] = React.useState(false);
   const [openProjectIds, setOpenProjectIds] = React.useState<string[]>([]);
   const [activeProjectId, setActiveProjectId] = React.useState<string | null>(null);
   const [isProjectOverlayOpen, setIsProjectOverlayOpen] = React.useState(false);
@@ -312,6 +320,24 @@ function ProjectsDashboard({
     await refetch();
   }
 
+  async function handleAppUpdate() {
+    setIsUpdatingApp(true);
+    setIsAppUpdateDialogOpen(true);
+    setAppUpdateResult(null);
+
+    try {
+      const result = await updateRepoControl();
+      setAppUpdateResult(result);
+    } catch (error) {
+      setAppUpdateResult({
+        ...commandErrorResult("update repo-control", error),
+        restartScheduled: false
+      });
+    } finally {
+      setIsUpdatingApp(false);
+    }
+  }
+
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
       <AppBar position="static" color="inherit" elevation={0}>
@@ -320,6 +346,16 @@ function ProjectsDashboard({
             repo-control
           </Typography>
           <Chip size="small" variant="outlined" label={`v${APP_VERSION}`} />
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={isUpdatingApp ? <CircularProgress color="inherit" size={16} /> : <SyncIcon fontSize="small" />}
+            onClick={handleAppUpdate}
+            disabled={isUpdatingApp}
+            sx={{ minWidth: 104 }}
+          >
+            Aggiorna
+          </Button>
           <ToggleButtonGroup value={viewMode} exclusive size="small" onChange={handleViewChange} aria-label="View mode">
             <ToggleButton value="map" aria-label="Workspace map">
               <ViewModuleIcon fontSize="small" />
@@ -434,6 +470,60 @@ function ProjectsDashboard({
           />
         </Stack>
       </Container>
+
+      <Dialog
+        open={isAppUpdateDialogOpen}
+        onClose={() => {
+          if (!isUpdatingApp) {
+            setIsAppUpdateDialogOpen(false);
+          }
+        }}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogContent>
+          <Stack spacing={1.5}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <SyncIcon color="primary" />
+              <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                  Aggiorna repo-control
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Esegue git pull --ff-only, npm install e riavvia il server locale.
+                </Typography>
+              </Box>
+              <IconButton
+                onClick={() => setIsAppUpdateDialogOpen(false)}
+                disabled={isUpdatingApp}
+                aria-label="Close update dialog"
+              >
+                <CloseIcon />
+              </IconButton>
+            </Stack>
+
+            {isUpdatingApp ? (
+              <Alert severity="info" icon={<CircularProgress size={18} />}>
+                Aggiornamento in corso. Non chiudere il terminale.
+              </Alert>
+            ) : null}
+
+            {appUpdateResult?.restartScheduled ? (
+              <Alert severity="success">
+                Aggiornamento completato. Il server sta provando a riavviarsi automaticamente.
+              </Alert>
+            ) : null}
+
+            {appUpdateResult && !appUpdateResult.ok ? (
+              <Alert severity="warning">
+                Aggiornamento non completato. Controlla l'output e risolvi eventuali modifiche locali.
+              </Alert>
+            ) : null}
+
+            {appUpdateResult ? <CommandOutput result={appUpdateResult} /> : null}
+          </Stack>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }
@@ -1797,6 +1887,19 @@ async function pickWorkspaceFolder(initialPath: string): Promise<string | null> 
   }
 
   throw new Error("Folder picker returned no path");
+}
+
+async function updateRepoControl(): Promise<AppUpdateResult> {
+  const response = await fetch("/api/app/update", {
+    method: "POST"
+  });
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message ?? "Unable to update repo-control");
+  }
+
+  return payload as AppUpdateResult;
 }
 
 async function fetchProjects(): Promise<ProjectsResponse> {

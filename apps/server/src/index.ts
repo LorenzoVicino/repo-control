@@ -88,6 +88,19 @@ app.post("/api/folder-picker", async (request, reply) => {
   };
 });
 
+app.post("/api/app/update", async () => {
+  const result = await updateApplication();
+
+  if (result.ok) {
+    scheduleServerRestart();
+  }
+
+  return {
+    ...result,
+    restartScheduled: result.ok
+  };
+});
+
 app.post("/api/projects/:id/open-vscode", async (request, reply) => {
   const params = z.object({ id: z.string() }).parse(request.params);
   const projectPath = await resolveProjectPath(params.id);
@@ -410,6 +423,12 @@ type FolderPickerResult = {
   message?: string;
 };
 
+type AppUpdateResult = CommandResult & {
+  restartScheduled: boolean;
+};
+
+let restartTimer: NodeJS.Timeout | null = null;
+
 function runProjectCommand(
   cwd: string,
   command: string,
@@ -470,6 +489,103 @@ function runProjectCommand(
       });
     });
   });
+}
+
+async function updateApplication(): Promise<AppUpdateResult> {
+  const appRootPath = path.resolve(process.cwd());
+  const gitDir = path.join(appRootPath, ".git");
+
+  try {
+    await fs.access(gitDir);
+  } catch {
+    return {
+      ok: false,
+      command: "update repo-control",
+      exitCode: null,
+      stdout: "",
+      stderr: "repo-control is not running from a Git checkout",
+      output: "repo-control is not running from a Git checkout",
+      durationMs: 0,
+      restartScheduled: false
+    };
+  }
+
+  const status = await runProjectCommand(appRootPath, "git", ["status", "--porcelain"]);
+
+  if (!status.ok) {
+    return combineUpdateResults([status], false);
+  }
+
+  if (status.stdout.trim()) {
+    return {
+      ok: false,
+      command: "update repo-control",
+      exitCode: 1,
+      stdout: status.stdout,
+      stderr: "Update blocked because repo-control has local changes.",
+      output: [
+        "Update blocked because repo-control has local changes.",
+        "Commit, stash, or discard local changes before updating.",
+        "",
+        status.stdout.trim()
+      ].join("\n"),
+      durationMs: status.durationMs,
+      restartScheduled: false
+    };
+  }
+
+  const steps: CommandResult[] = [];
+  const commands: Array<{ command: string; args: string[]; timeoutMs?: number }> = [
+    { command: "git", args: ["fetch", "--tags", "origin"] },
+    { command: "git", args: ["pull", "--ff-only"] },
+    { command: getNpmCommand(), args: ["install"], timeoutMs: 1000 * 60 * 10 }
+  ];
+
+  for (const step of commands) {
+    const result = await runProjectCommand(appRootPath, step.command, step.args, step.timeoutMs ?? 1000 * 60 * 3);
+    steps.push(result);
+
+    if (!result.ok) {
+      break;
+    }
+  }
+
+  return combineUpdateResults(steps, steps.every((step) => step.ok));
+}
+
+function combineUpdateResults(steps: CommandResult[], restartScheduled: boolean): AppUpdateResult {
+  const ok = steps.length > 0 && steps.every((step) => step.ok);
+  const lastStep = steps[steps.length - 1];
+  const output = steps
+    .map((step) => [`$ ${step.command}`, step.output || "Done"].join("\n"))
+    .join("\n\n");
+
+  return {
+    ok,
+    command: "update repo-control",
+    exitCode: lastStep?.exitCode ?? null,
+    stdout: steps.map((step) => step.stdout).filter(Boolean).join("\n"),
+    stderr: steps.map((step) => step.stderr).filter(Boolean).join("\n"),
+    output,
+    durationMs: steps.reduce((total, step) => total + step.durationMs, 0),
+    restartScheduled
+  };
+}
+
+function scheduleServerRestart(): void {
+  if (restartTimer) {
+    return;
+  }
+
+  restartTimer = setTimeout(() => {
+    app.log.info("Restarting repo-control after update");
+    process.exit(0);
+  }, 1200);
+  restartTimer.unref();
+}
+
+function getNpmCommand(): string {
+  return process.platform === "win32" ? "npm.cmd" : "npm";
 }
 
 async function openNativeFolderPicker(initialPath: string): Promise<FolderPickerResult> {

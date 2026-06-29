@@ -4,6 +4,14 @@ All notable changes to repo-control will be documented in this file.
 
 This project follows semantic versioning where practical.
 
+## [0.1.2] - 2026-06-29
+
+### Added
+
+- In-app update button near the visible version.
+- Self-update endpoint that runs `git pull --ff-only`, `npm install` and schedules a local server restart.
+- Update output dialog with success and blocked-update feedback.
+
 ## [0.1.1] - 2026-06-29
 
 ### Added
