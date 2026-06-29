@@ -149,9 +149,9 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
               alt="repo-control"
               sx={{
                 display: "block",
-                height: { xs: 30, sm: 38 },
+                height: { xs: 36, sm: 48, md: 56 },
                 width: "auto",
-                maxWidth: { xs: 146, sm: 220 },
+                maxWidth: { xs: 176, sm: 280, md: 340 },
                 objectFit: "contain",
                 flexShrink: 0
               }}
