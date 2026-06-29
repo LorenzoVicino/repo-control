@@ -4,6 +4,13 @@ All notable changes to repo-control will be documented in this file.
 
 This project follows semantic versioning where practical.
 
+## [0.1.1] - 2026-06-29
+
+### Added
+
+- Native workspace folder picker from the web UI.
+- WSL/Windows path conversion for selected folders.
+
 ## [0.1.0] - 2026-06-29
 
 ### Added

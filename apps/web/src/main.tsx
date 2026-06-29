@@ -220,6 +220,7 @@ function ProjectsDashboard({
   const [rootDraft, setRootDraft] = React.useState("");
   const [rootError, setRootError] = React.useState<string | null>(null);
   const [isChangingRoot, setIsChangingRoot] = React.useState(false);
+  const [isPickingRoot, setIsPickingRoot] = React.useState(false);
   const [openProjectIds, setOpenProjectIds] = React.useState<string[]>([]);
   const [activeProjectId, setActiveProjectId] = React.useState<string | null>(null);
   const [isProjectOverlayOpen, setIsProjectOverlayOpen] = React.useState(false);
@@ -276,18 +277,39 @@ function ProjectsDashboard({
     setRootError(null);
 
     try {
-      const result = await setRootPath(rootDraft);
-      setRootDraft(result.root);
-      setOpenProjectIds([]);
-      setActiveProjectId(null);
-      setIsProjectOverlayOpen(false);
-      setSearch("");
-      await refetch();
+      await applyRootPath(rootDraft);
     } catch (error) {
       setRootError(error instanceof Error ? error.message : "Unable to change folder");
     } finally {
       setIsChangingRoot(false);
     }
+  }
+
+  async function handleFolderPick() {
+    setIsPickingRoot(true);
+    setRootError(null);
+
+    try {
+      const pickedPath = await pickWorkspaceFolder(rootDraft || data?.root || "");
+
+      if (pickedPath) {
+        await applyRootPath(pickedPath);
+      }
+    } catch (error) {
+      setRootError(error instanceof Error ? error.message : "Unable to pick folder");
+    } finally {
+      setIsPickingRoot(false);
+    }
+  }
+
+  async function applyRootPath(root: string) {
+    const result = await setRootPath(root);
+    setRootDraft(result.root);
+    setOpenProjectIds([]);
+    setActiveProjectId(null);
+    setIsProjectOverlayOpen(false);
+    setSearch("");
+    await refetch();
   }
 
   return (
@@ -343,10 +365,20 @@ function ProjectsDashboard({
                   }}
                 />
                 <Button
+                  type="button"
+                  variant="outlined"
+                  startIcon={isPickingRoot ? <CircularProgress color="inherit" size={16} /> : <FolderOpenIcon />}
+                  onClick={handleFolderPick}
+                  disabled={isPickingRoot || isChangingRoot}
+                  sx={{ minWidth: 116 }}
+                >
+                  Sfoglia
+                </Button>
+                <Button
                   type="submit"
                   variant="contained"
                   startIcon={isChangingRoot ? <CircularProgress color="inherit" size={16} /> : <FolderOpenIcon />}
-                  disabled={isChangingRoot || rootDraft.trim().length === 0}
+                  disabled={isChangingRoot || isPickingRoot || rootDraft.trim().length === 0}
                   sx={{ minWidth: 116 }}
                 >
                   Carica
@@ -1740,6 +1772,31 @@ async function setRootPath(root: string): Promise<{ root: string }> {
   }
 
   return { root: payload.root };
+}
+
+async function pickWorkspaceFolder(initialPath: string): Promise<string | null> {
+  const response = await fetch("/api/folder-picker", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ initialPath })
+  });
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message ?? "Unable to pick folder");
+  }
+
+  if (payload?.cancelled) {
+    return null;
+  }
+
+  if (typeof payload?.path === "string") {
+    return payload.path;
+  }
+
+  throw new Error("Folder picker returned no path");
 }
 
 async function fetchProjects(): Promise<ProjectsResponse> {

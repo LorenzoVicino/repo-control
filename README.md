@@ -16,6 +16,7 @@ Local dashboard to inspect and operate Git projects from one place.
 - open a project in VS Code
 - start or rebuild Docker Compose projects
 - run scoped terminal commands inside a selected project
+- pick the workspace folder from the local file picker where supported
 - stay local-first and bind to localhost by default
 
 ## Safety model
@@ -45,6 +46,7 @@ REPO_CONTROL_ROOT=~/projects npm run dev
 ```
 
 You can change the active workspace folder from the web UI without restarting the server.
+Use `Sfoglia` to open the native folder picker where supported. On WSL, Windows paths are converted back to WSL paths before scanning.
 
 If VS Code is not in the server process `PATH`, set `REPO_CONTROL_VSCODE` to the full launcher path.
 
@@ -71,6 +73,7 @@ Copy `.env.example` if you want to keep local settings outside the command line.
 - Branches tab with local and remote branches, ahead/behind, checkout, create branch, fetch and pull ff-only
 - Docker Compose up and rebuild actions
 - embedded command runner scoped to the selected project folder
+- native folder picker with WSL/Windows path conversion
 
 ## Development checks
 
