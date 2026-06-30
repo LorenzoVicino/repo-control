@@ -226,13 +226,14 @@ const gitRefSchema = z
   .refine(isSafeGitRef, "Invalid branch name");
 
 async function resolveProjectPath(id: string): Promise<string> {
-  const decodedPath = Buffer.from(id, "base64url").toString("utf8");
-  const projectPath = path.resolve(decodedPath);
-  const relativePath = path.relative(activeRootPath, projectPath);
+  const decodedRelPath = Buffer.from(id, "base64url").toString("utf8");
 
-  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+  if (decodedRelPath.startsWith("..") || path.isAbsolute(decodedRelPath)) {
     throw new Error("Project path is outside configured root");
   }
+
+  const projectPath = path.resolve(activeRootPath, decodedRelPath);
+  const relativePath = path.relative(activeRootPath, projectPath);
 
   await fs.access(path.join(projectPath, ".git"));
   return projectPath;

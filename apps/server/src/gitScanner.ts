@@ -40,8 +40,9 @@ const IGNORED_DIRS = new Set([
 ]);
 
 export async function scanProjects(rootPath: string): Promise<ProjectSummary[]> {
-  const repoPaths = await findGitRepos(path.resolve(rootPath));
-  const projects = await Promise.all(repoPaths.map(readProjectSummary));
+  const resolvedRoot = path.resolve(rootPath);
+  const repoPaths = await findGitRepos(resolvedRoot);
+  const projects = await Promise.all(repoPaths.map((repoPath) => readProjectSummary(repoPath, resolvedRoot)));
 
   return projects
     .filter((project): project is ProjectSummary => project !== null)
@@ -75,7 +76,7 @@ async function findGitRepos(rootPath: string): Promise<string[]> {
   return repositories;
 }
 
-async function readProjectSummary(repoPath: string): Promise<ProjectSummary | null> {
+async function readProjectSummary(repoPath: string, rootPath: string): Promise<ProjectSummary | null> {
   const git = simpleGit(repoPath);
 
   try {
@@ -88,7 +89,7 @@ async function readProjectSummary(repoPath: string): Promise<ProjectSummary | nu
     const latest = log.latest;
 
     return {
-      id: Buffer.from(repoPath).toString("base64url"),
+      id: Buffer.from(path.relative(rootPath, repoPath)).toString("base64url"),
       name: path.basename(repoPath),
       path: repoPath,
       branch: status.current || "(detached)",
