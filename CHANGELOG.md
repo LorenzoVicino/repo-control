@@ -6,6 +6,19 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.1.7] - 2026-06-30
+
+### Added
+
+- Add a Docker control center that groups running containers by Compose project.
+- Add a stop action for Docker Compose groups from the dashboard.
+- Add collapsible repository sections for favorites and workspace groups.
+
+### Changed
+
+- Move the workspace picker into the top toolbar next to the command palette.
+- Replace the toolbar image logo with a compact gradient text wordmark.
+
 ## [0.1.6] - 2026-06-30
 
 ### Added
