@@ -280,18 +280,30 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
             sx={{ gridArea: "brand", minWidth: 0, m: 0, overflow: "hidden" }}
           >
             <Box
-              component="img"
-              src="/repo-control.png"
-              alt="repo-control"
+              aria-label="repo-control"
+              role="img"
               sx={{
-                display: "block",
-                height: { xs: 34, sm: 40, md: 44 },
-                width: "auto",
-                maxWidth: { xs: 170, sm: 230, md: 280 },
-                objectFit: "contain",
+                width: { xs: 154, sm: 220, md: 260 },
+                height: { xs: 40, sm: 48, md: 54 },
+                overflow: "hidden",
+                borderRadius: 0.75,
                 flexShrink: 0
               }}
-            />
+            >
+              <Box
+                component="img"
+                src="/repo-control.png"
+                alt=""
+                aria-hidden="true"
+                sx={{
+                  display: "block",
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  objectPosition: "center"
+                }}
+              />
+            </Box>
           </Stack>
 
           <Box
