@@ -6,6 +6,8 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.1.5] - 2026-06-30
+
 ### Added
 
 - Poll for newer release tags every 5 minutes and enable the in-app update button only when a newer release is available.
