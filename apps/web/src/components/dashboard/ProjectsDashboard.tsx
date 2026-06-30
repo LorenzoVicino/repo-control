@@ -27,26 +27,30 @@ import { useQuery } from "@tanstack/react-query";
 import React from "react";
 import {
   fetchAppUpdateStatus,
+  fetchDockerContainers,
   fetchPreferences,
   fetchProjects,
   pickWorkspaceFolder,
   setRootPath,
+  stopDockerContainers,
   updatePreferences,
   updateRepoControl
 } from "../../api/client";
 import { APP_VERSION } from "../../config";
 import { AppUpdateDialog } from "./AppUpdateDialog";
+import { ControlCenter } from "./ControlCenter";
 import { ProjectTable } from "./ProjectTable";
 import { RepositoryCommandPalette } from "./RepositoryCommandPalette";
-import { WorkspacePickerBar } from "./WorkspacePickerBar";
 import { FavoriteProjects, WorkspaceMap } from "./WorkspaceMap";
+import { WorkspaceToolbarPicker } from "./WorkspaceToolbarPicker";
 import { ProjectOverlay } from "../project/ProjectOverlay";
-import type { AppUpdateResult, AppUpdateStatus, ColorMode, ViewMode } from "../../types";
+import type { AppUpdateResult, AppUpdateStatus, ColorMode, DockerContainerGroup, ViewMode } from "../../types";
 import { commandErrorResult } from "../../utils/commandResult";
 import { filterProjects, isProject } from "../../utils/projects";
 
 const LEGACY_FAVORITE_PROJECTS_STORAGE_KEY = "repo-control-favorite-projects";
 const APP_UPDATE_POLL_INTERVAL_MS = 5 * 60 * 1000;
+const DOCKER_POLL_INTERVAL_MS = 30 * 1000;
 const updateAvailablePulse = keyframes`
   0% {
     box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.36);
@@ -77,10 +81,22 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
   const [openProjectIds, setOpenProjectIds] = React.useState<string[]>([]);
   const [activeProjectId, setActiveProjectId] = React.useState<string | null>(null);
   const [isProjectOverlayOpen, setIsProjectOverlayOpen] = React.useState(false);
+  const [stoppingDockerGroupId, setStoppingDockerGroupId] = React.useState<string | null>(null);
+  const [dockerActionError, setDockerActionError] = React.useState<string | null>(null);
 
   const { data, isFetching, isLoading, refetch } = useQuery({
     queryKey: ["projects"],
     queryFn: fetchProjects
+  });
+  const {
+    data: dockerStatus,
+    isFetching: isFetchingDocker,
+    isLoading: isLoadingDocker,
+    refetch: refetchDockerContainers
+  } = useQuery({
+    queryKey: ["docker-containers"],
+    queryFn: fetchDockerContainers,
+    refetchInterval: DOCKER_POLL_INTERVAL_MS
   });
   const { data: preferences } = useQuery({
     queryKey: ["preferences"],
@@ -244,6 +260,20 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
     }
   }
 
+  async function handleStopDockerGroup(group: DockerContainerGroup) {
+    setStoppingDockerGroupId(group.id);
+    setDockerActionError(null);
+
+    try {
+      await stopDockerContainers(group.containers.map((container) => container.id));
+      await refetchDockerContainers();
+    } catch (error) {
+      setDockerActionError(error instanceof Error ? error.message : "Unable to stop Docker containers");
+    } finally {
+      setStoppingDockerGroupId(null);
+    }
+  }
+
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
       <AppBar
@@ -260,7 +290,7 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
             display: "grid",
             gridTemplateColumns: {
               xs: "minmax(0, 1fr) auto",
-              md: "minmax(180px, 320px) minmax(280px, 1fr) auto"
+              md: "minmax(150px, 210px) minmax(0, 1fr) auto"
             },
             gridTemplateAreas: {
               xs: '"brand actions" "command command"',
@@ -277,32 +307,34 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
             component="h1"
             direction="row"
             alignItems="center"
-            sx={{ gridArea: "brand", minWidth: 0, m: 0, overflow: "hidden" }}
+            justifyContent="flex-start"
+            sx={{
+              gridArea: "brand",
+              justifySelf: "start",
+              minWidth: 0,
+              m: 0,
+              pl: { xs: 0.75, sm: 1 },
+              overflow: "hidden"
+            }}
           >
             <Box
-              aria-label="repo-control"
-              role="img"
+              component="span"
               sx={{
-                width: { xs: 154, sm: 220, md: 260 },
-                height: { xs: 40, sm: 48, md: 54 },
-                overflow: "hidden",
-                borderRadius: 0.75,
-                flexShrink: 0
+                display: "block",
+                flexShrink: 0,
+                fontFamily: "monospace",
+                fontSize: { xs: 19, sm: 22, md: 24 },
+                fontWeight: 900,
+                lineHeight: 1,
+                letterSpacing: 0,
+                whiteSpace: "nowrap",
+                background: "linear-gradient(90deg, #28b8ff 0%, #1297ff 42%, #28e6cf 68%, #38f0a6 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                textShadow: "0 0 16px rgba(40, 184, 255, 0.22)"
               }}
             >
-              <Box
-                component="img"
-                src="/repo-control.png"
-                alt=""
-                aria-hidden="true"
-                sx={{
-                  display: "block",
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  objectPosition: "center"
-                }}
-              />
+              repo-control
             </Box>
           </Stack>
 
@@ -310,10 +342,20 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
             sx={{
               gridArea: "command",
               justifySelf: { xs: "stretch", md: "center" },
-              width: { xs: "100%", md: "min(100%, 680px)" },
-              maxWidth: 760
+              width: { xs: "100%", md: "min(100%, 980px)" },
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "minmax(180px, 300px) minmax(260px, 1fr)" },
+              alignItems: "center",
+              gap: 0.75
             }}
           >
+            <WorkspaceToolbarPicker
+              root={workspaceRoot}
+              error={rootError}
+              isPicking={isPickingRoot}
+              onPick={handleFolderPick}
+            />
+
             <TextField
               fullWidth
               size="small"
@@ -451,11 +493,18 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
 
       <Container maxWidth={false} sx={{ py: 3 }}>
         <Stack spacing={2.5}>
-          <WorkspacePickerBar
-            root={workspaceRoot}
-            error={rootError}
-            isPicking={isPickingRoot}
-            onPick={handleFolderPick}
+          <ControlCenter
+            dockerStatus={dockerStatus}
+            isLoadingDocker={isLoadingDocker}
+            isRefreshingDocker={isFetchingDocker}
+            onRefreshDocker={() => {
+              void refetchDockerContainers();
+            }}
+            stoppingDockerGroupId={stoppingDockerGroupId}
+            dockerActionError={dockerActionError}
+            onStopDockerGroup={(group) => {
+              void handleStopDockerGroup(group);
+            }}
           />
 
           <FavoriteProjects
