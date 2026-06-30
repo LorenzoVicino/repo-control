@@ -266,8 +266,8 @@ const gitRefSchema = z
   .refine(isSafeGitRef, "Invalid branch name");
 
 async function resolveProjectPath(id: string): Promise<string> {
-  const decodedPath = Buffer.from(id, "base64url").toString("utf8");
-  const projectPath = path.resolve(decodedPath);
+  const decodedRelPath = Buffer.from(id, "base64url").toString("utf8");
+  const projectPath = path.resolve(activeRootPath, decodedRelPath);
   const relativePath = path.relative(activeRootPath, projectPath);
 
   if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
