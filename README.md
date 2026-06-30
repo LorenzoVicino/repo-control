@@ -70,6 +70,7 @@ Copy `.env.example` if you want to keep local settings outside the command line.
 | --- | --- | --- |
 | `HOST` | `127.0.0.1` | API host. Keep this local unless you know exactly what you are exposing. |
 | `PORT` | `3747` | API port. |
+| `LOG_LEVEL` | `error` | Server log level. Request/response logs are disabled by default. |
 | `REPO_CONTROL_ROOT` | current directory | Workspace folder scanned for Git repositories. |
 | `REPO_CONTROL_CONFIG_DIR` | OS user config folder | Optional directory for local preferences. |
 | `REPO_CONTROL_SHELL` | auto-detect | Optional shell used by the embedded terminal command runner. |

@@ -6,6 +6,8 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.1.6] - 2026-06-30
+
 ### Added
 
 - Allow toggling repository favorites from the project detail modal.
@@ -13,6 +15,8 @@ This project follows semantic versioning where practical.
 ### Changed
 
 - Make the update button more visible when a newer release is available.
+- Focus the command palette search input immediately when opening it from the top search bar.
+- Replace noisy server request logs with an ASCII startup banner and error-only API logging.
 - Stop tracking `package-lock.json` so local `npm install` runs do not create noisy diffs.
 
 ## [0.1.5] - 2026-06-30

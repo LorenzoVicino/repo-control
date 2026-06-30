@@ -20,15 +20,33 @@ import {
 const envSchema = z.object({
   HOST: z.string().default("127.0.0.1"),
   PORT: z.coerce.number().default(3747),
+  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("error"),
   REPO_CONTROL_ROOT: z.string().default(process.cwd())
 });
 
 const env = envSchema.parse(process.env);
-const app = Fastify({ logger: true });
+const app = Fastify({
+  disableRequestLogging: true,
+  logger: {
+    level: env.LOG_LEVEL
+  }
+});
 let activeRootPath = resolveRootInput(env.REPO_CONTROL_ROOT);
 
 await app.register(cors, {
   origin: ["http://127.0.0.1:5173", "http://localhost:5173"]
+});
+
+app.addHook("onError", async (request, reply, error) => {
+  request.log.error(
+    {
+      err: error,
+      method: request.method,
+      statusCode: reply.statusCode,
+      url: request.url
+    },
+    "API error"
+  );
 });
 
 app.get("/api/health", async () => ({
@@ -839,4 +857,23 @@ function appendOutput(current: string, next: string): string {
   return combined.length > maxLength ? combined.slice(combined.length - maxLength) : combined;
 }
 
+function getStartupBanner(): string {
+  const apiHost = env.HOST === "127.0.0.1" ? "localhost" : env.HOST;
+
+  return String.raw`
+                                      __             __
+   ________  ____  ____        _____/ /_____  ____  / /
+  / ___/ _ \/ __ \/ __ \______/ ___/ __/ __ \/ __ \/ /
+ / /  /  __/ /_/ / /_/ /_____/ /__/ /_/ /_/ / /_/ / /
+/_/   \___/ .___/\____/      \___/\__/\____/\____/_/
+         /_/
+
+  UI       http://localhost:5173
+  API      http://${apiHost}:${env.PORT}
+  Root     ${activeRootPath}
+  Logs     errors only
+`.trimStart();
+}
+
 await app.listen({ host: env.HOST, port: env.PORT });
+console.log(getStartupBanner());

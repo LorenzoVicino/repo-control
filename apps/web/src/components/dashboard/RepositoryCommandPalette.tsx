@@ -36,6 +36,7 @@ export function RepositoryCommandPalette({
   onOpenProject
 }: RepositoryCommandPaletteProps) {
   const [activeIndex, setActiveIndex] = React.useState(0);
+  const searchInputRef = React.useRef<HTMLInputElement | null>(null);
   const results = React.useMemo(() => filterProjects(projects, query).slice(0, MAX_RESULTS), [projects, query]);
 
   React.useEffect(() => {
@@ -43,6 +44,26 @@ export function RepositoryCommandPalette({
       setActiveIndex(0);
     }
   }, [open, query]);
+
+  React.useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const focusTimer = window.setTimeout(focusSearchInput, 0);
+    return () => window.clearTimeout(focusTimer);
+  }, [open]);
+
+  function focusSearchInput() {
+    const input = searchInputRef.current;
+
+    if (!input) {
+      return;
+    }
+
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
 
   function openActiveProject() {
     const project = results[activeIndex];
@@ -84,10 +105,14 @@ export function RepositoryCommandPalette({
           overflow: "hidden"
         }
       }}
+      TransitionProps={{
+        onEntered: focusSearchInput
+      }}
     >
       <DialogContent sx={{ p: 0 }}>
         <TextField
           autoFocus
+          inputRef={searchInputRef}
           fullWidth
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
