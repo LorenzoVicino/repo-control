@@ -2,6 +2,7 @@ import type {
   AppUpdateResult,
   AppUpdateStatus,
   CommandResult,
+  DockerContainersResponse,
   GitDetails,
   ProjectsResponse,
   UserPreferences
@@ -168,4 +169,32 @@ export async function fetchProjects(): Promise<ProjectsResponse> {
   }
 
   return response.json();
+}
+
+export async function fetchDockerContainers(): Promise<DockerContainersResponse> {
+  const response = await fetch("/api/docker/containers");
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message ?? "Unable to load Docker containers");
+  }
+
+  return payload as DockerContainersResponse;
+}
+
+export async function stopDockerContainers(containerIds: string[]): Promise<CommandResult> {
+  const response = await fetch("/api/docker/containers/stop", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ containerIds })
+  });
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message ?? "Unable to stop Docker containers");
+  }
+
+  return payload as CommandResult;
 }

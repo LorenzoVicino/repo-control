@@ -6,6 +6,7 @@ import path from "node:path";
 import { simpleGit } from "simple-git";
 import type { StatusResult } from "simple-git";
 import { z } from "zod";
+import { readRunningDockerContainers, stopDockerContainers } from "./docker.js";
 import { openNativeFolderPicker } from "./folderPicker.js";
 import { scanProjects } from "./gitScanner.js";
 import { readPreferences, writePreferences } from "./preferences.js";
@@ -58,6 +59,18 @@ app.get("/api/projects", async () => ({
   root: activeRootPath,
   projects: await scanProjects(activeRootPath)
 }));
+
+app.get("/api/docker/containers", async () => readRunningDockerContainers(activeRootPath, runProjectCommand));
+
+app.post("/api/docker/containers/stop", async (request) => {
+  const body = z
+    .object({
+      containerIds: z.array(z.string().regex(/^[a-f0-9]{12,64}$/i)).min(1).max(100)
+    })
+    .parse(request.body);
+
+  return stopDockerContainers(activeRootPath, body.containerIds, runProjectCommand);
+});
 
 app.get("/api/preferences", async () => readPreferences());
 
