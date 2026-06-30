@@ -4,6 +4,17 @@ All notable changes to repo-control will be documented in this file.
 
 This project follows semantic versioning where practical.
 
+## Unreleased
+
+### Added
+
+- Poll for newer release tags every 5 minutes and enable the in-app update button only when a newer release is available.
+- Persist favorite repositories in a local machine preferences file outside Git.
+
+### Changed
+
+- Adapt VS Code launchers and terminal commands to the current runtime environment, including Windows PowerShell installs.
+
 ## [0.1.4] - 2026-06-29
 
 ### Added

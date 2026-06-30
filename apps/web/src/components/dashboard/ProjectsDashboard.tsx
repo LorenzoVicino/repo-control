@@ -14,7 +14,6 @@ import {
   Container,
   IconButton,
   InputAdornment,
-  Paper,
   Stack,
   TextField,
   ToggleButton,
@@ -24,17 +23,28 @@ import {
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
-import { fetchProjects, pickWorkspaceFolder, setRootPath, updateRepoControl } from "../../api/client";
+import {
+  fetchAppUpdateStatus,
+  fetchPreferences,
+  fetchProjects,
+  pickWorkspaceFolder,
+  setRootPath,
+  updatePreferences,
+  updateRepoControl
+} from "../../api/client";
 import { APP_VERSION } from "../../config";
 import { AppUpdateDialog } from "./AppUpdateDialog";
-import { DashboardMetrics } from "./DashboardMetrics";
 import { ProjectTable } from "./ProjectTable";
+import { RepositoryCommandPalette } from "./RepositoryCommandPalette";
 import { WorkspacePickerBar } from "./WorkspacePickerBar";
-import { WorkspaceMap } from "./WorkspaceMap";
+import { FavoriteProjects, WorkspaceMap } from "./WorkspaceMap";
 import { ProjectOverlay } from "../project/ProjectOverlay";
-import type { AppUpdateResult, ColorMode, ViewMode } from "../../types";
+import type { AppUpdateResult, AppUpdateStatus, ColorMode, ViewMode } from "../../types";
 import { commandErrorResult } from "../../utils/commandResult";
-import { filterProjects, getStats, isProject } from "../../utils/projects";
+import { filterProjects, isProject } from "../../utils/projects";
+
+const LEGACY_FAVORITE_PROJECTS_STORAGE_KEY = "repo-control-favorite-projects";
+const APP_UPDATE_POLL_INTERVAL_MS = 5 * 60 * 1000;
 
 type ProjectsDashboardProps = {
   colorMode: ColorMode;
@@ -49,6 +59,8 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
   const [isUpdatingApp, setIsUpdatingApp] = React.useState(false);
   const [appUpdateResult, setAppUpdateResult] = React.useState<AppUpdateResult | null>(null);
   const [isAppUpdateDialogOpen, setIsAppUpdateDialogOpen] = React.useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = React.useState(false);
+  const [favoriteProjectIds, setFavoriteProjectIds] = React.useState<string[]>([]);
   const [openProjectIds, setOpenProjectIds] = React.useState<string[]>([]);
   const [activeProjectId, setActiveProjectId] = React.useState<string | null>(null);
   const [isProjectOverlayOpen, setIsProjectOverlayOpen] = React.useState(false);
@@ -57,6 +69,21 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
     queryKey: ["projects"],
     queryFn: fetchProjects
   });
+  const { data: preferences } = useQuery({
+    queryKey: ["preferences"],
+    queryFn: fetchPreferences
+  });
+  const {
+    data: appUpdateStatus,
+    error: appUpdateStatusError,
+    isFetching: isCheckingAppUpdate,
+    isLoading: isLoadingAppUpdateStatus,
+    refetch: refetchAppUpdateStatus
+  } = useQuery({
+    queryKey: ["app-update-status"],
+    queryFn: fetchAppUpdateStatus,
+    refetchInterval: APP_UPDATE_POLL_INTERVAL_MS
+  });
 
   const projects = data?.projects ?? [];
   const filteredProjects = React.useMemo(() => filterProjects(projects, search), [projects, search]);
@@ -64,8 +91,50 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
     () => openProjectIds.map((projectId) => projects.find((project) => project.id === projectId)).filter(isProject),
     [openProjectIds, projects]
   );
-  const stats = React.useMemo(() => getStats(projects), [projects]);
   const workspaceRoot = data?.root ?? "";
+  const canUpdateApp = Boolean(appUpdateStatus?.updateAvailable) && !isUpdatingApp;
+  const appUpdateTooltip = getAppUpdateTooltip(
+    appUpdateStatus,
+    isLoadingAppUpdateStatus || (isCheckingAppUpdate && !appUpdateStatus),
+    appUpdateStatusError,
+    isUpdatingApp
+  );
+
+  React.useEffect(() => {
+    if (!preferences) {
+      return;
+    }
+
+    const legacyFavoriteProjectIds = getLegacyFavoriteProjectIds();
+    const shouldMigrateLegacyPreferences =
+      preferences.favoriteProjectIds.length === 0 && legacyFavoriteProjectIds.length > 0;
+    const nextFavoriteProjectIds = shouldMigrateLegacyPreferences
+      ? legacyFavoriteProjectIds
+      : preferences.favoriteProjectIds;
+
+    setFavoriteProjectIds(nextFavoriteProjectIds);
+
+    if (shouldMigrateLegacyPreferences) {
+      void updatePreferences({ favoriteProjectIds: nextFavoriteProjectIds }).then(() => {
+        window.localStorage.removeItem(LEGACY_FAVORITE_PROJECTS_STORAGE_KEY);
+      });
+      return;
+    }
+
+    window.localStorage.removeItem(LEGACY_FAVORITE_PROJECTS_STORAGE_KEY);
+  }, [preferences]);
+
+  React.useEffect(() => {
+    function handleGlobalKeyDown(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "p") {
+        event.preventDefault();
+        setIsCommandPaletteOpen(true);
+      }
+    }
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
 
   function handleViewChange(_: React.MouseEvent<HTMLElement>, nextMode: ViewMode | null) {
     if (nextMode) {
@@ -79,6 +148,25 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
     );
     setActiveProjectId(projectId);
     setIsProjectOverlayOpen(true);
+  }
+
+  function toggleFavoriteProject(projectId: string) {
+    setFavoriteProjectIds((currentProjectIds) => {
+      const nextProjectIds = currentProjectIds.includes(projectId)
+        ? currentProjectIds.filter((currentProjectId) => currentProjectId !== projectId)
+        : [...currentProjectIds, projectId];
+
+      void saveFavoriteProjectIds(nextProjectIds, currentProjectIds);
+      return nextProjectIds;
+    });
+  }
+
+  async function saveFavoriteProjectIds(nextProjectIds: string[], rollbackProjectIds: string[]) {
+    try {
+      await updatePreferences({ favoriteProjectIds: nextProjectIds });
+    } catch {
+      setFavoriteProjectIds(rollbackProjectIds);
+    }
   }
 
   function closeProject(projectId: string) {
@@ -128,11 +216,16 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
     try {
       const result = await updateRepoControl();
       setAppUpdateResult(result);
+
+      if (!result.restartScheduled) {
+        void refetchAppUpdateStatus();
+      }
     } catch (error) {
       setAppUpdateResult({
         ...commandErrorResult("update repo-control", error),
         restartScheduled: false
       });
+      void refetchAppUpdateStatus();
     } finally {
       setIsUpdatingApp(false);
     }
@@ -140,54 +233,175 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
-      <AppBar position="static" color="inherit" elevation={0}>
-        <Toolbar sx={{ borderBottom: "1px solid", borderColor: "divider", gap: 1.5 }}>
-          <Stack component="h1" direction="row" alignItems="center" sx={{ flexGrow: 1, minWidth: 0, m: 0 }}>
+      <AppBar
+        position="sticky"
+        color="inherit"
+        elevation={0}
+        sx={{ top: 0, zIndex: (theme) => theme.zIndex.drawer + 1 }}
+      >
+        <Toolbar
+          sx={{
+            minHeight: { xs: "auto", md: 58 },
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr) auto",
+              md: "minmax(180px, 320px) minmax(280px, 1fr) auto"
+            },
+            gridTemplateAreas: {
+              xs: '"brand actions" "command command"',
+              md: '"brand command actions"'
+            },
+            alignItems: "center",
+            gap: { xs: 1, md: 1.5 },
+            px: { xs: 1.25, sm: 2 },
+            py: { xs: 1, md: 0 },
+            bgcolor: colorMode === "dark" ? "#181818" : "#f3f3f3"
+          }}
+        >
+          <Stack
+            component="h1"
+            direction="row"
+            alignItems="center"
+            sx={{ gridArea: "brand", minWidth: 0, m: 0, overflow: "hidden" }}
+          >
             <Box
               component="img"
               src="/repo-control.png"
               alt="repo-control"
               sx={{
                 display: "block",
-                height: { xs: 36, sm: 48, md: 56 },
+                height: { xs: 34, sm: 40, md: 44 },
                 width: "auto",
-                maxWidth: { xs: 176, sm: 280, md: 340 },
+                maxWidth: { xs: 170, sm: 230, md: 280 },
                 objectFit: "contain",
                 flexShrink: 0
               }}
             />
           </Stack>
-          <Chip size="small" variant="outlined" label={`v${APP_VERSION}`} />
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={isUpdatingApp ? <CircularProgress color="inherit" size={16} /> : <SyncIcon fontSize="small" />}
-            onClick={handleAppUpdate}
-            disabled={isUpdatingApp}
-            sx={{ minWidth: 104 }}
+
+          <Box
+            sx={{
+              gridArea: "command",
+              justifySelf: { xs: "stretch", md: "center" },
+              width: { xs: "100%", md: "min(100%, 680px)" },
+              maxWidth: 760
+            }}
           >
-            Aggiorna
-          </Button>
-          <ToggleButtonGroup value={viewMode} exclusive size="small" onChange={handleViewChange} aria-label="View mode">
-            <ToggleButton value="map" aria-label="Workspace map">
-              <ViewModuleIcon fontSize="small" />
-            </ToggleButton>
-            <ToggleButton value="table" aria-label="Table view">
-              <TableRowsIcon fontSize="small" />
-            </ToggleButton>
-          </ToggleButtonGroup>
-          <Tooltip title="Refresh projects">
-            <span>
-              <IconButton onClick={() => refetch()} disabled={isFetching} aria-label="Refresh projects">
-                {isFetching ? <CircularProgress size={20} /> : <RefreshIcon />}
+            <TextField
+              fullWidth
+              size="small"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              onFocus={() => setIsCommandPaletteOpen(true)}
+              onClick={() => setIsCommandPaletteOpen(true)}
+              placeholder="Cerca repository (Ctrl+P)"
+              variant="outlined"
+              inputProps={{ "aria-label": "Apri command palette repository" }}
+              InputProps={{
+                readOnly: true,
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                )
+              }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  height: 36,
+                  borderRadius: 1,
+                  bgcolor: colorMode === "dark" ? "#2b2b2b" : "#ffffff",
+                  cursor: "pointer",
+                  fontSize: "0.875rem",
+                  "& fieldset": {
+                    borderColor: colorMode === "dark" ? "#3c3c3c" : "#d0d0d0"
+                  },
+                  "&:hover fieldset": {
+                    borderColor: "primary.main"
+                  },
+                  "&.Mui-focused fieldset": {
+                    borderWidth: 1
+                  }
+                },
+                "& .MuiInputBase-input": {
+                  cursor: "pointer"
+                }
+              }}
+            />
+          </Box>
+
+          <Stack
+            direction="row"
+            spacing={0.75}
+            alignItems="center"
+            justifyContent="flex-end"
+            sx={{ gridArea: "actions", justifySelf: "end", minWidth: 0 }}
+          >
+            <Chip
+              size="small"
+              variant="outlined"
+              color={appUpdateStatus?.updateAvailable ? "primary" : "default"}
+              label={`v${APP_VERSION}`}
+              sx={{ display: { xs: "none", sm: "flex" } }}
+            />
+            <Tooltip title={appUpdateTooltip}>
+              <span>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color={appUpdateStatus?.updateAvailable ? "primary" : "inherit"}
+                  startIcon={
+                    isUpdatingApp || (isCheckingAppUpdate && !appUpdateStatus) ? (
+                      <CircularProgress color="inherit" size={16} />
+                    ) : (
+                      <SyncIcon fontSize="small" />
+                    )
+                  }
+                  onClick={handleAppUpdate}
+                  disabled={!canUpdateApp}
+                  sx={{
+                    minWidth: { xs: 36, sm: 104 },
+                    px: { xs: 1, sm: 1.5 },
+                    "& .MuiButton-startIcon": {
+                      ml: 0,
+                      mr: { xs: 0, sm: 0.75 }
+                    }
+                  }}
+                >
+                  <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                    Aggiorna
+                  </Box>
+                </Button>
+              </span>
+            </Tooltip>
+            <ToggleButtonGroup
+              value={viewMode}
+              exclusive
+              size="small"
+              onChange={handleViewChange}
+              aria-label="View mode"
+            >
+              <ToggleButton value="map" aria-label="Workspace map">
+                <ViewModuleIcon fontSize="small" />
+              </ToggleButton>
+              <ToggleButton value="table" aria-label="Table view">
+                <TableRowsIcon fontSize="small" />
+              </ToggleButton>
+            </ToggleButtonGroup>
+            <Tooltip title="Refresh projects">
+              <span>
+                <IconButton onClick={() => refetch()} disabled={isFetching} aria-label="Refresh projects" size="small">
+                  {isFetching ? <CircularProgress size={20} /> : <RefreshIcon fontSize="small" />}
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title={colorMode === "light" ? "Switch to dark mode" : "Switch to light mode"}>
+              <IconButton onClick={onToggleColorMode} aria-label="Toggle color mode" size="small">
+                {colorMode === "light" ? <DarkModeIcon fontSize="small" /> : <LightModeIcon fontSize="small" />}
               </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title={colorMode === "light" ? "Switch to dark mode" : "Switch to light mode"}>
-            <IconButton onClick={onToggleColorMode} aria-label="Toggle color mode">
-              {colorMode === "light" ? <DarkModeIcon /> : <LightModeIcon />}
-            </IconButton>
-          </Tooltip>
+            </Tooltip>
+          </Stack>
         </Toolbar>
       </AppBar>
 
@@ -200,41 +414,45 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
             onPick={handleFolderPick}
           />
 
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={1.5}
-            alignItems={{ md: "center" }}
-            justifyContent="center"
-          >
-            <TextField
-              size="small"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Cerca repo, branch o path"
-              sx={{ width: { xs: "100%", md: 520 } }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                )
-              }}
-            />
-            <Chip label={`${filteredProjects.length}/${projects.length} repositories`} variant="outlined" />
-          </Stack>
-
-          <DashboardMetrics stats={stats} />
+          <FavoriteProjects
+            projects={projects}
+            favoriteProjectIds={favoriteProjectIds}
+            onSelectProject={openProject}
+            onToggleFavorite={toggleFavoriteProject}
+          />
 
           {isLoading ? (
-            <Paper variant="outlined" sx={{ display: "grid", placeItems: "center", minHeight: 320 }}>
+            <Box
+              sx={{
+                display: "grid",
+                placeItems: "center",
+                minHeight: 320,
+                borderTop: "1px solid",
+                borderBottom: "1px solid",
+                borderColor: "divider"
+              }}
+            >
               <CircularProgress />
-            </Paper>
+            </Box>
           ) : viewMode === "map" ? (
-            <WorkspaceMap root={data?.root ?? ""} projects={filteredProjects} onSelectProject={openProject} />
+            <WorkspaceMap
+              root={data?.root ?? ""}
+              projects={filteredProjects}
+              favoriteProjectIds={favoriteProjectIds}
+              onSelectProject={openProject}
+              onToggleFavorite={toggleFavoriteProject}
+            />
           ) : (
-            <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+            <Box
+              sx={{
+                overflow: "hidden",
+                borderTop: "1px solid",
+                borderBottom: "1px solid",
+                borderColor: "divider"
+              }}
+            >
               <ProjectTable projects={filteredProjects} onSelectProject={openProject} />
-            </Paper>
+            </Box>
           )}
 
           <ProjectOverlay
@@ -245,6 +463,15 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
             onCloseProject={closeProject}
             onCloseOverlay={() => setIsProjectOverlayOpen(false)}
             onRefresh={() => refetch()}
+          />
+
+          <RepositoryCommandPalette
+            open={isCommandPaletteOpen}
+            projects={projects}
+            query={search}
+            onQueryChange={setSearch}
+            onClose={() => setIsCommandPaletteOpen(false)}
+            onOpenProject={openProject}
           />
         </Stack>
       </Container>
@@ -257,4 +484,50 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
       />
     </Box>
   );
+}
+
+function getAppUpdateTooltip(
+  status: AppUpdateStatus | undefined,
+  isLoading: boolean,
+  error: unknown,
+  isUpdating: boolean
+): string {
+  if (isUpdating) {
+    return "Aggiornamento in corso";
+  }
+
+  if (isLoading) {
+    return "Controllo nuove release in corso";
+  }
+
+  if (status?.updateAvailable && status.latestVersion) {
+    return `Nuova release disponibile: v${status.latestVersion}`;
+  }
+
+  if (status?.error) {
+    return `Controllo release non disponibile: ${status.error}`;
+  }
+
+  if (error instanceof Error) {
+    return `Controllo release non riuscito: ${error.message}`;
+  }
+
+  return "Nessuna nuova release disponibile";
+}
+
+function getLegacyFavoriteProjectIds(): string[] {
+  const storedProjectIds = window.localStorage.getItem(LEGACY_FAVORITE_PROJECTS_STORAGE_KEY);
+
+  if (!storedProjectIds) {
+    return [];
+  }
+
+  try {
+    const parsedProjectIds = JSON.parse(storedProjectIds);
+    return Array.isArray(parsedProjectIds)
+      ? parsedProjectIds.filter((projectId): projectId is string => typeof projectId === "string")
+      : [];
+  } catch {
+    return [];
+  }
 }

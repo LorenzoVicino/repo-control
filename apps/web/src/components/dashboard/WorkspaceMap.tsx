@@ -1,26 +1,45 @@
-import { Box, Chip, Paper, Stack, Typography, useTheme } from "@mui/material";
+import StarIcon from "@mui/icons-material/Star";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
+import { Box, Chip, IconButton, Paper, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import type { ReactNode } from "react";
 import type { ProjectSummary } from "../../types";
 import { getProjectTone, groupProjects } from "../../utils/projects";
 
 type WorkspaceMapProps = {
   root: string;
   projects: ProjectSummary[];
+  favoriteProjectIds: string[];
   onSelectProject: (projectId: string) => void;
+  onToggleFavorite: (projectId: string) => void;
 };
 
-export function WorkspaceMap({ root, projects, onSelectProject }: WorkspaceMapProps) {
+export function WorkspaceMap({
+  root,
+  projects,
+  favoriteProjectIds,
+  onSelectProject,
+  onToggleFavorite
+}: WorkspaceMapProps) {
   const groups = groupProjects(projects, root);
 
   if (projects.length === 0) {
     return (
-      <Paper variant="outlined" sx={{ p: 4, textAlign: "center" }}>
+      <Box
+        sx={{
+          p: 4,
+          textAlign: "center",
+          borderTop: "1px solid",
+          borderBottom: "1px solid",
+          borderColor: "divider"
+        }}
+      >
         <Typography>No Git repositories found.</Typography>
-      </Paper>
+      </Box>
     );
   }
 
   return (
-    <Stack spacing={3}>
+    <Stack spacing={2.5}>
       {groups.map((group) => (
         <Box key={group.label}>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.25 }}>
@@ -29,19 +48,22 @@ export function WorkspaceMap({ root, projects, onSelectProject }: WorkspaceMapPr
           </Stack>
           <Box
             sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                sm: "repeat(2, minmax(0, 1fr))",
-                lg: "repeat(3, minmax(0, 1fr))",
-                xl: "repeat(4, minmax(0, 1fr))"
-              },
-              gap: 1.5
+              borderTop: "1px solid",
+              borderColor: "divider",
+              pt: 1.25
             }}
           >
-            {group.projects.map((project) => (
-              <ProjectNode key={project.id} project={project} onClick={() => onSelectProject(project.id)} />
-            ))}
+            <ProjectCardGrid>
+              {group.projects.map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  isFavorite={favoriteProjectIds.includes(project.id)}
+                  onClick={() => onSelectProject(project.id)}
+                  onToggleFavorite={() => onToggleFavorite(project.id)}
+                />
+              ))}
+            </ProjectCardGrid>
           </Box>
         </Box>
       ))}
@@ -49,36 +71,123 @@ export function WorkspaceMap({ root, projects, onSelectProject }: WorkspaceMapPr
   );
 }
 
-type ProjectNodeProps = {
-  project: ProjectSummary;
-  onClick: () => void;
+type FavoriteProjectsProps = {
+  projects: ProjectSummary[];
+  favoriteProjectIds: string[];
+  onSelectProject: (projectId: string) => void;
+  onToggleFavorite: (projectId: string) => void;
 };
 
-function ProjectNode({ project, onClick }: ProjectNodeProps) {
+export function FavoriteProjects({
+  projects,
+  favoriteProjectIds,
+  onSelectProject,
+  onToggleFavorite
+}: FavoriteProjectsProps) {
+  const favoriteProjects = projects.filter((project) => favoriteProjectIds.includes(project.id));
+
+  return (
+    <Box>
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.25 }}>
+        <Typography variant="h2">Preferiti</Typography>
+        <Chip size="small" label={favoriteProjects.length} variant="outlined" />
+      </Stack>
+
+      {favoriteProjects.length > 0 ? (
+        <ProjectCardGrid>
+          {favoriteProjects.map((project) => (
+            <ProjectCard
+              key={project.id}
+              project={project}
+              isFavorite
+              onClick={() => onSelectProject(project.id)}
+              onToggleFavorite={() => onToggleFavorite(project.id)}
+            />
+          ))}
+        </ProjectCardGrid>
+      ) : (
+        <Box
+          sx={{
+            p: 2,
+            border: "1px dashed",
+            borderColor: "divider",
+            borderRadius: 1,
+            color: "text.secondary"
+          }}
+        >
+          <Typography variant="body2">Nessun repository preferito.</Typography>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+type ProjectCardGridProps = {
+  children: ReactNode;
+};
+
+function ProjectCardGrid({ children }: ProjectCardGridProps) {
+  return (
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: {
+          xs: "1fr",
+          sm: "repeat(2, minmax(0, 1fr))",
+          lg: "repeat(3, minmax(0, 1fr))",
+          xl: "repeat(4, minmax(0, 1fr))"
+        },
+        gap: 1.25
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
+
+type ProjectCardProps = {
+  project: ProjectSummary;
+  isFavorite: boolean;
+  onClick: () => void;
+  onToggleFavorite: () => void;
+};
+
+function ProjectCard({ project, isFavorite, onClick, onToggleFavorite }: ProjectCardProps) {
   const theme = useTheme();
   const tone = getProjectTone(project, theme.palette.mode);
+  const localChanges = project.modified + project.staged + project.untracked;
 
   return (
     <Paper
-      component="button"
-      type="button"
-      variant="outlined"
+      role="button"
+      tabIndex={0}
+      aria-label={`Apri ${project.name}`}
       onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
       sx={{
-        minHeight: 150,
+        minHeight: 132,
         width: "100%",
         p: 1.5,
         textAlign: "left",
-        borderLeft: `5px solid ${tone.borderColor}`,
-        background: tone.background,
+        border: "1px solid",
+        borderColor: "divider",
+        borderLeft: `3px solid ${tone.borderColor}`,
+        bgcolor: "background.paper",
         cursor: "pointer",
-        transition: "border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease",
+        transition: "border-color 120ms ease, background-color 120ms ease",
         "&:hover": {
-          boxShadow:
-            theme.palette.mode === "light"
-              ? "0 8px 24px rgba(15, 23, 42, 0.12)"
-              : "0 8px 24px rgba(0, 0, 0, 0.42)",
-          transform: "translateY(-1px)"
+          borderColor: tone.borderColor,
+          bgcolor: theme.palette.action.hover
+        },
+        "&:focus-visible": {
+          outline: "2px solid",
+          outlineColor: "primary.main",
+          outlineOffset: -2
         }
       }}
     >
@@ -88,25 +197,42 @@ function ProjectNode({ project, onClick }: ProjectNodeProps) {
             <Typography variant="subtitle1" sx={{ fontWeight: 800 }} noWrap>
               {project.name}
             </Typography>
-            <Typography variant="caption" color="text.secondary" noWrap component="div">
-              {project.branch}
-            </Typography>
           </Box>
-          <Chip size="small" color={tone.chipColor} label={tone.label} />
+          <Tooltip title={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}>
+            <IconButton
+              size="small"
+              color={isFavorite ? "warning" : "default"}
+              aria-label={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleFavorite();
+              }}
+              sx={{ mt: -0.5, mr: -0.5 }}
+            >
+              {isFavorite ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
         </Stack>
 
         <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-          {project.upstream ? <Chip size="small" variant="outlined" label={project.upstream} /> : null}
-          {project.ahead > 0 ? <Chip size="small" color="info" label={`ahead ${project.ahead}`} /> : null}
-          {project.behind > 0 ? <Chip size="small" color="secondary" label={`behind ${project.behind}`} /> : null}
-          {project.hasDockerCompose ? <Chip size="small" label="compose" /> : null}
+          <Chip size="small" variant="outlined" label={project.branch} />
+          {project.ahead > 0 ? <Chip size="small" color="info" label={`+${project.ahead}`} /> : null}
+          {project.behind > 0 ? <Chip size="small" color="secondary" label={`-${project.behind}`} /> : null}
+          {localChanges > 0 ? <Chip size="small" color="warning" label={`changes ${localChanges}`} /> : null}
         </Stack>
 
         <Box sx={{ flexGrow: 1 }} />
 
-        <Typography variant="caption" color="text.secondary" noWrap component="div">
-          {project.lastCommit ? `${project.lastCommit.hash} - ${project.lastCommit.message}` : "No commits"}
-        </Typography>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary" noWrap component="div">
+            {project.lastCommit ? project.lastCommit.message : "No commits"}
+          </Typography>
+          {project.lastCommit ? (
+            <Typography variant="caption" color="text.secondary" noWrap component="div">
+              {project.lastCommit.author}
+            </Typography>
+          ) : null}
+        </Box>
       </Stack>
     </Paper>
   );

@@ -1,5 +1,5 @@
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
-import { Box, Chip, CircularProgress, Paper, Stack, Typography } from "@mui/material";
+import { Box, Chip, CircularProgress, Stack, Typography } from "@mui/material";
 
 type WorkspacePickerBarProps = {
   root: string;
@@ -11,10 +11,9 @@ type WorkspacePickerBarProps = {
 export function WorkspacePickerBar({ root, error, isPicking, onPick }: WorkspacePickerBarProps) {
   return (
     <Box sx={{ display: "grid", justifyItems: "center" }}>
-      <Paper
+      <Box
         component="button"
         type="button"
-        variant="outlined"
         onClick={onPick}
         disabled={isPicking}
         aria-label="Choose workspace folder"
@@ -24,14 +23,15 @@ export function WorkspacePickerBar({ root, error, isPicking, onPick }: Workspace
           font: "inherit",
           color: "text.primary",
           textAlign: "left",
-          bgcolor: "background.paper",
+          bgcolor: "transparent",
+          border: "1px solid",
           borderColor: error ? "error.main" : "divider",
+          borderRadius: 1,
           cursor: isPicking ? "default" : "pointer",
-          transition: "border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease",
+          transition: "border-color 120ms ease, background-color 120ms ease",
           "&:hover": {
             borderColor: error ? "error.main" : "primary.main",
-            boxShadow: 3,
-            transform: isPicking ? "none" : "translateY(-1px)"
+            bgcolor: "action.hover"
           },
           "&:focus-visible": {
             outline: "2px solid",
@@ -72,7 +72,7 @@ export function WorkspacePickerBar({ root, error, isPicking, onPick }: Workspace
 
           <Chip size="small" label={isPicking ? "Apertura" : "Cambia"} color={error ? "error" : "primary"} />
         </Stack>
-      </Paper>
+      </Box>
 
       {error ? (
         <Typography color="error" variant="caption" sx={{ width: "min(100%, 920px)", mt: 0.75 }}>

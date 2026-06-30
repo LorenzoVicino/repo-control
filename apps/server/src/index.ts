@@ -8,6 +8,14 @@ import type { StatusResult } from "simple-git";
 import { z } from "zod";
 import { openNativeFolderPicker } from "./folderPicker.js";
 import { scanProjects } from "./gitScanner.js";
+import { readPreferences, writePreferences } from "./preferences.js";
+import {
+  getNpmCommand,
+  getTerminalCommand,
+  getVSCodeFailureHint,
+  getVSCodeLauncherCandidates,
+  shouldUseShellForCommand
+} from "./runtime.js";
 
 const envSchema = z.object({
   HOST: z.string().default("127.0.0.1"),
@@ -32,6 +40,20 @@ app.get("/api/projects", async () => ({
   root: activeRootPath,
   projects: await scanProjects(activeRootPath)
 }));
+
+app.get("/api/preferences", async () => readPreferences());
+
+app.put("/api/preferences", async (request) => {
+  const body = z
+    .object({
+      favoriteProjectIds: z.array(z.string().trim().min(1).max(2048)).max(2000)
+    })
+    .parse(request.body);
+
+  return writePreferences(body);
+});
+
+app.get("/api/app/update-status", async () => readAppUpdateStatus());
 
 app.post("/api/root", async (request, reply) => {
   const body = z.object({ root: z.string().min(1) }).parse(request.body);
@@ -421,21 +443,30 @@ type AppUpdateResult = CommandResult & {
   restartScheduled: boolean;
 };
 
+type AppUpdateStatus = {
+  currentVersion: string;
+  latestVersion: string | null;
+  updateAvailable: boolean;
+  checkedAt: string;
+  error: string | null;
+};
+
 let restartTimer: NodeJS.Timeout | null = null;
 
 function runProjectCommand(
   cwd: string,
   command: string,
   args: string[],
-  timeoutMs = 1000 * 60 * 3
+  timeoutMs = 1000 * 60 * 3,
+  options: { displayCommand?: string; shell?: boolean } = {}
 ): Promise<CommandResult> {
   const startedAt = Date.now();
-  const displayCommand = [command, ...args].join(" ");
+  const displayCommand = options.displayCommand ?? [command, ...args].join(" ");
 
   return new Promise((resolve) => {
     const child = spawn(command, args, {
       cwd,
-      shell: false
+      shell: options.shell ?? shouldUseShellForCommand(command)
     });
 
     let stdout = "";
@@ -485,6 +516,111 @@ function runProjectCommand(
   });
 }
 
+async function readAppUpdateStatus(): Promise<AppUpdateStatus> {
+  const appRootPath = path.resolve(process.cwd());
+  const currentVersion = await readLocalAppVersion(appRootPath);
+  const checkedAt = new Date().toISOString();
+
+  try {
+    await fs.access(path.join(appRootPath, ".git"));
+  } catch {
+    return {
+      currentVersion,
+      latestVersion: null,
+      updateAvailable: false,
+      checkedAt,
+      error: "repo-control is not running from a Git checkout"
+    };
+  }
+
+  const tags = await runProjectCommand(appRootPath, "git", ["ls-remote", "--tags", "--refs", "origin"], 1000 * 20);
+
+  if (!tags.ok) {
+    return {
+      currentVersion,
+      latestVersion: null,
+      updateAvailable: false,
+      checkedAt,
+      error: tags.output || "Unable to check remote releases"
+    };
+  }
+
+  const latestVersion = getLatestReleaseVersion(tags.stdout);
+
+  return {
+    currentVersion,
+    latestVersion,
+    updateAvailable: latestVersion ? compareVersions(latestVersion, currentVersion) > 0 : false,
+    checkedAt,
+    error: latestVersion ? null : "No semver release tags found on origin"
+  };
+}
+
+async function readLocalAppVersion(appRootPath: string): Promise<string> {
+  const packageJson = await fs.readFile(path.join(appRootPath, "package.json"), "utf8").catch(() => null);
+
+  if (!packageJson) {
+    return "0.0.0";
+  }
+
+  try {
+    const parsedPackageJson = JSON.parse(packageJson) as { version?: unknown };
+    return typeof parsedPackageJson.version === "string" ? parsedPackageJson.version : "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+
+function getLatestReleaseVersion(lsRemoteOutput: string): string | null {
+  const versions = lsRemoteOutput
+    .split("\n")
+    .map((line) => line.match(/refs\/tags\/v?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)$/)?.[1] ?? null)
+    .filter((version): version is string => version !== null)
+    .sort(compareVersions);
+
+  return versions[versions.length - 1] ?? null;
+}
+
+function compareVersions(leftVersion: string, rightVersion: string): number {
+  const left = parseVersion(leftVersion);
+  const right = parseVersion(rightVersion);
+
+  for (let index = 0; index < 3; index += 1) {
+    const difference = left.numbers[index] - right.numbers[index];
+
+    if (difference !== 0) {
+      return difference;
+    }
+  }
+
+  if (left.prerelease === right.prerelease) {
+    return 0;
+  }
+
+  if (!left.prerelease) {
+    return 1;
+  }
+
+  if (!right.prerelease) {
+    return -1;
+  }
+
+  return left.prerelease.localeCompare(right.prerelease);
+}
+
+function parseVersion(version: string): { numbers: [number, number, number]; prerelease: string } {
+  const match = version.match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?/);
+
+  return {
+    numbers: [
+      Number(match?.[1] ?? 0),
+      Number(match?.[2] ?? 0),
+      Number(match?.[3] ?? 0)
+    ],
+    prerelease: match?.[4] ?? ""
+  };
+}
+
 async function updateApplication(): Promise<AppUpdateResult> {
   const appRootPath = path.resolve(process.cwd());
   const gitDir = path.join(appRootPath, ".git");
@@ -499,6 +635,25 @@ async function updateApplication(): Promise<AppUpdateResult> {
       stdout: "",
       stderr: "repo-control is not running from a Git checkout",
       output: "repo-control is not running from a Git checkout",
+      durationMs: 0,
+      restartScheduled: false
+    };
+  }
+
+  const updateStatus = await readAppUpdateStatus();
+
+  if (!updateStatus.updateAvailable) {
+    const message = updateStatus.error
+      ? `Update unavailable: ${updateStatus.error}`
+      : `No newer release available. Current version: v${updateStatus.currentVersion}.`;
+
+    return {
+      ok: false,
+      command: "update repo-control",
+      exitCode: 0,
+      stdout: "",
+      stderr: message,
+      output: message,
       durationMs: 0,
       restartScheduled: false
     };
@@ -578,18 +733,14 @@ function scheduleServerRestart(): void {
   restartTimer.unref();
 }
 
-function getNpmCommand(): string {
-  return process.platform === "win32" ? "npm.cmd" : "npm";
-}
-
 function runShellCommand(cwd: string, commandLine: string, timeoutMs: number): Promise<CommandResult> {
   const startedAt = Date.now();
-  const shell = getDefaultShell();
+  const terminalCommand = getTerminalCommand(commandLine);
 
   return new Promise((resolve) => {
-    const child = spawn(commandLine, {
+    const child = spawn(terminalCommand.command, terminalCommand.args, {
       cwd,
-      shell,
+      shell: terminalCommand.shell ?? shouldUseShellForCommand(terminalCommand.command),
       env: {
         ...process.env,
         FORCE_COLOR: "1",
@@ -618,7 +769,7 @@ function runShellCommand(cwd: string, commandLine: string, timeoutMs: number): P
       clearTimeout(timeout);
       resolve({
         ok: false,
-        command: commandLine,
+        command: terminalCommand.displayCommand ?? commandLine,
         exitCode: null,
         stdout,
         stderr: appendOutput(stderr, error.message),
@@ -633,7 +784,7 @@ function runShellCommand(cwd: string, commandLine: string, timeoutMs: number): P
 
       resolve({
         ok: exitCode === 0 && !didTimeout,
-        command: commandLine,
+        command: terminalCommand.displayCommand ?? commandLine,
         exitCode,
         stdout,
         stderr: appendOutput(stderr, timeoutMessage),
@@ -649,7 +800,13 @@ async function openProjectInVSCode(projectPath: string): Promise<CommandResult> 
   const failures: string[] = [];
 
   for (const candidate of candidates) {
-    const result = await runProjectCommand(projectPath, candidate.command, [...candidate.args, projectPath], 1000 * 20);
+    const result = await runProjectCommand(
+      projectPath,
+      candidate.command,
+      [...candidate.args, projectPath],
+      1000 * 20,
+      { displayCommand: [candidate.command, ...candidate.args, projectPath].join(" "), shell: candidate.shell }
+    );
 
     if (result.ok) {
       return result;
@@ -666,87 +823,13 @@ async function openProjectInVSCode(projectPath: string): Promise<CommandResult> 
     stderr: failures.join("\n\n"),
     output: [
       "Unable to launch VS Code from this Node process.",
-      "Install the VS Code shell command in WSL, add it to PATH, or set REPO_CONTROL_VSCODE to the full launcher path.",
+      await getVSCodeFailureHint(),
       "",
       "Tried:",
       ...failures.map((failure) => `- ${failure.split("\n")[0]}`)
     ].join("\n"),
     durationMs: 0
   };
-}
-
-async function getVSCodeLauncherCandidates(): Promise<Array<{ command: string; args: string[] }>> {
-  const candidates: Array<{ command: string; args: string[] }> = [];
-
-  if (process.env.REPO_CONTROL_VSCODE) {
-    candidates.push({ command: process.env.REPO_CONTROL_VSCODE, args: [] });
-  }
-
-  candidates.push(
-    { command: "code", args: [] },
-    { command: "code-insiders", args: [] },
-    { command: "codium", args: [] }
-  );
-
-  for (const command of await findWindowsVSCodeLaunchers()) {
-    candidates.push({ command, args: [] });
-  }
-
-  return dedupeCandidates(candidates);
-}
-
-async function findWindowsVSCodeLaunchers(): Promise<string[]> {
-  const launchers = [
-    "/mnt/c/Program Files/Microsoft VS Code/bin/code",
-    "/mnt/c/Program Files/Microsoft VS Code Insiders/bin/code-insiders"
-  ];
-  const usersPath = "/mnt/c/Users";
-  const users = await fs.readdir(usersPath).catch(() => []);
-
-  for (const user of users) {
-    launchers.push(
-      path.join(usersPath, user, "AppData/Local/Programs/Microsoft VS Code/bin/code"),
-      path.join(usersPath, user, "AppData/Local/Programs/Microsoft VS Code Insiders/bin/code-insiders")
-    );
-  }
-
-  const checks = await Promise.all(
-    launchers.map(async (launcher) => {
-      try {
-        await fs.access(launcher);
-        return launcher;
-      } catch {
-        return null;
-      }
-    })
-  );
-
-  return checks.filter((launcher): launcher is string => launcher !== null);
-}
-
-function dedupeCandidates(
-  candidates: Array<{ command: string; args: string[] }>
-): Array<{ command: string; args: string[] }> {
-  const seen = new Set<string>();
-
-  return candidates.filter((candidate) => {
-    const key = [candidate.command, ...candidate.args].join("\0");
-
-    if (seen.has(key)) {
-      return false;
-    }
-
-    seen.add(key);
-    return true;
-  });
-}
-
-function getDefaultShell(): string {
-  if (process.platform === "win32") {
-    return process.env.ComSpec ?? "cmd.exe";
-  }
-
-  return process.env.SHELL ?? "/bin/bash";
 }
 
 function appendOutput(current: string, next: string): string {

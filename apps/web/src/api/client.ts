@@ -1,4 +1,11 @@
-import type { AppUpdateResult, CommandResult, GitDetails, ProjectsResponse } from "../types";
+import type {
+  AppUpdateResult,
+  AppUpdateStatus,
+  CommandResult,
+  GitDetails,
+  ProjectsResponse,
+  UserPreferences
+} from "../types";
 
 export async function runProjectAction(
   projectId: string,
@@ -76,6 +83,34 @@ export async function setRootPath(root: string): Promise<{ root: string }> {
   return { root: payload.root };
 }
 
+export async function fetchPreferences(): Promise<UserPreferences> {
+  const response = await fetch("/api/preferences");
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message ?? "Unable to load local preferences");
+  }
+
+  return payload as UserPreferences;
+}
+
+export async function updatePreferences(preferences: UserPreferences): Promise<UserPreferences> {
+  const response = await fetch("/api/preferences", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(preferences)
+  });
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message ?? "Unable to save local preferences");
+  }
+
+  return payload as UserPreferences;
+}
+
 export async function pickWorkspaceFolder(initialPath: string): Promise<string | null> {
   const response = await fetch("/api/folder-picker", {
     method: "POST",
@@ -112,6 +147,17 @@ export async function updateRepoControl(): Promise<AppUpdateResult> {
   }
 
   return payload as AppUpdateResult;
+}
+
+export async function fetchAppUpdateStatus(): Promise<AppUpdateStatus> {
+  const response = await fetch("/api/app/update-status");
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message ?? "Unable to check repo-control updates");
+  }
+
+  return payload as AppUpdateStatus;
 }
 
 export async function fetchProjects(): Promise<ProjectsResponse> {

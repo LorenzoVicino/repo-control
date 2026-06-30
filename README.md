@@ -18,6 +18,7 @@ Local dashboard to inspect and operate Git projects from one place.
 - run scoped terminal commands inside a selected project
 - pick the workspace folder from the local file picker where supported
 - update repo-control from the UI when a new release is available
+- keep favorite repositories in a local machine preferences file
 - stay local-first and bind to localhost by default
 
 ## Safety model
@@ -51,6 +52,12 @@ Click the workspace folder bar to open the native folder picker where supported.
 
 If VS Code is not in the server process `PATH`, set `REPO_CONTROL_VSCODE` to the full launcher path.
 
+repo-control stores local preferences outside Git by default:
+
+- Windows: `%APPDATA%\repo-control\preferences.json`
+- macOS: `~/Library/Application Support/repo-control/preferences.json`
+- Linux/WSL: `~/.config/repo-control/preferences.json`
+
 Frontend: <http://localhost:5173>
 
 API: <http://localhost:3747>
@@ -64,6 +71,8 @@ Copy `.env.example` if you want to keep local settings outside the command line.
 | `HOST` | `127.0.0.1` | API host. Keep this local unless you know exactly what you are exposing. |
 | `PORT` | `3747` | API port. |
 | `REPO_CONTROL_ROOT` | current directory | Workspace folder scanned for Git repositories. |
+| `REPO_CONTROL_CONFIG_DIR` | OS user config folder | Optional directory for local preferences. |
+| `REPO_CONTROL_SHELL` | auto-detect | Optional shell used by the embedded terminal command runner. |
 | `REPO_CONTROL_VSCODE` | auto-detect | Optional full path to a VS Code launcher. |
 
 ## Features
@@ -75,6 +84,7 @@ Copy `.env.example` if you want to keep local settings outside the command line.
 - Docker Compose up and rebuild actions
 - embedded command runner scoped to the selected project folder
 - native folder picker with WSL/Windows path conversion
+- favorite repositories persisted in local machine preferences
 
 ## Development checks
 
@@ -87,7 +97,7 @@ npm run build
 
 Release notes are published in [CHANGELOG.md](CHANGELOG.md) and GitHub Releases.
 
-Use the `Aggiorna` button near the app version to update the local checkout. The update is blocked if repo-control has local changes.
+repo-control checks for newer release tags every 5 minutes while the UI is open. Use the `Aggiorna` button near the app version to update the local checkout when a newer release is available. The update is blocked if repo-control has local changes.
 
 ## License
 

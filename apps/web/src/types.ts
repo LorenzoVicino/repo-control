@@ -24,6 +24,10 @@ export type ProjectsResponse = {
   projects: ProjectSummary[];
 };
 
+export type UserPreferences = {
+  favoriteProjectIds: string[];
+};
+
 export type CommandResult = {
   ok: boolean;
   command: string;
@@ -36,6 +40,14 @@ export type CommandResult = {
 
 export type AppUpdateResult = CommandResult & {
   restartScheduled: boolean;
+};
+
+export type AppUpdateStatus = {
+  currentVersion: string;
+  latestVersion: string | null;
+  updateAvailable: boolean;
+  checkedAt: string;
+  error: string | null;
 };
 
 export type GitChangeGroups = {

@@ -4,3 +4,4 @@ apps/web/dist
 .env
 .DS_Store
 *.log
+.repo-control/
