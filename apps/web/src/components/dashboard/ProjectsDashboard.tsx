@@ -1,3 +1,4 @@
+import { keyframes } from "@emotion/react";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -7,6 +8,7 @@ import TableRowsIcon from "@mui/icons-material/TableRows";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import {
   AppBar,
+  Badge,
   Box,
   Button,
   Chip,
@@ -45,6 +47,17 @@ import { filterProjects, isProject } from "../../utils/projects";
 
 const LEGACY_FAVORITE_PROJECTS_STORAGE_KEY = "repo-control-favorite-projects";
 const APP_UPDATE_POLL_INTERVAL_MS = 5 * 60 * 1000;
+const updateAvailablePulse = keyframes`
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.36);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(37, 99, 235, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+`;
 
 type ProjectsDashboardProps = {
   colorMode: ColorMode;
@@ -347,32 +360,51 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
             />
             <Tooltip title={appUpdateTooltip}>
               <span>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color={appUpdateStatus?.updateAvailable ? "primary" : "inherit"}
-                  startIcon={
-                    isUpdatingApp || (isCheckingAppUpdate && !appUpdateStatus) ? (
-                      <CircularProgress color="inherit" size={16} />
-                    ) : (
-                      <SyncIcon fontSize="small" />
-                    )
-                  }
-                  onClick={handleAppUpdate}
-                  disabled={!canUpdateApp}
+                <Badge
+                  color="warning"
+                  variant="dot"
+                  invisible={!canUpdateApp}
+                  overlap="rectangular"
                   sx={{
-                    minWidth: { xs: 36, sm: 104 },
-                    px: { xs: 1, sm: 1.5 },
-                    "& .MuiButton-startIcon": {
-                      ml: 0,
-                      mr: { xs: 0, sm: 0.75 }
+                    "& .MuiBadge-badge": {
+                      boxShadow: (theme) => `0 0 0 2px ${theme.palette.background.paper}`
                     }
                   }}
                 >
-                  <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
-                    Aggiorna
-                  </Box>
-                </Button>
+                  <Button
+                    size="small"
+                    variant={canUpdateApp ? "contained" : "outlined"}
+                    color={canUpdateApp ? "primary" : "inherit"}
+                    aria-label={getAppUpdateAriaLabel(appUpdateStatus, canUpdateApp)}
+                    startIcon={
+                      isUpdatingApp || (isCheckingAppUpdate && !appUpdateStatus) ? (
+                        <CircularProgress color="inherit" size={16} />
+                      ) : (
+                        <SyncIcon fontSize="small" />
+                      )
+                    }
+                    onClick={handleAppUpdate}
+                    disabled={!canUpdateApp}
+                    sx={{
+                      minWidth: { xs: 36, sm: 104 },
+                      px: { xs: 1, sm: 1.5 },
+                      fontWeight: canUpdateApp ? 800 : 500,
+                      animation: canUpdateApp ? `${updateAvailablePulse} 1.8s ease-in-out infinite` : "none",
+                      boxShadow: canUpdateApp ? "0 0 18px rgba(37, 99, 235, 0.32)" : undefined,
+                      "&:hover": {
+                        boxShadow: canUpdateApp ? "0 0 22px rgba(37, 99, 235, 0.42)" : undefined
+                      },
+                      "& .MuiButton-startIcon": {
+                        ml: 0,
+                        mr: { xs: 0, sm: 0.75 }
+                      }
+                    }}
+                  >
+                    <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                      Aggiorna
+                    </Box>
+                  </Button>
+                </Badge>
               </span>
             </Tooltip>
             <ToggleButtonGroup
@@ -459,9 +491,11 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
             open={isProjectOverlayOpen && openProjects.length > 0}
             projects={openProjects}
             activeProjectId={activeProjectId}
+            favoriteProjectIds={favoriteProjectIds}
             onActiveProjectChange={setActiveProjectId}
             onCloseProject={closeProject}
             onCloseOverlay={() => setIsProjectOverlayOpen(false)}
+            onToggleFavorite={toggleFavoriteProject}
             onRefresh={() => refetch()}
           />
 
@@ -513,6 +547,14 @@ function getAppUpdateTooltip(
   }
 
   return "Nessuna nuova release disponibile";
+}
+
+function getAppUpdateAriaLabel(status: AppUpdateStatus | undefined, canUpdate: boolean): string {
+  if (canUpdate && status?.latestVersion) {
+    return `Aggiorna repo-control alla versione ${status.latestVersion}`;
+  }
+
+  return "Aggiorna repo-control";
 }
 
 function getLegacyFavoriteProjectIds(): string[] {

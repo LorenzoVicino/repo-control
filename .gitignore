@@ -5,3 +5,4 @@ apps/web/dist
 .DS_Store
 *.log
 .repo-control/
+package-lock.json

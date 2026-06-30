@@ -8,9 +8,11 @@ type ProjectOverlayProps = {
   open: boolean;
   projects: ProjectSummary[];
   activeProjectId: string | null;
+  favoriteProjectIds: string[];
   onActiveProjectChange: (projectId: string) => void;
   onCloseProject: (projectId: string) => void;
   onCloseOverlay: () => void;
+  onToggleFavorite: (projectId: string) => void;
   onRefresh: () => void;
 };
 
@@ -18,9 +20,11 @@ export function ProjectOverlay({
   open,
   projects,
   activeProjectId,
+  favoriteProjectIds,
   onActiveProjectChange,
   onCloseProject,
   onCloseOverlay,
+  onToggleFavorite,
   onRefresh
 }: ProjectOverlayProps) {
   const [resultsByProjectId, setResultsByProjectId] = React.useState<Record<string, CommandResult | null>>({});
@@ -93,7 +97,9 @@ export function ProjectOverlay({
               <ProjectDetailPanel
                 project={project}
                 result={resultsByProjectId[project.id] ?? null}
+                isFavorite={favoriteProjectIds.includes(project.id)}
                 onClose={() => onCloseProject(project.id)}
+                onToggleFavorite={() => onToggleFavorite(project.id)}
                 onResult={(result) => setProjectResult(project.id, result)}
                 onRefresh={onRefresh}
               />

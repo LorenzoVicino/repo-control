@@ -2,7 +2,9 @@ import BuildIcon from "@mui/icons-material/Build";
 import CloseIcon from "@mui/icons-material/Close";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
-import { Box, Chip, Divider, IconButton, Paper, Stack, Tab, Tabs, Typography } from "@mui/material";
+import StarIcon from "@mui/icons-material/Star";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
+import { Box, Chip, Divider, IconButton, Paper, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
 import { fetchGitDetails } from "../../api/client";
@@ -20,12 +22,22 @@ import { formatDate } from "../../utils/projects";
 type ProjectDetailPanelProps = {
   project: ProjectSummary;
   result: CommandResult | null;
+  isFavorite: boolean;
   onClose: () => void;
+  onToggleFavorite: () => void;
   onResult: (result: CommandResult) => void;
   onRefresh: () => void;
 };
 
-export function ProjectDetailPanel({ project, result, onClose, onResult, onRefresh }: ProjectDetailPanelProps) {
+export function ProjectDetailPanel({
+  project,
+  result,
+  isFavorite,
+  onClose,
+  onToggleFavorite,
+  onResult,
+  onRefresh
+}: ProjectDetailPanelProps) {
   const [detailTab, setDetailTab] = React.useState<ProjectDetailTab>("changes");
   const {
     data: gitDetails,
@@ -52,6 +64,15 @@ export function ProjectDetailPanel({ project, result, onClose, onResult, onRefre
             {project.path}
           </Typography>
         </Box>
+        <Tooltip title={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}>
+          <IconButton
+            onClick={onToggleFavorite}
+            color={isFavorite ? "warning" : "default"}
+            aria-label={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
+          >
+            {isFavorite ? <StarIcon /> : <StarBorderIcon />}
+          </IconButton>
+        </Tooltip>
         <IconButton onClick={onClose} aria-label="Close project tab">
           <CloseIcon />
         </IconButton>

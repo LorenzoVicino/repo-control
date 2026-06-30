@@ -6,6 +6,15 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+### Added
+
+- Allow toggling repository favorites from the project detail modal.
+
+### Changed
+
+- Make the update button more visible when a newer release is available.
+- Stop tracking `package-lock.json` so local `npm install` runs do not create noisy diffs.
+
 ## [0.1.5] - 2026-06-30
 
 ### Added
