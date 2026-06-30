@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/repo-control.png" alt="repo-control" width="100%" />
+  <img src="docs/repo-control-hero.png" alt="repo-control" width="100%" />
 </p>
 
 # repo-control
