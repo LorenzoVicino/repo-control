@@ -88,8 +88,10 @@ async function readProjectSummary(repoPath: string, rootPath: string): Promise<P
 
     const latest = log.latest;
 
+    const relativeRepoPath = path.relative(rootPath, repoPath) || ".";
+
     return {
-      id: Buffer.from(path.relative(rootPath, repoPath)).toString("base64url"),
+      id: Buffer.from(relativeRepoPath).toString("base64url"),
       name: path.basename(repoPath),
       path: repoPath,
       branch: status.current || "(detached)",

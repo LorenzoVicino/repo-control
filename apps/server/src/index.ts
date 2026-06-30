@@ -227,13 +227,12 @@ const gitRefSchema = z
 
 async function resolveProjectPath(id: string): Promise<string> {
   const decodedRelPath = Buffer.from(id, "base64url").toString("utf8");
-
-  if (decodedRelPath.startsWith("..") || path.isAbsolute(decodedRelPath)) {
-    throw new Error("Project path is outside configured root");
-  }
-
   const projectPath = path.resolve(activeRootPath, decodedRelPath);
   const relativePath = path.relative(activeRootPath, projectPath);
+
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    throw new Error("Project path is outside configured root");
+  }
 
   await fs.access(path.join(projectPath, ".git"));
   return projectPath;
