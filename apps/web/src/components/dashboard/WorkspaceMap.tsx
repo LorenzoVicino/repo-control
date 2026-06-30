@@ -1,7 +1,9 @@
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
-import { Box, Chip, IconButton, Paper, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import type { ReactNode } from "react";
+import { Box, Chip, Collapse, IconButton, Paper, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import React, { type ReactNode } from "react";
 import type { ProjectSummary } from "../../types";
 import { getProjectTone, groupProjects } from "../../utils/projects";
 
@@ -21,6 +23,7 @@ export function WorkspaceMap({
   onToggleFavorite
 }: WorkspaceMapProps) {
   const groups = groupProjects(projects, root);
+  const [collapsedGroupLabels, setCollapsedGroupLabels] = React.useState<Set<string>>(() => new Set());
 
   if (projects.length === 0) {
     return (
@@ -40,17 +43,28 @@ export function WorkspaceMap({
 
   return (
     <Stack spacing={2.5}>
-      {groups.map((group) => (
-        <Box key={group.label}>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.25 }}>
-            <Typography variant="h2">{group.label}</Typography>
-            <Chip size="small" label={group.projects.length} variant="outlined" />
-          </Stack>
-          <Box
-            sx={{
-              borderTop: "1px solid",
-              borderColor: "divider",
-              pt: 1.25
+      {groups.map((group) => {
+        const isExpanded = !collapsedGroupLabels.has(group.label);
+
+        return (
+          <CollapsibleProjectSection
+            key={group.label}
+            id={`project-group-${group.label}`}
+            title={group.label}
+            count={group.projects.length}
+            isExpanded={isExpanded}
+            onToggle={() => {
+              setCollapsedGroupLabels((currentLabels) => {
+                const nextLabels = new Set(currentLabels);
+
+                if (nextLabels.has(group.label)) {
+                  nextLabels.delete(group.label);
+                } else {
+                  nextLabels.add(group.label);
+                }
+
+                return nextLabels;
+              });
             }}
           >
             <ProjectCardGrid>
@@ -64,9 +78,9 @@ export function WorkspaceMap({
                 />
               ))}
             </ProjectCardGrid>
-          </Box>
-        </Box>
-      ))}
+          </CollapsibleProjectSection>
+        );
+      })}
     </Stack>
   );
 }
@@ -84,15 +98,17 @@ export function FavoriteProjects({
   onSelectProject,
   onToggleFavorite
 }: FavoriteProjectsProps) {
+  const [isExpanded, setIsExpanded] = React.useState(true);
   const favoriteProjects = projects.filter((project) => favoriteProjectIds.includes(project.id));
 
   return (
-    <Box>
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.25 }}>
-        <Typography variant="h2">Preferiti</Typography>
-        <Chip size="small" label={favoriteProjects.length} variant="outlined" />
-      </Stack>
-
+    <CollapsibleProjectSection
+      id="favorite-projects"
+      title="Preferiti"
+      count={favoriteProjects.length}
+      isExpanded={isExpanded}
+      onToggle={() => setIsExpanded((currentValue) => !currentValue)}
+    >
       {favoriteProjects.length > 0 ? (
         <ProjectCardGrid>
           {favoriteProjects.map((project) => (
@@ -118,6 +134,74 @@ export function FavoriteProjects({
           <Typography variant="body2">Nessun repository preferito.</Typography>
         </Box>
       )}
+    </CollapsibleProjectSection>
+  );
+}
+
+type CollapsibleProjectSectionProps = {
+  id: string;
+  title: string;
+  count: number;
+  isExpanded: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+};
+
+function CollapsibleProjectSection({
+  id,
+  title,
+  count,
+  isExpanded,
+  onToggle,
+  children
+}: CollapsibleProjectSectionProps) {
+  return (
+    <Box>
+      <Box
+        component="button"
+        type="button"
+        aria-expanded={isExpanded}
+        aria-controls={id}
+        onClick={onToggle}
+        sx={{
+          width: "100%",
+          p: 0,
+          mb: 1.25,
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          color: "text.primary",
+          bgcolor: "transparent",
+          border: 0,
+          cursor: "pointer",
+          textAlign: "left",
+          font: "inherit",
+          "&:focus-visible": {
+            outline: "2px solid",
+            outlineColor: "primary.main",
+            outlineOffset: 3
+          }
+        }}
+      >
+        {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+        <Typography variant="h2" sx={{ flexGrow: 0 }}>
+          {title}
+        </Typography>
+        <Chip size="small" label={count} variant="outlined" />
+      </Box>
+
+      <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+        <Box
+          id={id}
+          sx={{
+            borderTop: "1px solid",
+            borderColor: "divider",
+            pt: 1.25
+          }}
+        >
+          {children}
+        </Box>
+      </Collapse>
     </Box>
   );
 }
