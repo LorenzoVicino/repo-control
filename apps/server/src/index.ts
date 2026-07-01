@@ -2,6 +2,7 @@ import cors from "@fastify/cors";
 import Fastify from "fastify";
 import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { simpleGit } from "simple-git";
 import type { StatusResult } from "simple-git";
@@ -176,6 +177,19 @@ app.get("/api/projects/:id/git/details", async (request) => {
   return readGitDetails(projectPath);
 });
 
+app.get("/api/projects/:id/git/activity", async (request) => {
+  const params = z.object({ id: z.string() }).parse(request.params);
+  const query = z
+    .object({
+      offset: z.coerce.number().int().min(0).max(5000).default(0),
+      limit: z.coerce.number().int().min(1).max(30).default(8)
+    })
+    .parse(request.query);
+  const projectPath = await resolveProjectPath(params.id);
+
+  return readGitActivity(projectPath, query.offset, query.limit);
+});
+
 app.post("/api/projects/:id/git/pull", async (request) => {
   const params = z.object({ id: z.string() }).parse(request.params);
   const projectPath = await resolveProjectPath(params.id);
@@ -190,11 +204,27 @@ app.post("/api/projects/:id/git/stage-all", async (request) => {
   return runProjectCommand(projectPath, "git", ["add", "-A"]);
 });
 
+app.post("/api/projects/:id/git/stage", async (request) => {
+  const params = z.object({ id: z.string() }).parse(request.params);
+  const body = gitFileActionBodySchema.parse(request.body);
+  const projectPath = await resolveProjectPath(params.id);
+
+  return runProjectCommand(projectPath, "git", ["add", "-A", ...getGitPathArgs(body.path, body.previousPath)]);
+});
+
 app.post("/api/projects/:id/git/unstage-all", async (request) => {
   const params = z.object({ id: z.string() }).parse(request.params);
   const projectPath = await resolveProjectPath(params.id);
 
   return runProjectCommand(projectPath, "git", ["reset"]);
+});
+
+app.post("/api/projects/:id/git/unstage", async (request) => {
+  const params = z.object({ id: z.string() }).parse(request.params);
+  const body = gitFileActionBodySchema.parse(request.body);
+  const projectPath = await resolveProjectPath(params.id);
+
+  return runProjectCommand(projectPath, "git", ["reset", ...getGitPathArgs(body.path, body.previousPath)]);
 });
 
 app.post("/api/projects/:id/git/commit", async (request) => {
@@ -203,6 +233,23 @@ app.post("/api/projects/:id/git/commit", async (request) => {
   const projectPath = await resolveProjectPath(params.id);
 
   return runProjectCommand(projectPath, "git", ["commit", "-m", body.message]);
+});
+
+app.post("/api/projects/:id/git/stash", async (request) => {
+  const params = z.object({ id: z.string() }).parse(request.params);
+  const body = z.object({ message: z.string().trim().max(200).optional() }).parse(request.body ?? {});
+  const projectPath = await resolveProjectPath(params.id);
+  const message = body.message || `repo-control stash ${new Date().toISOString()}`;
+
+  return runProjectCommand(projectPath, "git", ["stash", "push", "-u", "-m", message]);
+});
+
+app.post("/api/projects/:id/git/stash-pop", async (request) => {
+  const params = z.object({ id: z.string() }).parse(request.params);
+  const body = z.object({ ref: gitStashRefSchema }).parse(request.body);
+  const projectPath = await resolveProjectPath(params.id);
+
+  return runProjectCommand(projectPath, "git", ["stash", "pop", body.ref]);
 });
 
 app.post("/api/projects/:id/git/push", async (request) => {
@@ -263,6 +310,14 @@ app.post("/api/projects/:id/docker/up", async (request) => {
   return runProjectCommand(projectPath, "docker", ["compose", "up", "-d"], 1000 * 60 * 10);
 });
 
+app.post("/api/projects/:id/docker/stop", async (request) => {
+  const params = z.object({ id: z.string() }).parse(request.params);
+  const projectPath = await resolveProjectPath(params.id);
+
+  await assertComposeProject(projectPath);
+  return runProjectCommand(projectPath, "docker", ["compose", "stop"], 1000 * 60 * 5);
+});
+
 app.post("/api/projects/:id/terminal/run", async (request) => {
   const params = z.object({ id: z.string() }).parse(request.params);
   const body = z.object({ command: z.string().trim().min(1).max(2000) }).parse(request.body);
@@ -277,6 +332,19 @@ const gitRefSchema = z
   .min(1)
   .max(255)
   .refine(isSafeGitRef, "Invalid branch name");
+
+const gitFilePathSchema = z
+  .string()
+  .min(1)
+  .max(2000)
+  .refine(isSafeGitPath, "Invalid Git file path");
+
+const gitFileActionBodySchema = z.object({
+  path: gitFilePathSchema,
+  previousPath: gitFilePathSchema.nullish()
+});
+
+const gitStashRefSchema = z.string().regex(/^stash@\{\d+\}$/, "Invalid stash reference");
 
 async function resolveProjectPath(id: string): Promise<string> {
   const decodedRelPath = Buffer.from(id, "base64url").toString("utf8");
@@ -321,13 +389,18 @@ async function assertComposeProject(projectPath: string): Promise<void> {
   }
 }
 
+type GitFileStatus = "staged" | "modified" | "deleted" | "renamed" | "untracked" | "conflicted";
+
+type GitFileChange = {
+  path: string;
+  previousPath: string | null;
+  status: GitFileStatus;
+  label: string;
+};
+
 type GitChangeGroups = {
-  staged: string[];
-  modified: string[];
-  deleted: string[];
-  renamed: string[];
-  untracked: string[];
-  conflicted: string[];
+  staged: GitFileChange[];
+  unstaged: GitFileChange[];
 };
 
 type GitBranchInfo = {
@@ -354,11 +427,36 @@ type GitDetails = {
     local: GitBranchInfo[];
     remote: GitBranchInfo[];
   };
+  stashes: GitStashEntry[];
+};
+
+type GitStashEntry = {
+  ref: string;
+  index: number;
+  date: string;
+  message: string;
+};
+
+type GitActivityCommit = {
+  hash: string;
+  shortHash: string;
+  author: string;
+  date: string;
+  refs: string[];
+  message: string;
+};
+
+type GitActivity = {
+  commits: GitActivityCommit[];
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+  nextOffset: number | null;
 };
 
 async function readGitDetails(projectPath: string): Promise<GitDetails> {
   const git = simpleGit(projectPath);
-  const [status, localBranchesRaw, remoteBranchesRaw] = await Promise.all([
+  const [status, localBranchesRaw, remoteBranchesRaw, stashListRaw] = await Promise.all([
     git.status(),
     git.raw(["branch", "--format=%(refname:short)|%(HEAD)|%(upstream:short)|%(upstream:track)", "--sort=refname"]),
     git.raw([
@@ -366,7 +464,8 @@ async function readGitDetails(projectPath: string): Promise<GitDetails> {
       "-r",
       "--format=%(refname:short)|%(HEAD)|%(upstream:short)|%(upstream:track)",
       "--sort=refname"
-    ])
+    ]),
+    git.raw(["stash", "list", "--date=iso-strict", "--pretty=format:%gd%x1f%ci%x1f%gs%x1e"]).catch(() => "")
   ]);
   const current = status.current || "(detached)";
 
@@ -384,19 +483,139 @@ async function readGitDetails(projectPath: string): Promise<GitDetails> {
       current,
       local: parseBranchRows(localBranchesRaw, false, status),
       remote: parseBranchRows(remoteBranchesRaw, true, status)
-    }
+    },
+    stashes: parseGitStashes(stashListRaw)
   };
+}
+
+async function readGitActivity(projectPath: string, offset: number, limit: number): Promise<GitActivity> {
+  const logOutput = await simpleGit(projectPath)
+    .raw([
+      "log",
+      `--skip=${offset}`,
+      `--max-count=${limit + 1}`,
+      "--date=iso-strict",
+      "--pretty=format:%H%x1f%h%x1f%an%x1f%ad%x1f%D%x1f%s%x1e"
+    ])
+    .catch(() => "");
+  const commits = parseGitActivity(logOutput);
+  const hasMore = commits.length > limit;
+
+  return {
+    commits: commits.slice(0, limit),
+    offset,
+    limit,
+    hasMore,
+    nextOffset: hasMore ? offset + limit : null
+  };
+}
+
+function parseGitActivity(output: string): GitActivityCommit[] {
+  return output
+    .split("\x1e")
+    .map((row) => row.trim())
+    .filter(Boolean)
+    .map((row) => {
+      const [hash = "", shortHash = "", author = "", date = "", refs = "", message = ""] = row.split("\x1f");
+
+      return {
+        hash,
+        shortHash,
+        author,
+        date,
+        refs: parseGitRefs(refs),
+        message
+      };
+    })
+    .filter((commit) => commit.hash && commit.shortHash);
+}
+
+function parseGitRefs(refs: string): string[] {
+  return refs
+    .split(",")
+    .map((ref) => ref.trim())
+    .filter(Boolean)
+    .map((ref) => ref.replace(/^HEAD -> /, ""))
+    .slice(0, 4);
 }
 
 function getChangeGroups(status: StatusResult): GitChangeGroups {
   return {
-    staged: uniqueSorted(status.staged),
-    modified: uniqueSorted(status.modified),
-    deleted: uniqueSorted(status.deleted),
-    renamed: uniqueSorted(status.renamed.map((file) => `${file.from} -> ${file.to}`)),
-    untracked: uniqueSorted(status.not_added),
-    conflicted: uniqueSorted(status.conflicted)
+    staged: uniqueGitFileChanges(status.staged.map((filePath) => createGitFileChange(filePath, "staged"))),
+    unstaged: uniqueGitFileChanges([
+      ...status.modified.map((filePath) => createGitFileChange(filePath, "modified")),
+      ...status.deleted.map((filePath) => createGitFileChange(filePath, "deleted")),
+      ...status.renamed.map((file) => createGitFileChange(file.to, "renamed", file.from)),
+      ...status.not_added.map((filePath) => createGitFileChange(filePath, "untracked")),
+      ...status.conflicted.map((filePath) => createGitFileChange(filePath, "conflicted"))
+    ])
   };
+}
+
+function createGitFileChange(pathName: string, status: GitFileStatus, previousPath: string | null = null): GitFileChange {
+  return {
+    path: pathName,
+    previousPath,
+    status,
+    label: getGitFileStatusLabel(status)
+  };
+}
+
+function getGitFileStatusLabel(status: GitFileStatus): string {
+  switch (status) {
+    case "staged":
+      return "staged";
+    case "modified":
+      return "modified";
+    case "deleted":
+      return "deleted";
+    case "renamed":
+      return "renamed";
+    case "untracked":
+      return "untracked";
+    case "conflicted":
+      return "conflict";
+  }
+}
+
+function uniqueGitFileChanges(files: GitFileChange[]): GitFileChange[] {
+  const seen = new Set<string>();
+  const uniqueFiles: GitFileChange[] = [];
+
+  for (const file of files) {
+    const key = `${file.previousPath ?? ""}\x1f${file.path}\x1f${file.status}`;
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    uniqueFiles.push(file);
+  }
+
+  return uniqueFiles.sort((left, right) => getGitFileDisplayPath(left).localeCompare(getGitFileDisplayPath(right)));
+}
+
+function getGitFileDisplayPath(file: GitFileChange): string {
+  return file.previousPath ? `${file.previousPath} -> ${file.path}` : file.path;
+}
+
+function parseGitStashes(output: string): GitStashEntry[] {
+  return output
+    .split("\x1e")
+    .map((row) => row.trim())
+    .filter(Boolean)
+    .map((row) => {
+      const [ref = "", date = "", message = ""] = row.split("\x1f");
+
+      return {
+        ref,
+        index: Number(ref.match(/stash@\{(\d+)\}/)?.[1] ?? 0),
+        date,
+        message
+      };
+    })
+    .filter((stash) => stash.ref.length > 0);
 }
 
 function parseBranchRows(output: string, remote: boolean, status: StatusResult): GitBranchInfo[] {
@@ -456,9 +675,24 @@ function isSafeGitRef(ref: string): boolean {
   );
 }
 
-function uniqueSorted(values: string[]): string[] {
-  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+function isSafeGitPath(filePath: string): boolean {
+  if (
+    path.isAbsolute(filePath) ||
+    filePath.includes("\0") ||
+    filePath.includes("\n") ||
+    filePath.includes("\r")
+  ) {
+    return false;
+  }
+
+  const segments = filePath.split(/[\\/]+/);
+  return segments.every((segment) => segment.length > 0 && segment !== "." && segment !== "..");
 }
+
+function getGitPathArgs(filePath: string, previousPath: string | null | undefined): string[] {
+  return ["--", ...[previousPath, filePath].filter((pathArg): pathArg is string => Boolean(pathArg))];
+}
+
 
 type CommandResult = {
   ok: boolean;
@@ -870,22 +1104,104 @@ function appendOutput(current: string, next: string): string {
   return combined.length > maxLength ? combined.slice(combined.length - maxLength) : combined;
 }
 
+const STARTUP_BANNER_LOGO = [
+  "-----------------------------------------------------------------------------------------------------------------------------------------------",
+  "-----------------------------------------------------------------------------------------------------------------------------------------------",
+  "-----------------------------------------------------------------------------------------------------------------------------------------------",
+  "-----------------------------------------------------------------------------------------------------------------------------------------------",
+  "-----------------------------------------------------------------------------------------------------------------------------------------------",
+  "-----------------------------------------------------------------------------------------------------------------------------------------------",
+  "------------------------------------------------------------------------------------------------------------------------=----------------------",
+  "-----------------------------------------------------------------------------------------+%%=------------------------=%%%%%--------------------",
+  "---------------=------------------------------------------------------------------------=#%%=-----------------=---------#%%--------------------",
+  "---------+%%%%%%%=-=%%%%%%*-=%%%%%%%*--#%%%%%%=------------+%%%%%#=-=%%%%%%%-=%%%%%%%#=%%%%%%%%*--%%%%%%%#-=%%%%%%%=----#%%=-------------------",
+  "---------+%%*--%%+=%%*==+#%+=%%*-=+%%=*%#---*#%--=%%%%%+--=%#=-----=%%*--=#%#=%%#=-#%%=--#%%==----%%%=-*%%=%%#=--%%%=---*%%=-------------------",
+  "---------+%%=-----=%%#####*==%%*--+%%=#%*---+%%--=*****=--+%#------=%%+--=#%#=%%#--#%%=--#%%=-----%%%-----=%%#=-=%%%=---#%%=-------------------",
+  "---------+%%=------*%%%%%%%-=%%%%%%%*-=%%%%%%%=------------#%%%%%#=-*%%%%%%%-=%%#-=#%%=--*%%%%%*--%%%=-----*%%%%%%%+-+%%%%%%%=-----------------",
+  "---------=**---------+***+--=%%#**+-----=***=---------------=+**+=---=+***=---**+--+#*----=*###=--*#+--------+##*+---=#######=-----------------",
+  "-----------------------------%%*---------------------------------------------------------------------------------------------------------------",
+  "-----------------------------------------------------------------------------------------------------------------------------------------------",
+  "-----------------------------------------------------------------------------------------------------------------------------------------------",
+  "-----------------------------------------------------------------------------------------------------------------------------------------------",
+  "-----------------------------------------------------------------------------------------------------------------------------------------------",
+  "-----------------------------------------------------------------------------------------------------------------------------------------------",
+  "-----------------------------------------------------------------------------------------------------------------------------------------------"
+];
+const STARTUP_BANNER_CONTENT_WIDTH = Math.max(76, ...STARTUP_BANNER_LOGO.map((line) => line.length));
+
 function getStartupBanner(): string {
   const apiHost = env.HOST === "127.0.0.1" ? "localhost" : env.HOST;
 
-  return String.raw`
-                                      __             __
-   ________  ____  ____        _____/ /_____  ____  / /
-  / ___/ _ \/ __ \/ __ \______/ ___/ __/ __ \/ __ \/ /
- / /  /  __/ /_/ / /_/ /_____/ /__/ /_/ /_/ / /_/ / /
-/_/   \___/ .___/\____/      \___/\__/\____/\____/_/
-         /_/
+  return [
+    "",
+    bannerBorder("="),
+    bannerLine(),
+    bannerLine(centerBannerText("repo-control")),
+    bannerLine(centerBannerText("local repository command center")),
+    bannerLine(),
+    ...STARTUP_BANNER_LOGO.map((line) => bannerLine(centerBannerText(line))),
+    bannerLine(),
+    bannerBorder("-"),
+    ...bannerField("UI", "http://localhost:5173"),
+    ...bannerField("API", `http://${apiHost}:${env.PORT}`),
+    ...bannerField("Root", activeRootPath),
+    ...bannerField("Logs", "errors only"),
+    bannerBorder("-"),
+    bannerLine(centerBannerText("Ready. Open the UI and manage your workspace.")),
+    bannerLine(),
+    bannerBorder("="),
+    ""
+  ].join("\n");
+}
 
-  UI       http://localhost:5173
-  API      http://${apiHost}:${env.PORT}
-  Root     ${activeRootPath}
-  Logs     errors only
-`.trimStart();
+function bannerBorder(character: string): string {
+  return `  +${character.repeat(STARTUP_BANNER_CONTENT_WIDTH + 2)}+`;
+}
+
+function bannerLine(content = ""): string {
+  const normalizedContent = content.slice(0, STARTUP_BANNER_CONTENT_WIDTH);
+
+  return `  | ${normalizedContent.padEnd(STARTUP_BANNER_CONTENT_WIDTH)} |`;
+}
+
+function centerBannerText(content: string): string {
+  const safeContent = content.slice(0, STARTUP_BANNER_CONTENT_WIDTH);
+  const leftPadding = Math.max(0, Math.floor((STARTUP_BANNER_CONTENT_WIDTH - safeContent.length) / 2));
+
+  return `${" ".repeat(leftPadding)}${safeContent}`;
+}
+
+function bannerField(label: string, value: string): string[] {
+  const labelWidth = 8;
+  const prefix = `  ${label.padEnd(labelWidth)}`;
+  const availableValueWidth = STARTUP_BANNER_CONTENT_WIDTH - prefix.length;
+  const chunks = splitBannerValue(value, availableValueWidth);
+
+  return chunks.map((chunk, index) => {
+    const rowPrefix = index === 0 ? prefix : " ".repeat(prefix.length);
+
+    return bannerLine(`${rowPrefix}${chunk}`);
+  });
+}
+
+function splitBannerValue(value: string, width: number): string[] {
+  if (value.length <= width) {
+    return [value];
+  }
+
+  const chunks: string[] = [];
+  let remainingValue = value;
+
+  while (remainingValue.length > width) {
+    chunks.push(remainingValue.slice(0, width));
+    remainingValue = remainingValue.slice(width);
+  }
+
+  if (remainingValue) {
+    chunks.push(remainingValue);
+  }
+
+  return chunks;
 }
 
 await app.listen({ host: env.HOST, port: env.PORT });

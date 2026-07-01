@@ -1,8 +1,7 @@
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { Box, Dialog, DialogContent, Stack, Tab, Tabs, Typography } from "@mui/material";
-import React from "react";
 import { ProjectDetailPanel } from "./ProjectDetailPanel";
-import type { CommandResult, ProjectSummary } from "../../types";
+import type { ProjectSummary } from "../../types";
 
 type ProjectOverlayProps = {
   open: boolean;
@@ -27,27 +26,12 @@ export function ProjectOverlay({
   onToggleFavorite,
   onRefresh
 }: ProjectOverlayProps) {
-  const [resultsByProjectId, setResultsByProjectId] = React.useState<Record<string, CommandResult | null>>({});
   const activeValue = projects.some((project) => project.id === activeProjectId)
     ? activeProjectId
     : projects[0]?.id ?? false;
 
-  React.useEffect(() => {
-    const projectIds = new Set(projects.map((project) => project.id));
-    setResultsByProjectId((currentResults) =>
-      Object.fromEntries(Object.entries(currentResults).filter(([projectId]) => projectIds.has(projectId)))
-    );
-  }, [projects]);
-
   if (projects.length === 0) {
     return null;
-  }
-
-  function setProjectResult(projectId: string, result: CommandResult) {
-    setResultsByProjectId((currentResults) => ({
-      ...currentResults,
-      [projectId]: result
-    }));
   }
 
   return (
@@ -58,21 +42,29 @@ export function ProjectOverlay({
       maxWidth="xl"
       PaperProps={{
         sx: {
-          height: { xs: "100dvh", md: "86dvh" },
-          maxHeight: { xs: "100dvh", md: "86dvh" },
+          height: { xs: "100dvh", md: "88dvh" },
+          maxHeight: { xs: "100dvh", md: "88dvh" },
           m: { xs: 0, md: 2 },
-          overflow: "hidden"
+          overflow: "hidden",
+          bgcolor: "background.default"
         }
       }}
     >
-      <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>
-        <Box sx={{ borderBottom: "1px solid", borderColor: "divider" }}>
+      <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column", minHeight: 0, height: "100%", overflow: "hidden" }}>
+        <Box sx={{ borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.paper" }}>
           <Tabs
             value={activeValue}
             onChange={(_, nextProjectId: string) => onActiveProjectChange(nextProjectId)}
             variant="scrollable"
             scrollButtons="auto"
             aria-label="Open project tabs"
+            sx={{
+              minHeight: 48,
+              "& .MuiTab-root": {
+                minHeight: 48,
+                alignItems: "flex-start"
+              }
+            }}
           >
             {projects.map((project) => (
               <Tab
@@ -91,16 +83,15 @@ export function ProjectOverlay({
           </Tabs>
         </Box>
 
-        <Box sx={{ overflow: "auto", minHeight: 0 }}>
+        <Box sx={{ minHeight: 0, flex: "1 1 auto", height: "100%", overflow: "hidden" }}>
           {projects.map((project) => (
-            <Box key={project.id} hidden={project.id !== activeValue}>
+            <Box key={project.id} hidden={project.id !== activeValue} sx={{ minHeight: "100%", height: "100%" }}>
               <ProjectDetailPanel
                 project={project}
-                result={resultsByProjectId[project.id] ?? null}
                 isFavorite={favoriteProjectIds.includes(project.id)}
                 onClose={() => onCloseProject(project.id)}
                 onToggleFavorite={() => onToggleFavorite(project.id)}
-                onResult={(result) => setProjectResult(project.id, result)}
+                onResult={() => undefined}
                 onRefresh={onRefresh}
               />
             </Box>

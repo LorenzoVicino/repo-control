@@ -78,13 +78,18 @@ export type AppUpdateStatus = {
   error: string | null;
 };
 
+export type GitFileStatus = "staged" | "modified" | "deleted" | "renamed" | "untracked" | "conflicted";
+
+export type GitFileChange = {
+  path: string;
+  previousPath: string | null;
+  status: GitFileStatus;
+  label: string;
+};
+
 export type GitChangeGroups = {
-  staged: string[];
-  modified: string[];
-  deleted: string[];
-  renamed: string[];
-  untracked: string[];
-  conflicted: string[];
+  staged: GitFileChange[];
+  unstaged: GitFileChange[];
 };
 
 export type GitBranchInfo = {
@@ -111,11 +116,36 @@ export type GitDetails = {
     local: GitBranchInfo[];
     remote: GitBranchInfo[];
   };
+  stashes: GitStashEntry[];
+};
+
+export type GitStashEntry = {
+  ref: string;
+  index: number;
+  date: string;
+  message: string;
+};
+
+export type GitActivityCommit = {
+  hash: string;
+  shortHash: string;
+  author: string;
+  date: string;
+  refs: string[];
+  message: string;
+};
+
+export type GitActivity = {
+  commits: GitActivityCommit[];
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+  nextOffset: number | null;
 };
 
 export type ViewMode = "map" | "table";
 export type ColorMode = "light" | "dark";
-export type ProjectDetailTab = "changes" | "branches" | "terminal";
+export type ProjectDetailTab = "git" | "branches" | "terminal" | "docker" | "deploy";
 
 export type ProjectTone = {
   label: string;

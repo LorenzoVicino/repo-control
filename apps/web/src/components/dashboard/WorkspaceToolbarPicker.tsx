@@ -10,9 +10,10 @@ type WorkspaceToolbarPickerProps = {
 
 export function WorkspaceToolbarPicker({ root, error, isPicking, onPick }: WorkspaceToolbarPickerProps) {
   const displayPath = root || "Seleziona workspace";
+  const shortcutLabel = "Ctrl+O";
 
   return (
-    <Tooltip title={error ?? displayPath}>
+    <Tooltip title={error ?? `${displayPath} - ${shortcutLabel}`}>
       <Stack
         direction="row"
         spacing={0.75}
@@ -21,7 +22,7 @@ export function WorkspaceToolbarPicker({ root, error, isPicking, onPick }: Works
           minWidth: 0,
           width: "100%",
           justifySelf: "stretch",
-          px: 1,
+          px: 0.75,
           py: 0.5,
           minHeight: 36,
           border: "1px solid",
@@ -43,17 +44,25 @@ export function WorkspaceToolbarPicker({ root, error, isPicking, onPick }: Works
           {displayPath}
         </Typography>
 
+        <Typography
+          variant="caption"
+          color="text.disabled"
+          sx={{ display: { xs: "none", xl: "block" }, flexShrink: 0, fontFamily: "monospace" }}
+        >
+          {shortcutLabel}
+        </Typography>
+
         <Button
           size="small"
           variant="text"
           color={error ? "error" : "primary"}
           onClick={onPick}
           disabled={isPicking}
-          aria-label="Cambia workspace folder"
+          aria-label={`Cambia workspace folder (${shortcutLabel})`}
           startIcon={isPicking ? <CircularProgress color="inherit" size={14} /> : <FolderOpenIcon fontSize="small" />}
           sx={{
-            minWidth: 72,
-            px: 0.75,
+            minWidth: 58,
+            px: 0.5,
             py: 0.25,
             fontSize: "0.75rem",
             "& .MuiButton-startIcon": {

@@ -158,12 +158,18 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "p") {
         event.preventDefault();
         setIsCommandPaletteOpen(true);
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "o") {
+        event.preventDefault();
+        void handleFolderPick();
       }
     }
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, []);
+  }, [workspaceRoot, isPickingRoot]);
 
   function handleViewChange(_: React.MouseEvent<HTMLElement>, nextMode: ViewMode | null) {
     if (nextMode) {
@@ -212,6 +218,10 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
   }
 
   async function handleFolderPick() {
+    if (isPickingRoot) {
+      return;
+    }
+
     setIsPickingRoot(true);
     setRootError(null);
 
@@ -342,9 +352,9 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
             sx={{
               gridArea: "command",
               justifySelf: { xs: "stretch", md: "center" },
-              width: { xs: "100%", md: "min(100%, 980px)" },
+              width: { xs: "100%", md: "min(100%, 860px)" },
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "minmax(180px, 300px) minmax(260px, 1fr)" },
+              gridTemplateColumns: { xs: "1fr", md: "minmax(190px, 260px) minmax(380px, 1fr)" },
               alignItems: "center",
               gap: 0.75
             }}

@@ -3,6 +3,7 @@ import type {
   AppUpdateStatus,
   CommandResult,
   DockerContainersResponse,
+  GitActivity,
   GitDetails,
   ProjectsResponse,
   UserPreferences
@@ -45,6 +46,23 @@ export async function fetchGitDetails(projectId: string): Promise<GitDetails> {
 
   if (!response.ok) {
     throw new Error("Unable to load Git details");
+  }
+
+  return response.json();
+}
+
+export async function fetchGitActivity(
+  projectId: string,
+  options: { offset: number; limit: number }
+): Promise<GitActivity> {
+  const searchParams = new URLSearchParams({
+    offset: String(options.offset),
+    limit: String(options.limit)
+  });
+  const response = await fetch(`/api/projects/${projectId}/git/activity?${searchParams.toString()}`);
+
+  if (!response.ok) {
+    throw new Error("Unable to load Git activity");
   }
 
   return response.json();
