@@ -6,6 +6,20 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.1.8] - 2026-07-01
+
+### Added
+
+- Add per-file stage and unstage actions in the project Git tab.
+- Add Git stash creation, stash listing and stash pop from the project Git tab.
+- Add Git activity pagination in the project detail modal.
+
+### Changed
+
+- Rework the project detail modal layout around focused Git, Branches, Terminal, Docker and Deploy tabs.
+- Keep the terminal command input focused after running a command.
+- Remove shared command output notifications from project detail tabs.
+
 ## [0.1.7] - 2026-06-30
 
 ### Added
