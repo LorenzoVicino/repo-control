@@ -40,7 +40,7 @@ function getPreferencesPath(): string {
   return path.join(getConfigDirectory(), "preferences.json");
 }
 
-function getConfigDirectory(): string {
+export function getConfigDirectory(): string {
   if (process.env.REPO_CONTROL_CONFIG_DIR) {
     return path.resolve(process.env.REPO_CONTROL_CONFIG_DIR);
   }
