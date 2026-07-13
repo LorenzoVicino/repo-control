@@ -8,8 +8,8 @@ type DetailBlockProps = {
 
 export function DetailBlock({ title, children }: DetailBlockProps) {
   return (
-    <Box>
-      <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 900, letterSpacing: 0 }}>
+    <Box sx={{ minWidth: 0 }}>
+      <Typography variant="overline" color="text.secondary">
         {title}
       </Typography>
       <Stack
@@ -18,7 +18,7 @@ export function DetailBlock({ title, children }: DetailBlockProps) {
           p: 1.25,
           border: "1px solid",
           borderColor: "divider",
-          borderRadius: 0.5,
+          borderRadius: 1,
           bgcolor: "background.paper"
         }}
       >

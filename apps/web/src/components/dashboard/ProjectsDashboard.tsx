@@ -1,12 +1,12 @@
 import { keyframes } from "@emotion/react";
-import DarkModeIcon from "@mui/icons-material/DarkMode";
-import LightModeIcon from "@mui/icons-material/LightMode";
+import MenuIcon from "@mui/icons-material/Menu";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
 import SyncIcon from "@mui/icons-material/Sync";
 import TableRowsIcon from "@mui/icons-material/TableRows";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import {
+  alpha,
   AppBar,
   Badge,
   Box,
@@ -21,7 +21,8 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Toolbar,
-  Tooltip
+  Tooltip,
+  Typography
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
@@ -39,18 +40,31 @@ import {
 import { APP_VERSION } from "../../config";
 import { AppUpdateDialog } from "./AppUpdateDialog";
 import { ControlCenter } from "./ControlCenter";
+import { DashboardMetrics } from "./DashboardMetrics";
+import {
+  DashboardSidebar,
+  type DashboardSection
+} from "./DashboardSidebar";
 import { ProjectTable } from "./ProjectTable";
 import { RepositoryCommandPalette } from "./RepositoryCommandPalette";
 import { FavoriteProjects, WorkspaceMap } from "./WorkspaceMap";
-import { WorkspaceToolbarPicker } from "./WorkspaceToolbarPicker";
 import { ProjectOverlay } from "../project/ProjectOverlay";
+import { TaskEngineeringPage } from "../task/TaskEngineeringPage";
 import type { AppUpdateResult, AppUpdateStatus, ColorMode, DockerContainerGroup, ViewMode } from "../../types";
 import { commandErrorResult } from "../../utils/commandResult";
-import { filterProjects, isProject } from "../../utils/projects";
+import { filterProjects, getStats, isProject } from "../../utils/projects";
 
 const LEGACY_FAVORITE_PROJECTS_STORAGE_KEY = "repo-control-favorite-projects";
 const APP_UPDATE_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const DOCKER_POLL_INTERVAL_MS = 30 * 1000;
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "repo-control-sidebar-collapsed";
+const DASHBOARD_SECTION_LABELS: Record<DashboardSection, string> = {
+  overview: "Panoramica",
+  tasks: "Task engineering",
+  docker: "Docker runtime",
+  favorites: "Preferiti",
+  repositories: "Repository"
+};
 const updateAvailablePulse = keyframes`
   0% {
     box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.36);
@@ -63,6 +77,17 @@ const updateAvailablePulse = keyframes`
   }
 `;
 
+const sectionReveal = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
 type ProjectsDashboardProps = {
   colorMode: ColorMode;
   onToggleColorMode: () => void;
@@ -70,6 +95,12 @@ type ProjectsDashboardProps = {
 
 export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDashboardProps) {
   const [viewMode, setViewMode] = React.useState<ViewMode>("map");
+  const [activeSection, setActiveSection] = React.useState<DashboardSection>("overview");
+  const [workspaceView, setWorkspaceView] = React.useState<"dashboard" | "tasks">("dashboard");
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(
+    () => window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true"
+  );
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [rootError, setRootError] = React.useState<string | null>(null);
   const [isPickingRoot, setIsPickingRoot] = React.useState(false);
@@ -116,6 +147,11 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
 
   const projects = data?.projects ?? [];
   const filteredProjects = React.useMemo(() => filterProjects(projects, search), [projects, search]);
+  const stats = React.useMemo(() => getStats(projects), [projects]);
+  const favoriteProjectCount = React.useMemo(
+    () => projects.filter((project) => favoriteProjectIds.includes(project.id)).length,
+    [favoriteProjectIds, projects]
+  );
   const openProjects = React.useMemo(
     () => openProjectIds.map((projectId) => projects.find((project) => project.id === projectId)).filter(isProject),
     [openProjectIds, projects]
@@ -128,6 +164,57 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
     appUpdateStatusError,
     isUpdatingApp
   );
+
+  React.useEffect(() => {
+    if (workspaceView !== "dashboard") {
+      return;
+    }
+
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(isSidebarCollapsed));
+  }, [isSidebarCollapsed]);
+
+  React.useEffect(() => {
+    const sectionIds: DashboardSection[] = ["overview", "docker", "favorites", "repositories"];
+    const sectionElements = sectionIds
+      .map((sectionId) => document.getElementById(sectionId))
+      .filter((element): element is HTMLElement => element !== null);
+
+    if (sectionElements.length === 0) {
+      return;
+    }
+
+    let animationFrame: number | null = null;
+
+    function updateActiveSection() {
+      const activationOffset = 120;
+      let nextActiveSection = sectionElements[0].id as DashboardSection;
+
+      for (const sectionElement of sectionElements) {
+        if (sectionElement.getBoundingClientRect().top <= activationOffset) {
+          nextActiveSection = sectionElement.id as DashboardSection;
+        }
+      }
+
+      setActiveSection(nextActiveSection);
+      animationFrame = null;
+    }
+
+    function scheduleActiveSectionUpdate() {
+      if (animationFrame === null) {
+        animationFrame = window.requestAnimationFrame(updateActiveSection);
+      }
+    }
+
+    updateActiveSection();
+    window.addEventListener("scroll", scheduleActiveSectionUpdate, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", scheduleActiveSectionUpdate);
+      if (animationFrame !== null) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, [favoriteProjectCount, workspaceView]);
 
   React.useEffect(() => {
     if (!preferences) {
@@ -175,6 +262,25 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
     if (nextMode) {
       setViewMode(nextMode);
     }
+  }
+
+  function navigateToSection(section: DashboardSection) {
+    setActiveSection(section);
+    setIsMobileSidebarOpen(false);
+
+    if (section === "tasks") {
+      setWorkspaceView("tasks");
+      window.scrollTo({ top: 0, behavior: "auto" });
+      return;
+    }
+
+    setWorkspaceView("dashboard");
+
+    window.requestAnimationFrame(() => {
+      const sectionElement = document.getElementById(section);
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      sectionElement?.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
+    });
   }
 
   function openProject(projectId: string) {
@@ -285,127 +391,160 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+    <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "flex-start", bgcolor: "background.default" }}>
+      <DashboardSidebar
+        activeSection={activeSection}
+        collapsed={isSidebarCollapsed}
+        mobileOpen={isMobileSidebarOpen}
+        colorMode={colorMode}
+        repositoryCount={projects.length}
+        favoriteCount={favoriteProjectCount}
+        dockerCount={dockerStatus?.groups.length ?? 0}
+        workspaceRoot={workspaceRoot}
+        rootError={rootError}
+        isPickingRoot={isPickingRoot}
+        onNavigate={navigateToSection}
+        onToggleCollapsed={() => setIsSidebarCollapsed((currentValue) => !currentValue)}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        onPickWorkspace={() => {
+          void handleFolderPick();
+        }}
+        onToggleColorMode={onToggleColorMode}
+      />
+
+      <Box sx={{ minWidth: 0, flexGrow: 1, minHeight: "100vh" }}>
       <AppBar
+        component="header"
         position="sticky"
         color="inherit"
         elevation={0}
-        sx={{ top: 0, zIndex: (theme) => theme.zIndex.drawer + 1 }}
+        sx={{
+          top: 0,
+          zIndex: (theme) => theme.zIndex.appBar,
+          bgcolor: (theme) => alpha(theme.palette.background.paper, 0.94),
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          backdropFilter: "blur(14px)"
+        }}
       >
         <Toolbar
           sx={{
-            minHeight: { xs: "auto", md: 58 },
-            borderBottom: "1px solid",
-            borderColor: "divider",
+            width: "100%",
+            maxWidth: 1680,
+            mx: "auto",
+            minHeight: { xs: "auto", md: 68 },
             display: "grid",
             gridTemplateColumns: {
               xs: "minmax(0, 1fr) auto",
-              md: "minmax(150px, 210px) minmax(0, 1fr) auto"
+              md: "minmax(170px, 0.55fr) minmax(320px, 1.45fr) auto"
             },
             gridTemplateAreas: {
-              xs: '"brand actions" "command command"',
-              md: '"brand command actions"'
+              xs: '"context actions" "search search"',
+              md: '"context search actions"'
             },
             alignItems: "center",
-            gap: { xs: 1, md: 1.5 },
-            px: { xs: 1.25, sm: 2 },
-            py: { xs: 1, md: 0 },
-            bgcolor: colorMode === "dark" ? "#181818" : "#f3f3f3"
+            gap: { xs: 1, md: 2 },
+            px: { xs: 1.5, sm: 2.5, lg: 3 },
+            py: { xs: 1.25, md: 0 }
           }}
         >
           <Stack
-            component="h1"
             direction="row"
             alignItems="center"
-            justifyContent="flex-start"
+            spacing={0.75}
             sx={{
-              gridArea: "brand",
+              gridArea: "context",
               justifySelf: "start",
               minWidth: 0,
-              m: 0,
-              pl: { xs: 0.75, sm: 1 },
               overflow: "hidden"
             }}
           >
-            <Box
-              component="span"
-              sx={{
-                display: "block",
-                flexShrink: 0,
-                fontFamily: "monospace",
-                fontSize: { xs: 19, sm: 22, md: 24 },
-                fontWeight: 900,
-                lineHeight: 1,
-                letterSpacing: 0,
-                whiteSpace: "nowrap",
-                background: "linear-gradient(90deg, #28b8ff 0%, #1297ff 42%, #28e6cf 68%, #38f0a6 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                textShadow: "0 0 16px rgba(40, 184, 255, 0.22)"
-              }}
+            <IconButton
+              onClick={() => setIsMobileSidebarOpen(true)}
+              aria-label="Apri navigazione"
+              sx={{ display: { xs: "inline-flex", md: "none" }, flexShrink: 0 }}
             >
-              repo-control
+              <MenuIcon />
+            </IconButton>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="caption" color="text.secondary" noWrap component="div">
+                <Box component="span" sx={{ display: { xs: "inline", md: "none" }, fontWeight: 750 }}>
+                  repo-control ·{" "}
+                </Box>
+                Workspace
+              </Typography>
+              <Typography variant="body2" noWrap sx={{ fontWeight: 750 }}>
+                {DASHBOARD_SECTION_LABELS[activeSection]}
+              </Typography>
             </Box>
           </Stack>
 
           <Box
             sx={{
-              gridArea: "command",
+              gridArea: "search",
               justifySelf: { xs: "stretch", md: "center" },
-              width: { xs: "100%", md: "min(100%, 860px)" },
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "minmax(190px, 260px) minmax(380px, 1fr)" },
-              alignItems: "center",
-              gap: 0.75
+              width: { xs: "100%", md: "min(100%, 760px)" }
             }}
           >
-            <WorkspaceToolbarPicker
-              root={workspaceRoot}
-              error={rootError}
-              isPicking={isPickingRoot}
-              onPick={handleFolderPick}
-            />
-
-            <TextField
-              fullWidth
-              size="small"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              onFocus={() => setIsCommandPaletteOpen(true)}
-              onClick={() => setIsCommandPaletteOpen(true)}
-              placeholder="Cerca repository (Ctrl+P)"
-              variant="outlined"
-              inputProps={{ "aria-label": "Apri command palette repository" }}
-              InputProps={{
-                readOnly: true,
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                )
-              }}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  height: 36,
-                  borderRadius: 1,
-                  bgcolor: colorMode === "dark" ? "#2b2b2b" : "#ffffff",
-                  cursor: "pointer",
-                  fontSize: "0.875rem",
-                  "& fieldset": {
-                    borderColor: colorMode === "dark" ? "#3c3c3c" : "#d0d0d0"
+            <Tooltip title="Cerca repository (Ctrl+P)" placement="bottom">
+              <TextField
+                fullWidth
+                size="small"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                onFocus={() => setIsCommandPaletteOpen(true)}
+                onClick={() => setIsCommandPaletteOpen(true)}
+                placeholder="Cerca repository"
+                variant="outlined"
+                inputProps={{ "aria-label": "Apri ricerca repository, scorciatoia Ctrl+P" }}
+                InputProps={{
+                  readOnly: true,
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <Typography
+                        component="kbd"
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          px: 0.7,
+                          py: 0.2,
+                          border: "1px solid",
+                          borderColor: "divider",
+                          borderRadius: 0.5,
+                          bgcolor: "action.hover",
+                          fontFamily: "inherit",
+                          fontSize: "0.65rem"
+                        }}
+                      >
+                        Ctrl+P
+                      </Typography>
+                    </InputAdornment>
+                  )
+                }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    height: 38,
+                    borderRadius: 0.875,
+                    cursor: "pointer",
+                    fontSize: "0.875rem",
+                    "&:hover fieldset": {
+                      borderColor: "primary.main"
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderWidth: 1
+                    }
                   },
-                  "&:hover fieldset": {
-                    borderColor: "primary.main"
-                  },
-                  "&.Mui-focused fieldset": {
-                    borderWidth: 1
+                  "& .MuiInputBase-input": {
+                    cursor: "pointer"
                   }
-                },
-                "& .MuiInputBase-input": {
-                  cursor: "pointer"
-                }
-              }}
-            />
+                }}
+              />
+            </Tooltip>
           </Box>
 
           <Stack
@@ -476,86 +615,177 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
               exclusive
               size="small"
               onChange={handleViewChange}
-              aria-label="View mode"
+              aria-label="Modalità vista"
             >
-              <ToggleButton value="map" aria-label="Workspace map">
+              <ToggleButton value="map" aria-label="Griglia repository">
                 <ViewModuleIcon fontSize="small" />
               </ToggleButton>
-              <ToggleButton value="table" aria-label="Table view">
+              <ToggleButton value="table" aria-label="Vista tabella">
                 <TableRowsIcon fontSize="small" />
               </ToggleButton>
             </ToggleButtonGroup>
-            <Tooltip title="Refresh projects">
+            <Tooltip title="Aggiorna repository">
               <span>
-                <IconButton onClick={() => refetch()} disabled={isFetching} aria-label="Refresh projects" size="small">
+                <IconButton onClick={() => refetch()} disabled={isFetching} aria-label="Aggiorna repository" size="small">
                   {isFetching ? <CircularProgress size={20} /> : <RefreshIcon fontSize="small" />}
                 </IconButton>
               </span>
-            </Tooltip>
-            <Tooltip title={colorMode === "light" ? "Switch to dark mode" : "Switch to light mode"}>
-              <IconButton onClick={onToggleColorMode} aria-label="Toggle color mode" size="small">
-                {colorMode === "light" ? <DarkModeIcon fontSize="small" /> : <LightModeIcon fontSize="small" />}
-              </IconButton>
             </Tooltip>
           </Stack>
         </Toolbar>
       </AppBar>
 
-      <Container maxWidth={false} sx={{ py: 3 }}>
-        <Stack spacing={2.5}>
-          <ControlCenter
-            dockerStatus={dockerStatus}
-            isLoadingDocker={isLoadingDocker}
-            isRefreshingDocker={isFetchingDocker}
-            onRefreshDocker={() => {
-              void refetchDockerContainers();
-            }}
-            stoppingDockerGroupId={stoppingDockerGroupId}
-            dockerActionError={dockerActionError}
-            onStopDockerGroup={(group) => {
-              void handleStopDockerGroup(group);
-            }}
-          />
-
-          <FavoriteProjects
-            projects={projects}
-            favoriteProjectIds={favoriteProjectIds}
-            onSelectProject={openProject}
-            onToggleFavorite={toggleFavoriteProject}
-          />
-
-          {isLoading ? (
-            <Box
-              sx={{
-                display: "grid",
-                placeItems: "center",
-                minHeight: 320,
-                borderTop: "1px solid",
-                borderBottom: "1px solid",
-                borderColor: "divider"
-              }}
-            >
-              <CircularProgress />
-            </Box>
-          ) : viewMode === "map" ? (
-            <WorkspaceMap
-              root={data?.root ?? ""}
-              projects={filteredProjects}
-              favoriteProjectIds={favoriteProjectIds}
-              onSelectProject={openProject}
-              onToggleFavorite={toggleFavoriteProject}
-            />
+      <Container
+        component="main"
+        maxWidth={false}
+        sx={{ maxWidth: 1680, px: { xs: 1.5, sm: 2.5, lg: 3 }, py: { xs: 2, md: 3 } }}
+      >
+        <Stack spacing={{ xs: 2.5, md: 3 }}>
+          {workspaceView === "tasks" ? (
+            <TaskEngineeringPage projects={projects} />
           ) : (
+            <>
+          <Box
+            id="overview"
+            component="section"
+            aria-labelledby="workspace-overview-title"
+            sx={{
+              scrollMarginTop: 92,
+              animation: `${sectionReveal} 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both`,
+              "@media (prefers-reduced-motion: reduce)": { animation: "none" }
+            }}
+          >
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              alignItems={{ xs: "flex-start", sm: "flex-end" }}
+              justifyContent="space-between"
+              sx={{ mb: 1.5 }}
+            >
+              <Box>
+                <Typography id="workspace-overview-title" component="h1" variant="h1">
+                  Panoramica workspace
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>
+                  Stato operativo dei repository locali e dei servizi collegati.
+                </Typography>
+              </Box>
+              <Chip
+                variant="outlined"
+                color={isFetching ? "primary" : "default"}
+                label={isFetching ? "Sincronizzazione" : `${projects.length} repository`}
+              />
+            </Stack>
+            <DashboardMetrics stats={stats} />
+          </Box>
+
+          <Box
+            id="docker"
+            sx={{
+              scrollMarginTop: 92,
+              animation: `${sectionReveal} 320ms 60ms cubic-bezier(0.2, 0.8, 0.2, 1) both`,
+              "@media (prefers-reduced-motion: reduce)": { animation: "none" }
+            }}
+          >
+            <ControlCenter
+              dockerStatus={dockerStatus}
+              isLoadingDocker={isLoadingDocker}
+              isRefreshingDocker={isFetchingDocker}
+              onRefreshDocker={() => {
+                void refetchDockerContainers();
+              }}
+              stoppingDockerGroupId={stoppingDockerGroupId}
+              dockerActionError={dockerActionError}
+              onStopDockerGroup={(group) => {
+                void handleStopDockerGroup(group);
+              }}
+            />
+          </Box>
+
+          {favoriteProjectIds.length > 0 ? (
             <Box
+              id="favorites"
               sx={{
-                overflow: "hidden",
-                borderTop: "1px solid",
-                borderBottom: "1px solid",
-                borderColor: "divider"
+                scrollMarginTop: 92,
+                animation: `${sectionReveal} 320ms 120ms cubic-bezier(0.2, 0.8, 0.2, 1) both`,
+                "@media (prefers-reduced-motion: reduce)": { animation: "none" }
               }}
             >
-              <ProjectTable projects={filteredProjects} onSelectProject={openProject} />
+              <FavoriteProjects
+                projects={projects}
+                favoriteProjectIds={favoriteProjectIds}
+                onSelectProject={openProject}
+                onToggleFavorite={toggleFavoriteProject}
+              />
             </Box>
+          ) : null}
+
+          <Box
+            id="repositories"
+            component="section"
+            aria-labelledby="repository-list-title"
+            sx={{
+              scrollMarginTop: 92,
+              animation: `${sectionReveal} 320ms 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both`,
+              "@media (prefers-reduced-motion: reduce)": { animation: "none" }
+            }}
+          >
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              justifyContent="space-between"
+              sx={{ mb: 1.5 }}
+            >
+              <Box>
+                <Typography id="repository-list-title" component="h2" variant="h2">
+                  Repository
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {search ? `${filteredProjects.length} risultati per “${search}”` : "Organizzati per cartella di lavoro"}
+                </Typography>
+              </Box>
+              <Chip size="small" variant="outlined" label={filteredProjects.length} />
+            </Stack>
+
+            {isLoading ? (
+              <Box
+                sx={{
+                  display: "grid",
+                  placeItems: "center",
+                  minHeight: 320,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 1,
+                  bgcolor: "background.paper"
+                }}
+              >
+                <CircularProgress />
+              </Box>
+            ) : viewMode === "map" ? (
+              <WorkspaceMap
+                root={data?.root ?? ""}
+                projects={filteredProjects}
+                favoriteProjectIds={favoriteProjectIds}
+                onSelectProject={openProject}
+                onToggleFavorite={toggleFavoriteProject}
+              />
+            ) : (
+              <Box
+                sx={{
+                  overflow: "hidden",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 1,
+                  bgcolor: "background.paper"
+                }}
+              >
+                <ProjectTable projects={filteredProjects} onSelectProject={openProject} />
+              </Box>
+            )}
+          </Box>
+
+            </>
           )}
 
           <ProjectOverlay
@@ -587,6 +817,7 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
         result={appUpdateResult}
         onClose={() => setIsAppUpdateDialogOpen(false)}
       />
+      </Box>
     </Box>
   );
 }

@@ -1,4 +1,5 @@
 import { Button, CircularProgress } from "@mui/material";
+import type { ButtonProps } from "@mui/material";
 import React from "react";
 import { runProjectAction } from "../../api/client";
 import type { CommandResult } from "../../types";
@@ -11,6 +12,8 @@ type ActionButtonProps = {
   icon: React.ReactNode;
   body?: unknown;
   disabled?: boolean;
+  variant?: ButtonProps["variant"];
+  fullWidth?: boolean;
   onResult: (result: CommandResult) => void;
   onCompleted?: () => void;
 };
@@ -22,6 +25,8 @@ export function ActionButton({
   icon,
   body,
   disabled = false,
+  variant = "outlined",
+  fullWidth = false,
   onResult,
   onCompleted
 }: ActionButtonProps) {
@@ -44,7 +49,8 @@ export function ActionButton({
   return (
     <Button
       size="small"
-      variant="contained"
+      variant={variant}
+      fullWidth={fullWidth}
       startIcon={isRunning ? <CircularProgress size={16} /> : icon}
       onClick={runAction}
       disabled={disabled || isRunning}

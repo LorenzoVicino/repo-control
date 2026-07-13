@@ -1,5 +1,5 @@
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
-import { Box, Button, CircularProgress, Stack, Tooltip, Typography } from "@mui/material";
+import { CircularProgress, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 
 type WorkspaceToolbarPickerProps = {
   root: string;
@@ -10,10 +10,9 @@ type WorkspaceToolbarPickerProps = {
 
 export function WorkspaceToolbarPicker({ root, error, isPicking, onPick }: WorkspaceToolbarPickerProps) {
   const displayPath = root || "Seleziona workspace";
-  const shortcutLabel = "Ctrl+O";
 
   return (
-    <Tooltip title={error ?? `${displayPath} - ${shortcutLabel}`}>
+    <Tooltip title={error ?? `${displayPath} · Ctrl+O`}>
       <Stack
         direction="row"
         spacing={0.75}
@@ -22,13 +21,14 @@ export function WorkspaceToolbarPicker({ root, error, isPicking, onPick }: Works
           minWidth: 0,
           width: "100%",
           justifySelf: "stretch",
-          px: 0.75,
-          py: 0.5,
-          minHeight: 36,
+          px: 1,
+          minHeight: 38,
           border: "1px solid",
           borderColor: error ? "error.main" : "divider",
-          borderRadius: 1,
-          bgcolor: "background.paper"
+          borderRadius: 0.875,
+          bgcolor: "background.paper",
+          transition: "border-color 160ms ease",
+          "&:hover": { borderColor: error ? "error.main" : "primary.light" }
         }}
       >
         <Typography
@@ -45,34 +45,35 @@ export function WorkspaceToolbarPicker({ root, error, isPicking, onPick }: Works
         </Typography>
 
         <Typography
+          component="kbd"
           variant="caption"
-          color="text.disabled"
-          sx={{ display: { xs: "none", xl: "block" }, flexShrink: 0, fontFamily: "monospace" }}
+          color="text.secondary"
+          sx={{
+            display: { xs: "none", lg: "inline" },
+            px: 0.65,
+            py: 0.15,
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 0.5,
+            bgcolor: "action.hover",
+            fontFamily: "inherit",
+            fontSize: "0.65rem",
+            whiteSpace: "nowrap"
+          }}
         >
-          {shortcutLabel}
+          Ctrl+O
         </Typography>
 
-        <Button
+        <IconButton
           size="small"
-          variant="text"
           color={error ? "error" : "primary"}
           onClick={onPick}
           disabled={isPicking}
-          aria-label={`Cambia workspace folder (${shortcutLabel})`}
-          startIcon={isPicking ? <CircularProgress color="inherit" size={14} /> : <FolderOpenIcon fontSize="small" />}
-          sx={{
-            minWidth: 58,
-            px: 0.5,
-            py: 0.25,
-            fontSize: "0.75rem",
-            "& .MuiButton-startIcon": {
-              ml: 0,
-              mr: 0.5
-            }
-          }}
+          aria-label="Cambia workspace folder, scorciatoia Ctrl+O"
+          sx={{ width: 28, height: 28, flexShrink: 0 }}
         >
-          <Box component="span">Cambia</Box>
-        </Button>
+          {isPicking ? <CircularProgress color="inherit" size={15} /> : <FolderOpenIcon fontSize="small" />}
+        </IconButton>
       </Stack>
     </Tooltip>
   );

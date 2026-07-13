@@ -91,7 +91,7 @@ export function ChangesPanel({ projectId, details, isLoading, onResult, onComple
         <Chip
           size="small"
           color={details.status.isClean ? "success" : "warning"}
-          label={details.status.isClean ? "working tree clean" : `${totalChanges} changes`}
+          label={details.status.isClean ? "working tree pulito" : `${totalChanges} modifiche`}
         />
         <Chip size="small" label={`${stagedCount} staged`} variant="outlined" />
         <Chip size="small" label={`${unstagedCount} unstaged`} variant="outlined" />
@@ -264,7 +264,7 @@ function GitFileSection({
         alignItems="center"
         sx={{ px: 1.25, py: 1, borderBottom: "1px solid", borderColor: "divider" }}
       >
-        <Typography variant="body2" sx={{ fontWeight: 900, flexGrow: 1 }}>
+        <Typography variant="body2" sx={{ fontWeight: 750, flexGrow: 1 }}>
           {title}
         </Typography>
         <Chip size="small" label={files.length} />
@@ -440,7 +440,7 @@ function GitActionBlock({ title, children }: GitActionBlockProps) {
         minWidth: 0
       }}
     >
-      <Typography variant="body2" sx={{ fontWeight: 900, mb: 1 }}>
+      <Typography variant="body2" sx={{ fontWeight: 750, mb: 1 }}>
         {title}
       </Typography>
       {children}

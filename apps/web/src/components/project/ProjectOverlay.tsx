@@ -1,5 +1,6 @@
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import { Box, Dialog, DialogContent, Stack, Tab, Tabs, Typography } from "@mui/material";
+import { alpha, Box, Dialog, DialogContent, Stack, Tab, Tabs, Typography } from "@mui/material";
 import { ProjectDetailPanel } from "./ProjectDetailPanel";
 import type { ProjectSummary } from "../../types";
 
@@ -42,27 +43,35 @@ export function ProjectOverlay({
       maxWidth="xl"
       PaperProps={{
         sx: {
-          height: { xs: "100dvh", md: "88dvh" },
-          maxHeight: { xs: "100dvh", md: "88dvh" },
-          m: { xs: 0, md: 2 },
+          width: { xs: "100%", md: "calc(100% - 24px)" },
+          maxWidth: { xs: "100%", md: 1536 },
+          height: { xs: "100dvh", md: "92dvh" },
+          maxHeight: { xs: "100dvh", md: "92dvh" },
+          m: { xs: 0, md: 1.5 },
           overflow: "hidden",
-          bgcolor: "background.default"
+          bgcolor: "background.default",
+          borderRadius: { xs: 0, md: 1 }
         }
       }}
     >
       <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column", minHeight: 0, height: "100%", overflow: "hidden" }}>
-        <Box sx={{ borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.paper" }}>
+        <Box sx={{ borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.paper", px: 1 }}>
           <Tabs
             value={activeValue}
             onChange={(_, nextProjectId: string) => onActiveProjectChange(nextProjectId)}
             variant="scrollable"
             scrollButtons="auto"
-            aria-label="Open project tabs"
+            aria-label="Progetti aperti"
             sx={{
-              minHeight: 48,
+              minHeight: 46,
               "& .MuiTab-root": {
-                minHeight: 48,
-                alignItems: "flex-start"
+                minHeight: 46,
+                alignItems: "flex-start",
+                borderRadius: 0.75,
+                mx: 0.25,
+                "&.Mui-selected": {
+                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.07)
+                }
               }
             }}
           >
@@ -71,7 +80,8 @@ export function ProjectOverlay({
                 key={project.id}
                 value={project.id}
                 label={
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ maxWidth: 220 }}>
+                  <Stack direction="row" spacing={0.75} alignItems="center" sx={{ maxWidth: 220 }}>
+                    <AccountTreeIcon sx={{ fontSize: 16, color: "primary.main" }} />
                     <Typography variant="body2" noWrap sx={{ fontWeight: 700 }}>
                       {project.name}
                     </Typography>

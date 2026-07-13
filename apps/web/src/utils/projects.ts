@@ -47,10 +47,10 @@ export function groupProjects(projects: ProjectSummary[], root: string) {
 export function getProjectTone(project: ProjectSummary, colorMode: ColorMode): ProjectTone {
   if (!project.isClean) {
     return {
-      label: "dirty",
+      label: "modificato",
       chipColor: "warning",
-      borderColor: "#ed6c02",
-      background: colorMode === "light" ? "#fffaf2" : "#2a1d12"
+      borderColor: "#d97706",
+      background: colorMode === "light" ? "#fffbeb" : "#2a1d0b"
     };
   }
 
@@ -58,8 +58,8 @@ export function getProjectTone(project: ProjectSummary, colorMode: ColorMode): P
     return {
       label: "behind",
       chipColor: "secondary",
-      borderColor: "#7b1fa2",
-      background: colorMode === "light" ? "#fbf7ff" : "#241730"
+      borderColor: "#e11d48",
+      background: colorMode === "light" ? "#fff1f2" : "#2a1119"
     };
   }
 
@@ -67,16 +67,16 @@ export function getProjectTone(project: ProjectSummary, colorMode: ColorMode): P
     return {
       label: "ahead",
       chipColor: "info",
-      borderColor: "#0288d1",
-      background: colorMode === "light" ? "#f3fbff" : "#102335"
+      borderColor: "#0ea5e9",
+      background: colorMode === "light" ? "#f0f9ff" : "#0b2133"
     };
   }
 
   return {
-    label: "clean",
+    label: "pulito",
     chipColor: "success",
-    borderColor: "#2e7d32",
-    background: colorMode === "light" ? "#f7fff8" : "#122418"
+    borderColor: "#059669",
+    background: colorMode === "light" ? "#ecfdf5" : "#0c251d"
   };
 }
 

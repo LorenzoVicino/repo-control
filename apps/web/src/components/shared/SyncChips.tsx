@@ -11,10 +11,10 @@ export function SyncChips({ project }: SyncChipsProps) {
       {project.upstream ? (
         <Chip size="small" variant="outlined" label={project.upstream} />
       ) : (
-        <Chip size="small" variant="outlined" label="no upstream" />
+        <Chip size="small" variant="outlined" label="senza upstream" />
       )}
       {project.ahead > 0 ? <Chip size="small" color="info" label={`ahead ${project.ahead}`} /> : null}
-      {project.behind > 0 ? <Chip size="small" color="secondary" label={`behind ${project.behind}`} /> : null}
+      {project.behind > 0 ? <Chip size="small" color="error" variant="outlined" label={`behind ${project.behind}`} /> : null}
     </Stack>
   );
 }

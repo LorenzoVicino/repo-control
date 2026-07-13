@@ -1,11 +1,16 @@
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import BuildIcon from "@mui/icons-material/Build";
 import CloseIcon from "@mui/icons-material/Close";
+import CommitIcon from "@mui/icons-material/Commit";
+import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import RocketLaunchOutlinedIcon from "@mui/icons-material/RocketLaunchOutlined";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import StopCircleIcon from "@mui/icons-material/StopCircle";
-import { Box, Button, Chip, CircularProgress, Divider, IconButton, Paper, Stack, Tooltip, Typography } from "@mui/material";
+import TerminalIcon from "@mui/icons-material/Terminal";
+import { alpha, Box, Chip, CircularProgress, Divider, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import React from "react";
 import { fetchDockerContainers, fetchGitActivity, fetchGitDetails } from "../../api/client";
@@ -102,12 +107,37 @@ export function ProjectDetailPanel({
 
   return (
     <Stack spacing={0} sx={{ minHeight: "100%", height: "100%", overflow: "hidden" }}>
-      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ px: 2, py: 2.25 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1.25}
+        sx={{ px: { xs: 1.5, md: 2 }, py: { xs: 1.35, md: 1.6 }, bgcolor: "background.paper" }}
+      >
+        <Box
+          sx={{
+            width: 38,
+            height: 38,
+            flexShrink: 0,
+            display: "grid",
+            placeItems: "center",
+            borderRadius: 1,
+            color: "primary.main",
+            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1)
+          }}
+        >
+          <AccountTreeIcon sx={{ fontSize: 21 }} />
+        </Box>
         <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-          <Typography variant="h5" sx={{ fontWeight: 900, lineHeight: 1.1 }} noWrap>
+          <Typography variant="h5" noWrap>
             {project.name}
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }} noWrap component="div">
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}
+            noWrap
+            component="div"
+          >
             {project.path}
           </Typography>
         </Box>
@@ -120,31 +150,44 @@ export function ProjectDetailPanel({
             {isFavorite ? <StarIcon /> : <StarBorderIcon />}
           </IconButton>
         </Tooltip>
-        <IconButton onClick={onClose} aria-label="Close project tab">
+        <Tooltip title="Chiudi progetto">
+          <IconButton onClick={onClose} aria-label="Chiudi progetto">
           <CloseIcon />
-        </IconButton>
+          </IconButton>
+        </Tooltip>
       </Stack>
 
       <Divider />
 
       <Box
         sx={{
-          p: { xs: 1.5, md: 2 },
-          display: "grid",
+          p: { xs: 1.25, md: 2 },
+          display: { xs: "flex", lg: "grid" },
+          flexDirection: { xs: "column" },
           gridTemplateColumns: { xs: "1fr", lg: "320px minmax(0, 1fr)" },
           gap: { xs: 1.5, lg: 2 },
           minHeight: 0,
           flexGrow: 1,
           height: { lg: "100%" },
-          overflow: { lg: "hidden" }
+          overflow: { xs: "auto", lg: "hidden" }
         }}
       >
-        <Stack spacing={1.5} sx={{ minWidth: 0, minHeight: 0, height: "100%", overflow: "hidden" }}>
+        <Stack
+          spacing={1.5}
+          sx={{
+            minWidth: 0,
+            minHeight: 0,
+            height: { lg: "100%" },
+            flexShrink: 0,
+            mb: { xs: 2, lg: 0 },
+            overflow: { xs: "visible", lg: "hidden" }
+          }}
+        >
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
             <Chip label={gitDetails?.status.current ?? project.branch} color="primary" />
             <Chip
               color={(gitDetails?.status.isClean ?? project.isClean) ? "success" : "warning"}
-              label={(gitDetails?.status.isClean ?? project.isClean) ? "clean" : "dirty"}
+              label={(gitDetails?.status.isClean ?? project.isClean) ? "pulito" : "modificato"}
             />
             {project.hasDockerCompose ? (
               <Chip
@@ -155,13 +198,15 @@ export function ProjectDetailPanel({
             ) : null}
           </Stack>
 
-          <DetailBlock title="Quick actions">
+          <DetailBlock title="Azioni rapide">
             <Stack spacing={0.75}>
               <ActionButton
                 projectId={project.id}
                 actionPath="open-vscode"
                 label="VS Code"
                 icon={<OpenInNewIcon fontSize="small" />}
+                variant="contained"
+                fullWidth
                 onResult={onResult}
               />
               <ActionButton
@@ -170,6 +215,7 @@ export function ProjectDetailPanel({
                 label="Docker compose up"
                 icon={<PlayArrowIcon fontSize="small" />}
                 disabled={!canStartCompose}
+                fullWidth
                 onResult={onResult}
                 onCompleted={refreshAfterProjectAction}
               />
@@ -179,6 +225,7 @@ export function ProjectDetailPanel({
                 label="Rebuild compose"
                 icon={<BuildIcon fontSize="small" />}
                 disabled={!canRebuildCompose}
+                fullWidth
                 onResult={onResult}
                 onCompleted={refreshAfterProjectAction}
               />
@@ -188,6 +235,7 @@ export function ProjectDetailPanel({
                 label="Stop compose"
                 icon={<StopCircleIcon fontSize="small" />}
                 disabled={!canStopCompose}
+                fullWidth
                 onResult={onResult}
                 onCompleted={refreshAfterProjectAction}
               />
@@ -203,14 +251,15 @@ export function ProjectDetailPanel({
           />
         </Stack>
 
-        <Stack spacing={1.25} sx={{ minWidth: 0, minHeight: 0, height: "100%", overflow: "hidden" }}>
+        <Stack
+          spacing={1.25}
+          sx={{ minWidth: 0, minHeight: { xs: 540, lg: 0 }, height: { lg: "100%" }, overflow: "hidden" }}
+        >
           <ProjectDetailTabs value={detailTab} onChange={setDetailTab} />
 
-          <Paper
-            variant="outlined"
+          <Box
             sx={{
               overflow: "hidden",
-              bgcolor: "background.paper",
               minHeight: 0,
               flexGrow: 1,
               display: "flex",
@@ -266,7 +315,7 @@ export function ProjectDetailPanel({
                 />
               ) : null}
             </Box>
-          </Paper>
+          </Box>
         </Stack>
       </Box>
     </Stack>
@@ -278,40 +327,34 @@ type ProjectDetailTabsProps = {
   onChange: (tab: ProjectDetailTab) => void;
 };
 
-const PROJECT_DETAIL_TABS: Array<{ value: ProjectDetailTab; label: string }> = [
-  { value: "git", label: "Git" },
-  { value: "branches", label: "Branches" },
-  { value: "terminal", label: "Terminal" },
-  { value: "docker", label: "Docker" },
-  { value: "deploy", label: "Deploy" }
+const PROJECT_DETAIL_TABS: Array<{ value: ProjectDetailTab; label: string; icon: React.ReactElement }> = [
+  { value: "git", label: "Git", icon: <CommitIcon /> },
+  { value: "branches", label: "Branch", icon: <AccountTreeIcon /> },
+  { value: "terminal", label: "Terminale", icon: <TerminalIcon /> },
+  { value: "docker", label: "Docker", icon: <Inventory2OutlinedIcon /> },
+  { value: "deploy", label: "Deploy", icon: <RocketLaunchOutlinedIcon /> }
 ];
 
 function ProjectDetailTabs({ value, onChange }: ProjectDetailTabsProps) {
   return (
-    <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" role="tablist" aria-label="Project detail sections">
-      {PROJECT_DETAIL_TABS.map((tab) => {
-        const isSelected = value === tab.value;
-
-        return (
-          <Button
-            key={tab.value}
-            role="tab"
-            aria-selected={isSelected}
-            size="small"
-            variant={isSelected ? "contained" : "outlined"}
-            onClick={() => onChange(tab.value)}
-            sx={{
-              minWidth: { xs: 92, md: 108 },
-              justifyContent: "flex-start",
-              borderRadius: 0,
-              fontWeight: 800
-            }}
-          >
-            {tab.label}
-          </Button>
-        );
-      })}
-    </Stack>
+    <Tabs
+      value={value}
+      onChange={(_, nextTab: ProjectDetailTab) => onChange(nextTab)}
+      variant="scrollable"
+      scrollButtons="auto"
+      aria-label="Sezioni progetto"
+      sx={{
+        minHeight: 42,
+        borderBottom: "1px solid",
+        borderColor: "divider",
+        "& .MuiTab-root": { minHeight: 42, px: 1.25 },
+        "& .MuiTab-iconWrapper": { fontSize: 17, mr: 0.65 }
+      }}
+    >
+      {PROJECT_DETAIL_TABS.map((tab) => (
+        <Tab key={tab.value} value={tab.value} label={tab.label} icon={tab.icon} iconPosition="start" />
+      ))}
+    </Tabs>
   );
 }
 
@@ -427,21 +470,23 @@ function GitActivityGraph({
       sx={{
         minWidth: 0,
         minHeight: 220,
-        flexGrow: 1,
+        height: { xs: 280, lg: "auto" },
+        flexGrow: { xs: 0, lg: 1 },
+        flexShrink: 0,
         display: "grid",
         gridTemplateRows: "auto minmax(0, 1fr)",
         overflow: "hidden"
       }}
     >
-      <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 900, letterSpacing: 0 }}>
-        Graph
+      <Typography variant="overline" color="text.secondary">
+        Attività Git
       </Typography>
       <Stack
         sx={{
           p: 1.25,
           border: "1px solid",
           borderColor: "divider",
-          borderRadius: 0.5,
+          borderRadius: 1,
           bgcolor: "background.paper",
           minWidth: 0,
           height: "100%",

@@ -1,11 +1,14 @@
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
+import CallSplitIcon from "@mui/icons-material/CallSplit";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
-import { Box, Chip, Collapse, IconButton, Paper, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { alpha, Box, ButtonBase, Chip, Collapse, IconButton, Paper, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import React, { type ReactNode } from "react";
 import type { ProjectSummary } from "../../types";
-import { getProjectTone, groupProjects } from "../../utils/projects";
+import { formatDate, getProjectTone, groupProjects } from "../../utils/projects";
 
 type WorkspaceMapProps = {
   root: string;
@@ -26,19 +29,7 @@ export function WorkspaceMap({
   const [collapsedGroupLabels, setCollapsedGroupLabels] = React.useState<Set<string>>(() => new Set());
 
   if (projects.length === 0) {
-    return (
-      <Box
-        sx={{
-          p: 4,
-          textAlign: "center",
-          borderTop: "1px solid",
-          borderBottom: "1px solid",
-          borderColor: "divider"
-        }}
-      >
-        <Typography>No Git repositories found.</Typography>
-      </Box>
-    );
+    return <WorkspaceEmptyState />;
   }
 
   return (
@@ -101,15 +92,19 @@ export function FavoriteProjects({
   const [isExpanded, setIsExpanded] = React.useState(true);
   const favoriteProjects = projects.filter((project) => favoriteProjectIds.includes(project.id));
 
+  if (favoriteProjects.length === 0) {
+    return null;
+  }
+
   return (
-    <CollapsibleProjectSection
-      id="favorite-projects"
-      title="Preferiti"
-      count={favoriteProjects.length}
-      isExpanded={isExpanded}
-      onToggle={() => setIsExpanded((currentValue) => !currentValue)}
-    >
-      {favoriteProjects.length > 0 ? (
+    <Box component="section" aria-label="Repository preferiti">
+      <CollapsibleProjectSection
+        id="favorite-projects"
+        title="Preferiti"
+        count={favoriteProjects.length}
+        isExpanded={isExpanded}
+        onToggle={() => setIsExpanded((currentValue) => !currentValue)}
+      >
         <ProjectCardGrid>
           {favoriteProjects.map((project) => (
             <ProjectCard
@@ -121,20 +116,8 @@ export function FavoriteProjects({
             />
           ))}
         </ProjectCardGrid>
-      ) : (
-        <Box
-          sx={{
-            p: 2,
-            border: "1px dashed",
-            borderColor: "divider",
-            borderRadius: 1,
-            color: "text.secondary"
-          }}
-        >
-          <Typography variant="body2">Nessun repository preferito.</Typography>
-        </Box>
-      )}
-    </CollapsibleProjectSection>
+      </CollapsibleProjectSection>
+    </Box>
   );
 }
 
@@ -166,51 +149,42 @@ function CollapsibleProjectSection({
         sx={{
           width: "100%",
           p: 0,
-          mb: 1.25,
+          mb: isExpanded ? 1.25 : 0,
           display: "flex",
           alignItems: "center",
-          gap: 1,
+          gap: 0.9,
           color: "text.primary",
           bgcolor: "transparent",
           border: 0,
           cursor: "pointer",
           textAlign: "left",
           font: "inherit",
+          "&:hover .section-title": { color: "primary.main" },
           "&:focus-visible": {
-            outline: "2px solid",
-            outlineColor: "primary.main",
-            outlineOffset: 3
+            outline: "3px solid",
+            outlineColor: (theme) => alpha(theme.palette.primary.main, 0.24),
+            outlineOffset: 4,
+            borderRadius: 1
           }
         }}
       >
-        {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-        <Typography variant="h2" sx={{ flexGrow: 0 }}>
+        <FolderOutlinedIcon sx={{ fontSize: 19, color: "secondary.main" }} />
+        <Typography className="section-title" variant="h2" sx={{ transition: "color 160ms ease" }}>
           {title}
         </Typography>
         <Chip size="small" label={count} variant="outlined" />
+        <Box sx={{ flexGrow: 1 }} />
+        {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
       </Box>
 
-      <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-        <Box
-          id={id}
-          sx={{
-            borderTop: "1px solid",
-            borderColor: "divider",
-            pt: 1.25
-          }}
-        >
-          {children}
-        </Box>
+      <Collapse in={isExpanded} timeout={180} unmountOnExit>
+        <Box id={id}>{children}</Box>
       </Collapse>
     </Box>
   );
 }
 
-type ProjectCardGridProps = {
-  children: ReactNode;
-};
-
-function ProjectCardGrid({ children }: ProjectCardGridProps) {
+function ProjectCardGrid({ children }: { children: ReactNode }) {
   return (
     <Box
       sx={{
@@ -218,8 +192,9 @@ function ProjectCardGrid({ children }: ProjectCardGridProps) {
         gridTemplateColumns: {
           xs: "1fr",
           sm: "repeat(2, minmax(0, 1fr))",
-          lg: "repeat(3, minmax(0, 1fr))",
-          xl: "repeat(4, minmax(0, 1fr))"
+          md: "repeat(3, minmax(0, 1fr))",
+          lg: "repeat(4, minmax(0, 1fr))",
+          xl: "repeat(5, minmax(0, 1fr))"
         },
         gap: 1.25
       }}
@@ -243,43 +218,74 @@ function ProjectCard({ project, isFavorite, onClick, onToggleFavorite }: Project
 
   return (
     <Paper
-      role="button"
-      tabIndex={0}
-      aria-label={`Apri ${project.name}`}
-      onClick={onClick}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onClick();
-        }
-      }}
+      component="article"
       sx={{
-        minHeight: 132,
+        position: "relative",
+        minHeight: 168,
         width: "100%",
         p: 1.5,
+        overflow: "hidden",
         textAlign: "left",
         border: "1px solid",
         borderColor: "divider",
-        borderLeft: `3px solid ${tone.borderColor}`,
         bgcolor: "background.paper",
         cursor: "pointer",
-        transition: "border-color 120ms ease, background-color 120ms ease",
-        "&:hover": {
-          borderColor: tone.borderColor,
-          bgcolor: theme.palette.action.hover
+        transition: "border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease",
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          inset: "0 0 auto 0",
+          height: 3,
+          bgcolor: tone.borderColor
         },
-        "&:focus-visible": {
-          outline: "2px solid",
-          outlineColor: "primary.main",
-          outlineOffset: -2
+        "&:hover": {
+          borderColor: alpha(tone.borderColor, 0.55),
+          transform: "translateY(-2px)",
+          boxShadow: `0 12px 26px ${alpha(theme.palette.common.black, theme.palette.mode === "light" ? 0.075 : 0.22)}`
+        },
+        "@media (prefers-reduced-motion: reduce)": {
+          transition: "none",
+          "&:hover": { transform: "none" }
         }
       }}
     >
-      <Stack spacing={1} sx={{ height: "100%" }}>
-        <Stack direction="row" spacing={1} alignItems="flex-start">
+      <ButtonBase
+        aria-label={`Apri ${project.name}`}
+        onClick={onClick}
+        sx={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 1,
+          borderRadius: "inherit",
+          "&.Mui-focusVisible": {
+            outline: "3px solid",
+            outlineColor: alpha(theme.palette.primary.main, 0.3),
+            outlineOffset: -3
+          }
+        }}
+      />
+      <Stack spacing={1.1} sx={{ position: "relative", height: "100%" }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Box
+            sx={{
+              width: 34,
+              height: 34,
+              display: "grid",
+              placeItems: "center",
+              flexShrink: 0,
+              borderRadius: 1,
+              color: tone.borderColor,
+              bgcolor: alpha(tone.borderColor, 0.1)
+            }}
+          >
+            <AccountTreeIcon sx={{ fontSize: 19 }} />
+          </Box>
           <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 800 }} noWrap>
+            <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 750 }} noWrap>
               {project.name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" noWrap component="div">
+              {getStatusLabel(project)}
             </Typography>
           </Box>
           <Tooltip title={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}>
@@ -291,33 +297,75 @@ function ProjectCard({ project, isFavorite, onClick, onToggleFavorite }: Project
                 event.stopPropagation();
                 onToggleFavorite();
               }}
-              sx={{ mt: -0.5, mr: -0.5 }}
+              sx={{ position: "relative", zIndex: 2, mr: -0.5 }}
             >
               {isFavorite ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
             </IconButton>
           </Tooltip>
         </Stack>
 
-        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-          <Chip size="small" variant="outlined" label={project.branch} />
-          {project.ahead > 0 ? <Chip size="small" color="info" label={`+${project.ahead}`} /> : null}
-          {project.behind > 0 ? <Chip size="small" color="secondary" label={`-${project.behind}`} /> : null}
-          {localChanges > 0 ? <Chip size="small" color="warning" label={`changes ${localChanges}`} /> : null}
+        <Stack direction="row" spacing={0.6} useFlexGap flexWrap="wrap">
+          <Chip size="small" variant="outlined" icon={<CallSplitIcon />} label={project.branch} />
+          {project.ahead > 0 ? <Chip size="small" color="info" label={`+${project.ahead} ahead`} /> : null}
+          {project.behind > 0 ? <Chip size="small" color="error" variant="outlined" label={`${project.behind} behind`} /> : null}
+          {localChanges > 0 ? <Chip size="small" color="warning" variant="outlined" label={`${localChanges} modifiche`} /> : null}
         </Stack>
 
         <Box sx={{ flexGrow: 1 }} />
 
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="caption" color="text.secondary" noWrap component="div">
-            {project.lastCommit ? project.lastCommit.message : "No commits"}
+        <Box sx={{ minWidth: 0, pt: 0.9, borderTop: "1px solid", borderColor: "divider" }}>
+          <Typography variant="caption" color="text.primary" noWrap component="div" sx={{ fontWeight: 600 }}>
+            {project.lastCommit ? project.lastCommit.message : "Nessun commit"}
           </Typography>
           {project.lastCommit ? (
-            <Typography variant="caption" color="text.secondary" noWrap component="div">
-              {project.lastCommit.author}
+            <Typography variant="caption" color="text.secondary" noWrap component="div" sx={{ mt: 0.2 }}>
+              {project.lastCommit.author} · {formatDate(project.lastCommit.date)}
             </Typography>
           ) : null}
         </Box>
       </Stack>
     </Paper>
   );
+}
+
+function WorkspaceEmptyState() {
+  return (
+    <Box
+      sx={{
+        minHeight: 240,
+        display: "grid",
+        placeItems: "center",
+        p: 4,
+        textAlign: "center",
+        border: "1px dashed",
+        borderColor: "divider",
+        borderRadius: 1,
+        bgcolor: "background.paper"
+      }}
+    >
+      <Stack spacing={1} alignItems="center">
+        <AccountTreeIcon color="disabled" sx={{ fontSize: 32 }} />
+        <Typography variant="h6">Nessun repository trovato</Typography>
+        <Typography variant="body2" color="text.secondary">
+          Cambia workspace oppure modifica la ricerca corrente.
+        </Typography>
+      </Stack>
+    </Box>
+  );
+}
+
+function getStatusLabel(project: ProjectSummary): string {
+  if (!project.isClean) {
+    return "Modifiche locali";
+  }
+
+  if (project.behind > 0) {
+    return "Aggiornamento remoto disponibile";
+  }
+
+  if (project.ahead > 0) {
+    return "Commit locali da pubblicare";
+  }
+
+  return "Sincronizzato e pulito";
 }

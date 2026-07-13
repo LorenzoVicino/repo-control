@@ -1,3 +1,4 @@
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import SearchIcon from "@mui/icons-material/Search";
 import {
   Box,
@@ -100,9 +101,10 @@ export function RepositoryCommandPalette({
       maxWidth="sm"
       PaperProps={{
         sx: {
-          mt: 10,
+          mt: { xs: 2, sm: 8 },
           alignSelf: "flex-start",
-          overflow: "hidden"
+          overflow: "hidden",
+          borderRadius: 1
         }
       }}
       TransitionProps={{
@@ -128,8 +130,8 @@ export function RepositoryCommandPalette({
             ),
             sx: {
               px: 0,
-              py: 1.5,
-              fontSize: "1rem",
+              py: 1.75,
+              fontSize: "0.95rem",
               borderBottom: "1px solid",
               borderColor: "divider"
             }
@@ -137,7 +139,7 @@ export function RepositoryCommandPalette({
         />
 
         {results.length > 0 ? (
-          <List disablePadding sx={{ py: 0.75, maxHeight: 430, overflow: "auto" }}>
+          <List disablePadding sx={{ p: 0.75, maxHeight: 430, overflow: "auto" }}>
             {results.map((project, index) => (
               <ListItemButton
                 key={project.id}
@@ -147,12 +149,34 @@ export function RepositoryCommandPalette({
                   onOpenProject(project.id);
                   onClose();
                 }}
-                sx={{ mx: 0.75, borderRadius: 1, alignItems: "flex-start", gap: 1 }}
+                sx={{
+                  minHeight: 58,
+                  px: 1.25,
+                  borderRadius: 0.75,
+                  alignItems: "center",
+                  gap: 1,
+                  borderLeft: "3px solid transparent",
+                  "&.Mui-selected": { borderLeftColor: "primary.main" }
+                }}
               >
+                <Box
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    display: "grid",
+                    placeItems: "center",
+                    flexShrink: 0,
+                    borderRadius: 0.75,
+                    color: "primary.main",
+                    bgcolor: "action.selected"
+                  }}
+                >
+                  <AccountTreeIcon sx={{ fontSize: 18 }} />
+                </Box>
                 <ListItemText
                   primary={
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                      <Typography variant="body2" noWrap sx={{ fontWeight: 700, minWidth: 0 }}>
+                      <Typography variant="body2" noWrap sx={{ fontWeight: 750, minWidth: 0 }}>
                         {project.name}
                       </Typography>
                       <Chip size="small" variant="outlined" label={project.branch} />
@@ -186,7 +210,7 @@ type ProjectSignalProps = {
 
 function ProjectSignal({ project }: ProjectSignalProps) {
   if (!project.isClean) {
-    return <Chip size="small" color="warning" label="dirty" />;
+    return <Chip size="small" color="warning" label="modificato" />;
   }
 
   if (project.behind > 0) {
@@ -197,5 +221,5 @@ function ProjectSignal({ project }: ProjectSignalProps) {
     return <Chip size="small" color="info" label={`ahead ${project.ahead}`} />;
   }
 
-  return <Chip size="small" color="success" label="clean" />;
+  return <Chip size="small" color="success" label="pulito" />;
 }

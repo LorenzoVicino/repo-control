@@ -1,6 +1,13 @@
 import type {
   AppUpdateResult,
   AppUpdateStatus,
+  BrainContentPhase,
+  BrainContextPreview,
+  BrainGatePhase,
+  BrainTask,
+  BrainTaskRun,
+  BrainTasksResponse,
+  BrainTaskType,
   CommandResult,
   DockerContainersResponse,
   GitActivity,
@@ -8,6 +15,92 @@ import type {
   ProjectsResponse,
   UserPreferences
 } from "../types";
+
+async function readApiResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message ?? fallbackMessage);
+  }
+
+  return payload as T;
+}
+
+export async function fetchBrainTasks(projectId: string): Promise<BrainTasksResponse> {
+  return readApiResponse(await fetch(`/api/projects/${projectId}/tasks`), "Unable to load tasks");
+}
+
+export async function createBrainTask(
+  projectId: string,
+  input: { title: string; type: BrainTaskType; description: string; motivation: string }
+): Promise<BrainTask> {
+  return readApiResponse(
+    await fetch(`/api/projects/${projectId}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input)
+    }),
+    "Unable to create task"
+  );
+}
+
+export async function updateBrainTask(
+  projectId: string,
+  taskId: string,
+  input: {
+    title?: string;
+    type?: BrainTaskType;
+    definition?: { description?: string; motivation?: string };
+    phase?: BrainContentPhase;
+    content?: string;
+  }
+): Promise<BrainTask> {
+  return readApiResponse(
+    await fetch(`/api/projects/${projectId}/tasks/${taskId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input)
+    }),
+    "Unable to save task"
+  );
+}
+
+export async function approveBrainTask(
+  projectId: string,
+  taskId: string,
+  phase: BrainGatePhase
+): Promise<BrainTask> {
+  return readApiResponse(
+    await fetch(`/api/projects/${projectId}/tasks/${taskId}/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phase })
+    }),
+    "Unable to approve task phase"
+  );
+}
+
+export async function fetchBrainContext(projectId: string, taskId: string): Promise<BrainContextPreview> {
+  return readApiResponse(
+    await fetch(`/api/projects/${projectId}/tasks/${taskId}/context`),
+    "Unable to assemble brain context"
+  );
+}
+
+export async function runBrainTask(
+  projectId: string,
+  taskId: string,
+  input: { prompt: string; checks: string[] }
+): Promise<BrainTaskRun> {
+  return readApiResponse(
+    await fetch(`/api/projects/${projectId}/tasks/${taskId}/runs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input)
+    }),
+    "Engineering run failed"
+  );
+}
 
 export async function runProjectAction(
   projectId: string,

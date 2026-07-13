@@ -1,24 +1,28 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { ProjectResolver } from "../lib/projectResolver.js";
+import type { CommandResult } from "../lib/commandRunner.js";
 import {
   BrainValidationError,
   appendBrainTaskDecision,
   appendBrainTaskLog,
+  assembleBrainContext,
   approveBrainTaskPhase,
   createBrainTask,
   deleteBrainTask,
   readBrainTask,
   readBrainTasks,
-  updateBrainTask
+  updateBrainTask,
+  getBrainTaskSpecHash
 } from "../services/brainService.js";
+import { executeEngineeringRun } from "../services/engineeringRunService.js";
 
 const projectParamsSchema = z.object({ id: z.string() });
 const taskParamsSchema = z.object({
   id: z.string(),
   taskId: z.string().trim().min(1).max(160)
 });
-const taskTypeSchema = z.enum(["feature", "bug", "refactor", "chore"]);
+const taskTypeSchema = z.enum(["feature", "fix", "refactor", "chore", "spike"]);
 const contentPhaseSchema = z.enum(["requirements", "design", "breakdown"]);
 const gatePhaseSchema = z.enum(["definition", "requirements", "design", "breakdown", "implementation"]);
 
@@ -73,7 +77,16 @@ const appendDecisionBodySchema = z.object({
   rationale: z.string().trim().min(1).max(20_000)
 });
 
-export async function registerBrainRoutes(app: FastifyInstance, context: ProjectResolver): Promise<void> {
+const runTaskBodySchema = z.object({
+  prompt: z.string().max(20_000).default(""),
+  checks: z.array(z.string().trim().min(1).max(1000)).min(1).max(12)
+});
+
+type BrainRoutesContext = ProjectResolver & {
+  runShellCommand: (cwd: string, commandLine: string, timeoutMs: number) => Promise<CommandResult>;
+};
+
+export async function registerBrainRoutes(app: FastifyInstance, context: BrainRoutesContext): Promise<void> {
   app.get("/api/projects/:id/tasks", async (request) => {
     const params = projectParamsSchema.parse(request.params);
     const projectPath = await context.resolveProjectPath(params.id);
@@ -91,6 +104,22 @@ export async function registerBrainRoutes(app: FastifyInstance, context: Project
     }
 
     return task;
+  });
+
+  app.get("/api/projects/:id/tasks/:taskId/context", async (request, reply) => {
+    const params = taskParamsSchema.parse(request.params);
+    const projectPath = await context.resolveProjectPath(params.id);
+    const task = await readBrainTask(projectPath, params.taskId);
+
+    if (!task) {
+      return sendTaskNotFound(reply);
+    }
+
+    return {
+      content: await assembleBrainContext(projectPath, task),
+      specHash: getBrainTaskSpecHash(task),
+      generatedAt: new Date().toISOString()
+    };
   });
 
   app.post("/api/projects/:id/tasks", async (request) => {
@@ -138,6 +167,14 @@ export async function registerBrainRoutes(app: FastifyInstance, context: Project
     const projectPath = await context.resolveProjectPath(params.id);
 
     return sendBrainMutation(reply, () => appendBrainTaskDecision(projectPath, params.taskId, body));
+  });
+
+  app.post("/api/projects/:id/tasks/:taskId/runs", async (request, reply) => {
+    const params = taskParamsSchema.parse(request.params);
+    const body = runTaskBodySchema.parse(request.body);
+    const projectPath = await context.resolveProjectPath(params.id);
+
+    return sendBrainMutation(reply, () => executeEngineeringRun(projectPath, params.taskId, body, context));
   });
 
   app.delete("/api/projects/:id/tasks/:taskId", async (request, reply) => {

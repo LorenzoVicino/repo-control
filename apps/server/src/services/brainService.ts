@@ -1,10 +1,10 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { simpleGit } from "simple-git";
 import { getConfigDirectory } from "../preferences.js";
 
-export type BrainTaskType = "feature" | "bug" | "refactor" | "chore";
+export type BrainTaskType = "feature" | "fix" | "refactor" | "chore" | "spike";
 export type BrainTaskStatus =
   | "definition"
   | "requirements"
@@ -34,6 +34,28 @@ export type BrainDecision = {
   createdAt: string;
 };
 
+export type BrainRunCheck = {
+  id: string;
+  command: string;
+  ok: boolean;
+  exitCode: number | null;
+  output: string;
+  durationMs: number;
+};
+
+export type BrainTaskRun = {
+  id: string;
+  status: "succeeded" | "failed";
+  prompt: string;
+  response: string;
+  error: string | null;
+  claudeSessionId: string | null;
+  specHash: string;
+  checks: BrainRunCheck[];
+  startedAt: string;
+  completedAt: string;
+};
+
 export type BrainTask = {
   id: string;
   title: string;
@@ -48,6 +70,7 @@ export type BrainTask = {
   breakdown: BrainPhaseState;
   implementation: {
     log: BrainLogEntry[];
+    runs: BrainTaskRun[];
   };
   decisions: BrainDecision[];
   git: {
@@ -105,7 +128,7 @@ export class BrainValidationError extends Error {
 
 const MAX_RELATED_TASKS = 5;
 const MAX_CONTEXT_SECTION_LENGTH = 2400;
-const TASK_TYPES: BrainTaskType[] = ["feature", "bug", "refactor", "chore"];
+const TASK_TYPES: BrainTaskType[] = ["feature", "fix", "refactor", "chore", "spike"];
 const TASK_STATUSES: BrainTaskStatus[] = [
   "definition",
   "requirements",
@@ -145,7 +168,7 @@ export async function createBrainTask(projectPath: string, input: CreateBrainTas
     requirements: createEmptyPhase(),
     design: createEmptyPhase(),
     breakdown: createEmptyPhase(),
-    implementation: { log: [] },
+    implementation: { log: [], runs: [] },
     decisions: [],
     git: { branch: null, prUrl: null },
     claudeSessionId: null,
@@ -177,11 +200,16 @@ export async function updateBrainTask(
     requirements: { ...task.requirements },
     design: { ...task.design },
     breakdown: { ...task.breakdown },
-    implementation: { log: [...task.implementation.log] },
+    implementation: { log: [...task.implementation.log], runs: [...task.implementation.runs] },
     decisions: [...task.decisions],
     git: { ...task.git },
     updatedAt: now
   };
+  const originalDefinition = JSON.stringify({
+    title: nextTask.title,
+    type: nextTask.type,
+    definition: nextTask.definition
+  });
 
   if (input.title !== undefined) {
     nextTask.title = normalizeText(input.title, nextTask.title).slice(0, 160);
@@ -202,6 +230,16 @@ export async function updateBrainTask(
           ? nextTask.definition.motivation
           : input.definition.motivation.slice(0, 20_000)
     };
+  }
+
+  const nextDefinition = JSON.stringify({
+    title: nextTask.title,
+    type: nextTask.type,
+    definition: nextTask.definition
+  });
+
+  if (originalDefinition !== nextDefinition && nextTask.status !== "definition") {
+    nextTask = rollbackApprovalsFromDefinition(nextTask);
   }
 
   if (input.phase && input.content !== undefined) {
@@ -252,7 +290,7 @@ export async function approveBrainTaskPhase(
     requirements: { ...task.requirements },
     design: { ...task.design },
     breakdown: { ...task.breakdown },
-    implementation: { log: [...task.implementation.log] },
+    implementation: { log: [...task.implementation.log], runs: [...task.implementation.runs] },
     decisions: [...task.decisions],
     git: { ...task.git },
     updatedAt: now
@@ -282,6 +320,11 @@ export async function approveBrainTaskPhase(
   } else {
     assertApproved(nextTask.breakdown.approvedAt, "Approve task breakdown before implementation.");
     assertStatusAtLeast(nextTask, "implementation", "Move to implementation before closing the task.");
+    const latestSuccessfulRun = nextTask.implementation.runs.find((run) => run.status === "succeeded");
+
+    if (!latestSuccessfulRun || latestSuccessfulRun.specHash !== getBrainTaskSpecHash(nextTask)) {
+      throw new BrainValidationError("A successful run for the current approved spec is required before closing the task.");
+    }
     nextTask.status = "done";
   }
 
@@ -314,7 +357,8 @@ export async function appendBrainTaskLog(
           createdAt: now
         },
         ...task.implementation.log
-      ]
+      ],
+      runs: [...task.implementation.runs]
     },
     updatedAt: now
   });
@@ -322,6 +366,56 @@ export async function appendBrainTaskLog(
   brainFile.tasks = sortTasks(brainFile.tasks.map((currentTask) => (currentTask.id === taskId ? nextTask : currentTask)));
   await writeBrainFile(projectPath, brainFile);
   return nextTask;
+}
+
+export async function appendBrainTaskRun(
+  projectPath: string,
+  taskId: string,
+  run: BrainTaskRun
+): Promise<BrainTask | null> {
+  const brainFile = await readBrainFile(projectPath);
+  const task = brainFile.tasks.find((currentTask) => currentTask.id === taskId);
+
+  if (!task) {
+    return null;
+  }
+
+  const nextTask = normalizeBrainTask({
+    ...task,
+    implementation: {
+      log: [
+        {
+          id: randomUUID(),
+          kind: run.status === "succeeded" ? "result" : "fix",
+          content: run.status === "succeeded" ? "Engineering run completed successfully." : run.error ?? "Engineering run failed.",
+          createdAt: run.completedAt
+        },
+        ...task.implementation.log
+      ],
+      runs: [run, ...task.implementation.runs]
+    },
+    claudeSessionId: run.claudeSessionId ?? task.claudeSessionId,
+    updatedAt: run.completedAt
+  });
+
+  brainFile.tasks = sortTasks(brainFile.tasks.map((currentTask) => (currentTask.id === taskId ? nextTask : currentTask)));
+  await writeBrainFile(projectPath, brainFile);
+  return nextTask;
+}
+
+export function getBrainTaskSpecHash(task: BrainTask): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        title: task.title,
+        type: task.type,
+        definition: task.definition,
+        requirements: task.requirements.content,
+        design: task.design.content,
+        breakdown: task.breakdown.content
+      })
+    )
+    .digest("hex");
 }
 
 export async function appendBrainTaskDecision(
@@ -486,6 +580,12 @@ function normalizeBrainTask(value: unknown): BrainTask {
             .map(normalizeLogEntry)
             .filter((entry): entry is BrainLogEntry => entry !== null)
             .slice(0, 200)
+        : [],
+      runs: Array.isArray(rawImplementation.runs)
+        ? rawImplementation.runs
+            .map(normalizeTaskRun)
+            .filter((run): run is BrainTaskRun => run !== null)
+            .slice(0, 25)
         : []
     },
     decisions: Array.isArray(raw.decisions)
@@ -552,6 +652,55 @@ function normalizeDecision(value: unknown): BrainDecision | null {
   };
 }
 
+function normalizeTaskRun(value: unknown): BrainTaskRun | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const id = normalizeText(value.id, "").slice(0, 160);
+  const startedAt = normalizeIsoString(value.startedAt, new Date().toISOString());
+
+  if (!id) {
+    return null;
+  }
+
+  return {
+    id,
+    status: value.status === "succeeded" ? "succeeded" : "failed",
+    prompt: getString(value.prompt).slice(0, 20_000),
+    response: getString(value.response).slice(0, 30_000),
+    error: normalizeNullableText(value.error, 4000),
+    claudeSessionId: normalizeNullableText(value.claudeSessionId, 160),
+    specHash: getString(value.specHash).slice(0, 64),
+    checks: Array.isArray(value.checks)
+      ? value.checks.map(normalizeRunCheck).filter((check): check is BrainRunCheck => check !== null).slice(0, 12)
+      : [],
+    startedAt,
+    completedAt: normalizeIsoString(value.completedAt, startedAt)
+  };
+}
+
+function normalizeRunCheck(value: unknown): BrainRunCheck | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const command = getString(value.command).trim().slice(0, 1000);
+
+  if (!command) {
+    return null;
+  }
+
+  return {
+    id: normalizeText(value.id, randomUUID()).slice(0, 160),
+    command,
+    ok: value.ok === true,
+    exitCode: typeof value.exitCode === "number" ? value.exitCode : null,
+    output: getString(value.output).slice(0, 30_000),
+    durationMs: typeof value.durationMs === "number" ? Math.max(0, value.durationMs) : 0
+  };
+}
+
 function rollbackApprovalsFromPhase(task: BrainTask, phase: BrainContentPhase): BrainTask {
   const nextTask: BrainTask = {
     ...task,
@@ -575,6 +724,16 @@ function rollbackApprovalsFromPhase(task: BrainTask, phase: BrainContentPhase): 
   }
 
   return nextTask;
+}
+
+function rollbackApprovalsFromDefinition(task: BrainTask): BrainTask {
+  return {
+    ...task,
+    status: "definition",
+    requirements: { ...task.requirements, approvedAt: null },
+    design: { ...task.design, approvedAt: null },
+    breakdown: { ...task.breakdown, approvedAt: null }
+  };
 }
 
 function assertApproved(value: string | null, message: string): void {
@@ -637,6 +796,10 @@ function sortTasks(tasks: BrainTask[]): BrainTask[] {
 }
 
 function normalizeTaskType(value: unknown): BrainTaskType {
+  if (value === "bug") {
+    return "fix";
+  }
+
   return TASK_TYPES.includes(value as BrainTaskType) ? (value as BrainTaskType) : "feature";
 }
 
