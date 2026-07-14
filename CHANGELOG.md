@@ -6,6 +6,21 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.1.9] - 2026-07-14
+
+### Added
+
+- Add a visual automation workspace with workflow editing, dry runs, execution history and reusable Git, Docker and terminal nodes.
+- Add multi-repository context selection to Task engineering.
+- Add a Dashboard home with rotating API Ninjas quotes, bundled fallbacks and quick navigation actions.
+- Add application-level tabs for every open repository, including keyboard navigation and independent close actions.
+
+### Changed
+
+- Move repository details out of the modal and into the main application workspace.
+- Reorganize frontend API clients and types by domain, and split backend Brain and workflow concerns into focused modules.
+- Add ESLint, React Hooks validation, architecture documentation and a unified `npm run check` quality gate.
+
 ## [0.1.8] - 2026-07-01
 
 ### Added
