@@ -1,5 +1,5 @@
 import { Chip, Stack } from "@mui/material";
-import type { ProjectSummary } from "../../types";
+import type { ProjectSummary } from "../../types/projects";
 
 type StatusChipsProps = {
   project: ProjectSummary;

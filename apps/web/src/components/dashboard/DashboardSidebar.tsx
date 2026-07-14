@@ -5,6 +5,7 @@ import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
 import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
+import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import StarBorderOutlinedIcon from "@mui/icons-material/StarBorderOutlined";
 import StorageOutlinedIcon from "@mui/icons-material/StorageOutlined";
 import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
@@ -23,10 +24,10 @@ import {
 } from "@mui/material";
 import React from "react";
 import { APP_VERSION } from "../../config";
-import type { ColorMode } from "../../types";
+import type { ColorMode } from "../../types/common";
 import { WorkspaceToolbarPicker } from "./WorkspaceToolbarPicker";
 
-export type DashboardSection = "overview" | "tasks" | "docker" | "favorites" | "repositories";
+export type DashboardSection = "overview" | "tasks" | "automations" | "docker" | "favorites" | "repositories";
 
 const DESKTOP_SIDEBAR_WIDTH = 248;
 const COLLAPSED_SIDEBAR_WIDTH = 76;
@@ -37,8 +38,9 @@ const NAV_ITEMS: Array<{
   label: string;
   icon: React.ReactElement;
 }> = [
-  { id: "overview", label: "Panoramica", icon: <DashboardOutlinedIcon /> },
+  { id: "overview", label: "Dashboard", icon: <DashboardOutlinedIcon /> },
   { id: "tasks", label: "Task engineering", icon: <TaskAltOutlinedIcon /> },
+  { id: "automations", label: "Automazioni", icon: <HubOutlinedIcon /> },
   { id: "docker", label: "Docker", icon: <StorageOutlinedIcon /> },
   { id: "favorites", label: "Preferiti", icon: <StarBorderOutlinedIcon /> },
   { id: "repositories", label: "Repository", icon: <AccountTreeOutlinedIcon /> }
@@ -134,6 +136,7 @@ function SidebarContent({
   const counts: Record<DashboardSection, number | null> = {
     overview: null,
     tasks: null,
+    automations: null,
     repositories: repositoryCount,
     favorites: favoriteCount,
     docker: dockerCount
@@ -150,12 +153,6 @@ function SidebarContent({
       >
         {collapsed ? null : (
           <>
-            <Box
-              component="img"
-              src="/repo-control-icon.png"
-              alt=""
-              sx={{ width: 36, height: 36, flexShrink: 0, borderRadius: 1 }}
-            />
             <Box sx={{ minWidth: 0, flexGrow: 1, overflow: "hidden", whiteSpace: "nowrap" }}>
               <Typography noWrap sx={{ fontSize: "0.95rem", fontWeight: 800 }}>
                 repo-control
@@ -204,7 +201,7 @@ function SidebarContent({
           Spazio di lavoro
         </Typography>
         <Stack spacing={0.5}>
-          {NAV_ITEMS.filter((item) => item.id !== "favorites" || favoriteCount > 0).map((item) => {
+          {NAV_ITEMS.map((item) => {
             const count = counts[item.id];
             const isActive = activeSection === item.id;
 
@@ -290,15 +287,17 @@ function SidebarContent({
       <Box sx={{ p: 1, flexShrink: 0 }}>
         {collapsed ? (
           <Tooltip title={`${workspaceRoot || "Seleziona workspace"} · Ctrl+O`} placement="right">
-            <IconButton
-              onClick={onPickWorkspace}
-              disabled={isPickingRoot}
-              color={rootError ? "error" : "primary"}
-              aria-label="Cambia workspace folder, scorciatoia Ctrl+O"
-              sx={{ display: "flex", mx: "auto" }}
-            >
-              {isPickingRoot ? <CircularProgress color="inherit" size={17} /> : <FolderOpenOutlinedIcon />}
-            </IconButton>
+            <span>
+              <IconButton
+                onClick={onPickWorkspace}
+                disabled={isPickingRoot}
+                color={rootError ? "error" : "primary"}
+                aria-label="Cambia workspace folder, scorciatoia Ctrl+O"
+                sx={{ display: "flex", mx: "auto" }}
+              >
+                {isPickingRoot ? <CircularProgress color="inherit" size={17} /> : <FolderOpenOutlinedIcon />}
+              </IconButton>
+            </span>
           </Tooltip>
         ) : (
           <WorkspaceToolbarPicker

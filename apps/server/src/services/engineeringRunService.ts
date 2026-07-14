@@ -5,10 +5,9 @@ import {
   appendBrainTaskRun,
   assembleBrainContext,
   getBrainTaskSpecHash,
-  readBrainTask,
-  type BrainRunCheck,
-  type BrainTaskRun
+  readBrainTask
 } from "./brainService.js";
+import type { BrainRunCheck, BrainTaskRun } from "./brain/types.js";
 import { runClaudeMessage } from "./claudeService.js";
 
 const CHECK_TIMEOUT_MS = 1000 * 60 * 10;
@@ -42,7 +41,13 @@ export async function executeEngineeringRun(
   const specHash = getBrainTaskSpecHash(task);
   const brainContext = await assembleBrainContext(projectPath, task);
   const runPrompt = buildRunPrompt(brainContext, input);
-  const claudeResult = await runClaudeMessage(projectPath, runPrompt, task.claudeSessionId, "acceptEdits");
+  const claudeResult = await runClaudeMessage(
+    projectPath,
+    runPrompt,
+    task.claudeSessionId,
+    "acceptEdits",
+    task.contextRepositoryPaths
+  );
   const checks: BrainRunCheck[] = [];
 
   if (claudeResult.ok) {
@@ -82,7 +87,8 @@ function buildRunPrompt(brainContext: string, input: EngineeringRunInput): strin
   const checkList = input.checks.map((command) => `- ${command}`).join("\n");
 
   return [
-    "Implement the approved task in this repository.",
+    "Implement the approved task in the primary repository.",
+    "Use the additional repositories to understand cross-repository dependencies. Treat them as read-only context and do not modify them.",
     "Treat the specification below as authoritative. Keep changes scoped to it and do not edit the specification itself.",
     "The listed verification commands will run after your response, so leave the working tree in a verifiable state.",
     input.prompt ? `Additional operator instruction:\n${input.prompt}` : null,

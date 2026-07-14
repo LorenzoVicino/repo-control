@@ -15,8 +15,8 @@ import {
   useTheme
 } from "@mui/material";
 import React from "react";
-import { runTerminalCommand } from "../../api/client";
-import type { CommandResult } from "../../types";
+import { runTerminalCommand } from "../../api/projects";
+import type { CommandResult } from "../../types/common";
 import { commandErrorResult } from "../../utils/commandResult";
 
 type TerminalPanelProps = {
@@ -41,7 +41,7 @@ export function TerminalPanel({ projectId, projectName, projectPath, onResult, o
   const [command, setCommand] = React.useState("");
   const [entries, setEntries] = React.useState<TerminalEntry[]>([]);
   const [history, setHistory] = React.useState<string[]>([]);
-  const [historyCursor, setHistoryCursor] = React.useState<number | null>(null);
+  const [, setHistoryCursor] = React.useState<number | null>(null);
   const [isRunning, setIsRunning] = React.useState(false);
   const outputRef = React.useRef<HTMLDivElement | null>(null);
   const inputRef = React.useRef<HTMLInputElement | null>(null);

@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import { ProjectsDashboard } from "./components/dashboard/ProjectsDashboard";
 import { COLOR_MODE_STORAGE_KEY, createAppTheme, getInitialColorMode } from "./theme";
-import type { ColorMode } from "./types";
+import type { ColorMode } from "./types/common";
 
 const queryClient = new QueryClient();
 

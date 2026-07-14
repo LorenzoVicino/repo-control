@@ -14,7 +14,7 @@ import {
   Typography
 } from "@mui/material";
 import React from "react";
-import type { ProjectSummary } from "../../types";
+import type { ProjectSummary } from "../../types/projects";
 import { filterProjects } from "../../utils/projects";
 
 const MAX_RESULTS = 12;

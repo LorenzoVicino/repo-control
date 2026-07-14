@@ -1,4 +1,4 @@
-import type { CommandResult } from "../types";
+import type { CommandResult } from "../types/common";
 
 export function commandErrorResult(command: string, error: unknown): CommandResult {
   const message = error instanceof Error ? error.message : "Command failed";

@@ -1,7 +1,7 @@
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { alpha, Box, Paper, Stack, Typography, useTheme } from "@mui/material";
-import type { CommandResult } from "../../types";
+import type { CommandResult } from "../../types/common";
 
 type CommandOutputProps = {
   result: CommandResult;

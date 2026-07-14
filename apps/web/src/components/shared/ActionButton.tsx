@@ -1,8 +1,8 @@
 import { Button, CircularProgress } from "@mui/material";
 import type { ButtonProps } from "@mui/material";
 import React from "react";
-import { runProjectAction } from "../../api/client";
-import type { CommandResult } from "../../types";
+import { runProjectAction } from "../../api/projects";
+import type { CommandResult } from "../../types/common";
 import { commandErrorResult } from "../../utils/commandResult";
 
 type ActionButtonProps = {

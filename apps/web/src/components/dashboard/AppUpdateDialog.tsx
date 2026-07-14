@@ -2,7 +2,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import SyncIcon from "@mui/icons-material/Sync";
 import { Alert, Box, CircularProgress, Dialog, DialogContent, IconButton, Stack, Typography } from "@mui/material";
 import { CommandOutput } from "../shared/CommandOutput";
-import type { AppUpdateResult } from "../../types";
+import type { AppUpdateResult } from "../../types/app";
 
 type AppUpdateDialogProps = {
   open: boolean;

@@ -4,11 +4,12 @@ import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import SyncIcon from "@mui/icons-material/Sync";
 import { Box, Button, Chip, CircularProgress, Stack, TextField, Typography } from "@mui/material";
 import React from "react";
-import { runProjectAction } from "../../api/client";
+import { runProjectAction } from "../../api/projects";
 import { ActionButton } from "../shared/ActionButton";
 import { EmptyPanel } from "../shared/EmptyPanel";
 import { LoadingPanel } from "../shared/LoadingPanel";
-import type { CommandResult, GitBranchInfo, GitDetails } from "../../types";
+import type { CommandResult } from "../../types/common";
+import type { GitBranchInfo, GitDetails } from "../../types/git";
 import { commandErrorResult } from "../../utils/commandResult";
 
 type BranchesPanelProps = {

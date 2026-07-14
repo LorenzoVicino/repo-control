@@ -1,6 +1,5 @@
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import BuildIcon from "@mui/icons-material/Build";
-import CloseIcon from "@mui/icons-material/Close";
 import CommitIcon from "@mui/icons-material/Commit";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
@@ -13,19 +12,19 @@ import TerminalIcon from "@mui/icons-material/Terminal";
 import { alpha, Box, Chip, CircularProgress, Divider, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import React from "react";
-import { fetchDockerContainers, fetchGitActivity, fetchGitDetails } from "../../api/client";
+import { fetchDockerContainers } from "../../api/docker";
+import { fetchGitActivity, fetchGitDetails } from "../../api/projects";
 import { ActionButton } from "../shared/ActionButton";
 import { DetailBlock } from "../shared/DetailBlock";
 import { BranchesPanel } from "./BranchesPanel";
 import { ChangesPanel } from "./ChangesPanel";
 import { TerminalPanel } from "./TerminalPanel";
 import type {
-  CommandResult,
-  DockerContainerGroup,
-  GitActivityCommit,
-  ProjectDetailTab,
-  ProjectSummary
-} from "../../types";
+  CommandResult
+} from "../../types/common";
+import type { DockerContainerGroup } from "../../types/docker";
+import type { GitActivityCommit } from "../../types/git";
+import type { ProjectDetailTab, ProjectSummary } from "../../types/projects";
 import { formatDate } from "../../utils/projects";
 
 const DOCKER_POLL_INTERVAL_MS = 30 * 1000;
@@ -34,7 +33,6 @@ const GIT_ACTIVITY_PAGE_SIZE = 12;
 type ProjectDetailPanelProps = {
   project: ProjectSummary;
   isFavorite: boolean;
-  onClose: () => void;
   onToggleFavorite: () => void;
   onResult: (result: CommandResult) => void;
   onRefresh: () => void;
@@ -43,7 +41,6 @@ type ProjectDetailPanelProps = {
 export function ProjectDetailPanel({
   project,
   isFavorite,
-  onClose,
   onToggleFavorite,
   onResult,
   onRefresh
@@ -106,7 +103,12 @@ export function ProjectDetailPanel({
   }
 
   return (
-    <Stack spacing={0} sx={{ minHeight: "100%", height: "100%", overflow: "hidden" }}>
+    <Stack
+      component="section"
+      aria-label={`Dettaglio repository ${project.name}`}
+      spacing={0}
+      sx={{ minHeight: "100%", height: "100%", overflow: "hidden" }}
+    >
       <Stack
         direction="row"
         alignItems="center"
@@ -128,7 +130,7 @@ export function ProjectDetailPanel({
           <AccountTreeIcon sx={{ fontSize: 21 }} />
         </Box>
         <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-          <Typography variant="h5" noWrap>
+          <Typography component="h1" variant="h5" noWrap>
             {project.name}
           </Typography>
           <Typography
@@ -148,11 +150,6 @@ export function ProjectDetailPanel({
             aria-label={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
           >
             {isFavorite ? <StarIcon /> : <StarBorderIcon />}
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Chiudi progetto">
-          <IconButton onClick={onClose} aria-label="Chiudi progetto">
-          <CloseIcon />
           </IconButton>
         </Tooltip>
       </Stack>

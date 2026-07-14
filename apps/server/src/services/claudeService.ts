@@ -98,15 +98,17 @@ export async function runClaudeMessage(
   projectPath: string,
   prompt: string,
   sessionId: string | null | undefined,
-  permissionMode: ClaudePermissionMode
+  permissionMode: ClaudePermissionMode,
+  additionalDirectories: string[] = []
 ): Promise<ClaudeRunResponse> {
-  const args = buildClaudeMessageArgs(prompt, sessionId, permissionMode);
+  const args = buildClaudeMessageArgs(prompt, sessionId, permissionMode, additionalDirectories);
   const displayCommand = [
     "claude",
     sessionId ? `--resume ${sessionId}` : "--new-session",
     "-p",
     "--output-format json",
-    permissionMode === "default" ? "" : `--permission-mode ${permissionMode}`
+    permissionMode === "default" ? "" : `--permission-mode ${permissionMode}`,
+    additionalDirectories.length > 0 ? `--add-dir ${additionalDirectories.join(" ")}` : ""
   ]
     .filter(Boolean)
     .join(" ");
@@ -136,12 +138,17 @@ export async function runClaudeMessage(
 function buildClaudeMessageArgs(
   prompt: string,
   sessionId: string | null | undefined,
-  permissionMode: ClaudePermissionMode
+  permissionMode: ClaudePermissionMode,
+  additionalDirectories: string[]
 ): string[] {
   const args: string[] = [];
 
   if (sessionId) {
     args.push("--resume", sessionId);
+  }
+
+  if (additionalDirectories.length > 0) {
+    args.push("--add-dir", ...additionalDirectories);
   }
 
   args.push("--print", "--output-format", "json");

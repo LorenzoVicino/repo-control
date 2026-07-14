@@ -3,124 +3,25 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { simpleGit } from "simple-git";
 import { getConfigDirectory } from "../preferences.js";
-
-export type BrainTaskType = "feature" | "fix" | "refactor" | "chore" | "spike";
-export type BrainTaskStatus =
-  | "definition"
-  | "requirements"
-  | "design"
-  | "breakdown"
-  | "implementation"
-  | "done";
-export type BrainContentPhase = "requirements" | "design" | "breakdown";
-export type BrainGatePhase = "definition" | BrainContentPhase | "implementation";
-
-export type BrainPhaseState = {
-  content: string;
-  approvedAt: string | null;
-};
-
-export type BrainLogEntry = {
-  id: string;
-  kind: "note" | "fix" | "result";
-  content: string;
-  createdAt: string;
-};
-
-export type BrainDecision = {
-  id: string;
-  title: string;
-  rationale: string;
-  createdAt: string;
-};
-
-export type BrainRunCheck = {
-  id: string;
-  command: string;
-  ok: boolean;
-  exitCode: number | null;
-  output: string;
-  durationMs: number;
-};
-
-export type BrainTaskRun = {
-  id: string;
-  status: "succeeded" | "failed";
-  prompt: string;
-  response: string;
-  error: string | null;
-  claudeSessionId: string | null;
-  specHash: string;
-  checks: BrainRunCheck[];
-  startedAt: string;
-  completedAt: string;
-};
-
-export type BrainTask = {
-  id: string;
-  title: string;
-  type: BrainTaskType;
-  status: BrainTaskStatus;
-  definition: {
-    description: string;
-    motivation: string;
-  };
-  requirements: BrainPhaseState;
-  design: BrainPhaseState;
-  breakdown: BrainPhaseState;
-  implementation: {
-    log: BrainLogEntry[];
-    runs: BrainTaskRun[];
-  };
-  decisions: BrainDecision[];
-  git: {
-    branch: string | null;
-    prUrl: string | null;
-  };
-  claudeSessionId: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type BrainTasksResponse = {
-  projectPath: string;
-  projectName: string;
-  remoteUrl: string | null;
-  tasks: BrainTask[];
-};
-
-export type CreateBrainTaskInput = {
-  title: string;
-  type: BrainTaskType;
-  definition: {
-    description: string;
-    motivation: string;
-  };
-};
-
-export type UpdateBrainTaskInput = {
-  title?: string;
-  type?: BrainTaskType;
-  definition?: Partial<BrainTask["definition"]>;
-  phase?: BrainContentPhase;
-  content?: string;
-  git?: Partial<BrainTask["git"]>;
-  claudeSessionId?: string | null;
-};
-
-export type AppendBrainLogInput = {
-  kind: BrainLogEntry["kind"];
-  content: string;
-};
-
-export type AppendBrainDecisionInput = {
-  title: string;
-  rationale: string;
-};
-
-type BrainFile = BrainTasksResponse & {
-  version: 1;
-};
+import type {
+  AppendBrainDecisionInput,
+  AppendBrainLogInput,
+  BrainContentPhase,
+  BrainDecision,
+  BrainFile,
+  BrainGatePhase,
+  BrainLogEntry,
+  BrainPhaseState,
+  BrainRunCheck,
+  BrainTask,
+  BrainTaskRun,
+  BrainTasksResponse,
+  BrainTaskStatus,
+  BrainTaskType,
+  CreateBrainTaskInput,
+  RepositoryContext,
+  UpdateBrainTaskInput
+} from "./brain/types.js";
 
 export class BrainValidationError extends Error {
   statusCode = 409;
@@ -128,6 +29,7 @@ export class BrainValidationError extends Error {
 
 const MAX_RELATED_TASKS = 5;
 const MAX_CONTEXT_SECTION_LENGTH = 2400;
+const MAX_CONTEXT_REPOSITORIES = 12;
 const TASK_TYPES: BrainTaskType[] = ["feature", "fix", "refactor", "chore", "spike"];
 const TASK_STATUSES: BrainTaskStatus[] = [
   "definition",
@@ -164,6 +66,7 @@ export async function createBrainTask(projectPath: string, input: CreateBrainTas
     title: input.title,
     type: input.type,
     status: "definition",
+    contextRepositoryPaths: input.contextRepositoryPaths,
     definition: input.definition,
     requirements: createEmptyPhase(),
     design: createEmptyPhase(),
@@ -174,7 +77,7 @@ export async function createBrainTask(projectPath: string, input: CreateBrainTas
     claudeSessionId: null,
     createdAt: now,
     updatedAt: now
-  });
+  }, projectPath);
 
   brainFile.tasks = [task, ...brainFile.tasks];
   await writeBrainFile(projectPath, brainFile);
@@ -196,6 +99,7 @@ export async function updateBrainTask(
   const now = new Date().toISOString();
   let nextTask: BrainTask = {
     ...task,
+    contextRepositoryPaths: [...task.contextRepositoryPaths],
     definition: { ...task.definition },
     requirements: { ...task.requirements },
     design: { ...task.design },
@@ -217,6 +121,16 @@ export async function updateBrainTask(
 
   if (input.type !== undefined) {
     nextTask.type = input.type;
+  }
+
+  if (input.contextRepositoryPaths !== undefined) {
+    const nextContextRepositoryPaths = normalizeContextRepositoryPaths(input.contextRepositoryPaths, projectPath);
+    const contextChanged = JSON.stringify(nextTask.contextRepositoryPaths) !== JSON.stringify(nextContextRepositoryPaths);
+    nextTask.contextRepositoryPaths = nextContextRepositoryPaths;
+
+    if (contextChanged && nextTask.status === "done") {
+      nextTask.status = "implementation";
+    }
   }
 
   if (input.definition) {
@@ -265,7 +179,7 @@ export async function updateBrainTask(
     nextTask.claudeSessionId = normalizeNullableText(input.claudeSessionId, 160);
   }
 
-  nextTask = normalizeBrainTask(nextTask);
+  nextTask = normalizeBrainTask(nextTask, projectPath);
   brainFile.tasks = sortTasks(brainFile.tasks.map((currentTask) => (currentTask.id === taskId ? nextTask : currentTask)));
   await writeBrainFile(projectPath, brainFile);
   return nextTask;
@@ -409,6 +323,7 @@ export function getBrainTaskSpecHash(task: BrainTask): string {
       JSON.stringify({
         title: task.title,
         type: task.type,
+        contextRepositoryPaths: [...task.contextRepositoryPaths].sort(),
         definition: task.definition,
         requirements: task.requirements.content,
         design: task.design.content,
@@ -467,6 +382,14 @@ export async function deleteBrainTask(projectPath: string, taskId: string): Prom
 
 export async function assembleBrainContext(projectPath: string, task: BrainTask): Promise<string> {
   const brainFile = await readBrainFile(projectPath);
+  const repositoryPaths = [projectPath, ...task.contextRepositoryPaths].filter(
+    (repositoryPath, index, paths) => paths.indexOf(repositoryPath) === index
+  );
+  const repositories = await Promise.all(
+    repositoryPaths.map((repositoryPath, index) =>
+      readRepositoryContext(repositoryPath, index === 0 ? "primary" : "context")
+    )
+  );
   const relatedTasks = brainFile.tasks
     .filter((currentTask) => currentTask.id !== task.id)
     .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
@@ -484,8 +407,8 @@ export async function assembleBrainContext(projectPath: string, task: BrainTask)
   return [
     "# repo-control brain context",
     `Project: ${brainFile.projectName}`,
-    `Path: ${brainFile.projectPath}`,
-    brainFile.remoteUrl ? `Remote: ${brainFile.remoteUrl}` : null,
+    "The engineering run operates in the primary repository. Context repositories are read-only references for dependency analysis.",
+    ["## Repository scope", ...repositories.map(formatRepositoryContext)].join("\n\n"),
     "## Current task",
     formatTaskForContext(task),
     relatedTasks.length > 0
@@ -543,7 +466,7 @@ function normalizeBrainFile(value: unknown, projectPath: string): BrainFile {
   const raw = isRecord(value) ? value : {};
   const projectName = normalizeText(raw.projectName, path.basename(projectPath));
   const tasks = Array.isArray(raw.tasks)
-    ? raw.tasks.map(normalizeBrainTask).filter((task): task is BrainTask => Boolean(task.id))
+    ? raw.tasks.map((task) => normalizeBrainTask(task, projectPath)).filter((task): task is BrainTask => Boolean(task.id))
     : [];
 
   return {
@@ -555,7 +478,7 @@ function normalizeBrainFile(value: unknown, projectPath: string): BrainFile {
   };
 }
 
-function normalizeBrainTask(value: unknown): BrainTask {
+function normalizeBrainTask(value: unknown, projectPath?: string): BrainTask {
   const raw = isRecord(value) ? value : {};
   const now = new Date().toISOString();
   const rawDefinition = isRecord(raw.definition) ? raw.definition : {};
@@ -567,6 +490,7 @@ function normalizeBrainTask(value: unknown): BrainTask {
     title: normalizeText(raw.title, "Untitled task").slice(0, 160),
     type: normalizeTaskType(raw.type),
     status: normalizeTaskStatus(raw.status),
+    contextRepositoryPaths: normalizeContextRepositoryPaths(raw.contextRepositoryPaths, projectPath),
     definition: {
       description: getString(rawDefinition.description).slice(0, 20_000),
       motivation: getString(rawDefinition.motivation).slice(0, 20_000)
@@ -791,6 +715,68 @@ async function readProjectMetadata(projectPath: string): Promise<{ projectName: 
   };
 }
 
+async function readRepositoryContext(
+  projectPath: string,
+  role: RepositoryContext["role"]
+): Promise<RepositoryContext> {
+  const resolvedProjectPath = path.resolve(projectPath);
+  const gitDirectoryExists = await fs
+    .access(path.join(resolvedProjectPath, ".git"))
+    .then(() => true)
+    .catch(() => false);
+
+  if (!gitDirectoryExists) {
+    return {
+      role,
+      name: path.basename(resolvedProjectPath),
+      projectPath: resolvedProjectPath,
+      available: false,
+      remoteUrl: null,
+      branch: null,
+      upstream: null,
+      isClean: null,
+      staged: 0,
+      modified: 0,
+      untracked: 0,
+      conflicted: 0,
+      ahead: 0,
+      behind: 0,
+      recentCommits: []
+    };
+  }
+
+  const git = simpleGit(resolvedProjectPath);
+  const [status, remoteUrl, logOutput] = await Promise.all([
+    git.status().catch(() => null),
+    git
+      .raw(["config", "--get", "remote.origin.url"])
+      .then((output) => output.trim() || null)
+      .catch(() => null),
+    git.raw(["log", "--max-count=3", "--pretty=format:%h%x09%s"]).catch(() => "")
+  ]);
+
+  return {
+    role,
+    name: path.basename(resolvedProjectPath),
+    projectPath: resolvedProjectPath,
+    available: status !== null,
+    remoteUrl,
+    branch: status?.current || (status?.detached ? "(detached)" : null),
+    upstream: status?.tracking || null,
+    isClean: status?.isClean() ?? null,
+    staged: status?.staged.length ?? 0,
+    modified: (status?.modified.length ?? 0) + (status?.deleted.length ?? 0) + (status?.renamed.length ?? 0),
+    untracked: status?.not_added.length ?? 0,
+    conflicted: status?.conflicted.length ?? 0,
+    ahead: status?.ahead ?? 0,
+    behind: status?.behind ?? 0,
+    recentCommits: logOutput
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+  };
+}
+
 function sortTasks(tasks: BrainTask[]): BrainTask[] {
   return [...tasks].sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
 }
@@ -809,6 +795,23 @@ function normalizeTaskStatus(value: unknown): BrainTaskStatus {
 
 function normalizeText(value: unknown, fallback: string): string {
   return typeof value === "string" ? value.trim() || fallback : fallback;
+}
+
+function normalizeContextRepositoryPaths(value: unknown, primaryProjectPath?: string): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const primaryPath = primaryProjectPath ? path.resolve(primaryProjectPath) : null;
+  const repositoryPaths = value
+    .filter(
+      (repositoryPath): repositoryPath is string =>
+        typeof repositoryPath === "string" && Boolean(repositoryPath.trim())
+    )
+    .map((repositoryPath) => path.resolve(repositoryPath.trim()))
+    .filter((repositoryPath) => repositoryPath !== primaryPath);
+
+  return [...new Set(repositoryPaths)].slice(0, MAX_CONTEXT_REPOSITORIES);
 }
 
 function getString(value: unknown): string {
@@ -853,6 +856,35 @@ function formatTaskForContext(task: BrainTask): string {
   ]
     .filter((line): line is string => Boolean(line))
     .join("\n\n");
+}
+
+function formatRepositoryContext(repository: RepositoryContext): string {
+  if (!repository.available) {
+    return [
+      `### ${repository.name} (${repository.role})`,
+      `Path: ${repository.projectPath}`,
+      "Git status: unavailable"
+    ].join("\n");
+  }
+
+  const workingTree = repository.isClean
+    ? "clean"
+    : `dirty (staged: ${repository.staged}, modified: ${repository.modified}, untracked: ${repository.untracked}, conflicted: ${repository.conflicted})`;
+
+  return [
+    `### ${repository.name} (${repository.role})`,
+    `Path: ${repository.projectPath}`,
+    repository.remoteUrl ? `Remote: ${repository.remoteUrl}` : null,
+    `Branch: ${repository.branch ?? "(unknown)"}`,
+    repository.upstream ? `Upstream: ${repository.upstream}` : null,
+    `Working tree: ${workingTree}`,
+    `Sync: ahead ${repository.ahead}, behind ${repository.behind}`,
+    repository.recentCommits.length > 0
+      ? ["Recent commits:", ...repository.recentCommits.map((commit) => `- ${commit}`)].join("\n")
+      : null
+  ]
+    .filter((line): line is string => Boolean(line))
+    .join("\n");
 }
 
 function formatRelatedTaskForContext(task: BrainTask): string {

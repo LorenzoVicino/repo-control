@@ -1,5 +1,5 @@
 import { alpha, createTheme } from "@mui/material";
-import type { ColorMode } from "./types";
+import type { ColorMode } from "./types/common";
 
 export const COLOR_MODE_STORAGE_KEY = "repo-control-color-mode";
 

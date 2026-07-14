@@ -7,9 +7,11 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -n server,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",
-    "dev:server": "tsx watch apps/server/src/index.ts",
+    "dev:server": "node --env-file-if-exists=.env --watch --import tsx apps/server/src/index.ts",
     "dev:web": "vite --host 127.0.0.1 apps/web",
     "build": "npm run typecheck && vite build apps/web",
+    "check": "npm run lint && npm run typecheck",
+    "lint": "eslint apps/server/src apps/web/src apps/web/vite.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -21,6 +23,7 @@
     "@mui/icons-material": "^5.15.21",
     "@mui/material": "^5.15.21",
     "@tanstack/react-query": "^5.45.1",
+    "@xyflow/react": "^12.11.2",
     "fastify": "^4.28.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -28,13 +31,19 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^20.14.9",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "concurrently": "^8.2.2",
+    "eslint": "^10.7.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.7.0",
     "tsx": "^4.16.2",
     "typescript": "^5.5.2",
+    "typescript-eslint": "^8.64.0",
     "vite": "^5.3.1"
   }
 }

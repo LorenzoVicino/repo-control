@@ -3,7 +3,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import StorageIcon from "@mui/icons-material/Storage";
 import StopCircleIcon from "@mui/icons-material/StopCircle";
 import { alpha, Box, Chip, CircularProgress, IconButton, Stack, Tooltip, Typography } from "@mui/material";
-import type { DockerContainerGroup, DockerContainersResponse } from "../../types";
+import type { DockerContainerGroup, DockerContainersResponse } from "../../types/docker";
 
 const MAX_VISIBLE_GROUPS = 5;
 const MAX_VISIBLE_SERVICES = 4;
@@ -53,7 +53,7 @@ export function ControlCenter({
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={0.75} alignItems="center">
-              <Typography id="docker-runtime-title" component="h2" variant="h2">
+              <Typography id="docker-runtime-title" component="h1" variant="h1">
                 Docker runtime
               </Typography>
               <Chip size="small" label={dockerStateLabel} color={dockerStateColor} variant="outlined" />

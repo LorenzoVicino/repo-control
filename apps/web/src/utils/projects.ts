@@ -1,4 +1,5 @@
-import type { ColorMode, ProjectSummary, ProjectTone } from "../types";
+import type { ColorMode } from "../types/common";
+import type { ProjectSummary, ProjectTone } from "../types/projects";
 
 export function isProject(project: ProjectSummary | undefined): project is ProjectSummary {
   return project !== undefined;

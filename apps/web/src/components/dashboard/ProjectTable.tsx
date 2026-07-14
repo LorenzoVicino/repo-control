@@ -3,7 +3,7 @@ import CallSplitIcon from "@mui/icons-material/CallSplit";
 import { alpha, Box, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
 import { StatusChips } from "../shared/StatusChips";
 import { SyncChips } from "../shared/SyncChips";
-import type { ProjectSummary } from "../../types";
+import type { ProjectSummary } from "../../types/projects";
 
 type ProjectTableProps = {
   projects: ProjectSummary[];

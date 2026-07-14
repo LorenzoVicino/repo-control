@@ -7,7 +7,7 @@ import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import { alpha, Box, ButtonBase, Chip, Collapse, IconButton, Paper, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import React, { type ReactNode } from "react";
-import type { ProjectSummary } from "../../types";
+import type { ProjectSummary } from "../../types/projects";
 import { formatDate, getProjectTone, groupProjects } from "../../utils/projects";
 
 type WorkspaceMapProps = {
@@ -101,6 +101,7 @@ export function FavoriteProjects({
       <CollapsibleProjectSection
         id="favorite-projects"
         title="Preferiti"
+        titleComponent="h1"
         count={favoriteProjects.length}
         isExpanded={isExpanded}
         onToggle={() => setIsExpanded((currentValue) => !currentValue)}
@@ -124,6 +125,7 @@ export function FavoriteProjects({
 type CollapsibleProjectSectionProps = {
   id: string;
   title: string;
+  titleComponent?: "h1" | "h2";
   count: number;
   isExpanded: boolean;
   onToggle: () => void;
@@ -133,6 +135,7 @@ type CollapsibleProjectSectionProps = {
 function CollapsibleProjectSection({
   id,
   title,
+  titleComponent = "h2",
   count,
   isExpanded,
   onToggle,
@@ -169,7 +172,12 @@ function CollapsibleProjectSection({
         }}
       >
         <FolderOutlinedIcon sx={{ fontSize: 19, color: "secondary.main" }} />
-        <Typography className="section-title" variant="h2" sx={{ transition: "color 160ms ease" }}>
+        <Typography
+          className="section-title"
+          component={titleComponent}
+          variant={titleComponent === "h1" ? "h1" : "h2"}
+          sx={{ transition: "color 160ms ease" }}
+        >
           {title}
         </Typography>
         <Chip size="small" label={count} variant="outlined" />

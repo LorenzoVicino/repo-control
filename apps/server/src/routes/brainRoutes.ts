@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { ProjectResolver } from "../lib/projectResolver.js";
@@ -25,18 +26,24 @@ const taskParamsSchema = z.object({
 const taskTypeSchema = z.enum(["feature", "fix", "refactor", "chore", "spike"]);
 const contentPhaseSchema = z.enum(["requirements", "design", "breakdown"]);
 const gatePhaseSchema = z.enum(["definition", "requirements", "design", "breakdown", "implementation"]);
+const contextProjectIdsSchema = z
+  .array(z.string().trim().min(1).max(2048))
+  .max(12)
+  .transform((projectIds) => [...new Set(projectIds)]);
 
 const createTaskBodySchema = z.object({
   title: z.string().trim().min(1).max(160),
   type: taskTypeSchema.default("feature"),
   description: z.string().max(20_000).default(""),
-  motivation: z.string().max(20_000).default("")
+  motivation: z.string().max(20_000).default(""),
+  contextProjectIds: contextProjectIdsSchema.default([])
 });
 
 const updateTaskBodySchema = z
   .object({
     title: z.string().trim().min(1).max(160).optional(),
     type: taskTypeSchema.optional(),
+    contextProjectIds: contextProjectIdsSchema.optional(),
     definition: z
       .object({
         description: z.string().max(20_000).optional(),
@@ -126,10 +133,16 @@ export async function registerBrainRoutes(app: FastifyInstance, context: BrainRo
     const params = projectParamsSchema.parse(request.params);
     const body = createTaskBodySchema.parse(request.body);
     const projectPath = await context.resolveProjectPath(params.id);
+    const contextRepositoryPaths = await resolveContextRepositoryPaths(
+      context,
+      body.contextProjectIds,
+      projectPath
+    );
 
     return createBrainTask(projectPath, {
       title: body.title,
       type: body.type,
+      contextRepositoryPaths,
       definition: {
         description: body.description,
         motivation: body.motivation
@@ -141,8 +154,17 @@ export async function registerBrainRoutes(app: FastifyInstance, context: BrainRo
     const params = taskParamsSchema.parse(request.params);
     const body = updateTaskBodySchema.parse(request.body);
     const projectPath = await context.resolveProjectPath(params.id);
+    const { contextProjectIds, ...taskInput } = body;
+    const contextRepositoryPaths = contextProjectIds
+      ? await resolveContextRepositoryPaths(context, contextProjectIds, projectPath)
+      : undefined;
 
-    return sendBrainMutation(reply, () => updateBrainTask(projectPath, params.taskId, body));
+    return sendBrainMutation(reply, () =>
+      updateBrainTask(projectPath, params.taskId, {
+        ...taskInput,
+        ...(contextRepositoryPaths ? { contextRepositoryPaths } : {})
+      })
+    );
   });
 
   app.post("/api/projects/:id/tasks/:taskId/approve", async (request, reply) => {
@@ -190,6 +212,19 @@ export async function registerBrainRoutes(app: FastifyInstance, context: BrainRo
       ok: true
     };
   });
+}
+
+async function resolveContextRepositoryPaths(
+  context: ProjectResolver,
+  projectIds: string[],
+  primaryProjectPath: string
+): Promise<string[]> {
+  const primaryPath = path.resolve(primaryProjectPath);
+  const repositoryPaths = await Promise.all(projectIds.map((projectId) => context.resolveProjectPath(projectId)));
+
+  return [...new Set(repositoryPaths.map((repositoryPath) => path.resolve(repositoryPath)))].filter(
+    (repositoryPath) => repositoryPath !== primaryPath
+  );
 }
 
 async function sendBrainMutation<T>(
