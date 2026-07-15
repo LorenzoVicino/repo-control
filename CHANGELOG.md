@@ -6,6 +6,13 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.1.11] - 2026-07-15
+
+### Fixed
+
+- Close the repository search overlay immediately after selecting a project without reopening it during focus restoration.
+- Preserve keyboard access to repository search through Enter, Space, Escape and Ctrl+P.
+
 ## [0.1.10] - 2026-07-15
 
 ### Added
