@@ -16,7 +16,6 @@ type ActionTone = "primary" | "info" | "success" | "warning";
 type QuickAction = {
   title: string;
   description: string;
-  destination: string;
   target: DashboardSection;
   tone: ActionTone;
   icon: ReactNode;
@@ -24,33 +23,29 @@ type QuickAction = {
 
 const QUICK_ACTIONS: QuickAction[] = [
   {
-    title: "Lavora su un task",
-    description: "Specifica, contesto e run",
-    destination: "Task engineering",
+    title: "Task engineering",
+    description: "Crea e avvia un task",
     target: "tasks",
     tone: "primary",
     icon: <TaskAltOutlinedIcon />
   },
   {
-    title: "Apri un repository",
-    description: "Git, branch e terminale",
-    destination: "Repository",
+    title: "Repository",
+    description: "Apri Git e terminale",
     target: "repositories",
     tone: "info",
     icon: <AccountTreeOutlinedIcon />
   },
   {
-    title: "Controlla il runtime",
-    description: "Container e servizi locali",
-    destination: "Docker",
+    title: "Docker",
+    description: "Controlla i servizi",
     target: "docker",
     tone: "success",
     icon: <StorageOutlinedIcon />
   },
   {
-    title: "Riprendi un preferito",
-    description: "Vai ai repository salvati",
-    destination: "Preferiti",
+    title: "Preferiti",
+    description: "Riprendi il lavoro",
     target: "favorites",
     tone: "warning",
     icon: <StarBorderRoundedIcon />
@@ -60,131 +55,92 @@ const QUICK_ACTIONS: QuickAction[] = [
 export function DashboardQuickActions({ onNavigate }: DashboardQuickActionsProps) {
   return (
     <Box
+      component="ul"
       sx={{
         display: "grid",
-        gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "220px minmax(0, 1fr)" },
-        columnGap: 4,
-        alignItems: "start",
-        flexShrink: 0
+        gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
+        gap: 1,
+        m: 0,
+        p: 0,
+        listStyle: "none"
       }}
     >
-      <Box sx={{ pt: { lg: 1.75 }, pb: { xs: 1.5, lg: 0 } }}>
-        <Typography id="dashboard-home-title" component="h1" variant="h1">
-          Cosa vuoi fare oggi?
-        </Typography>
-      </Box>
+      {QUICK_ACTIONS.map((action) => (
+        <Box component="li" key={action.title} sx={{ minWidth: 0 }}>
+          <ButtonBase
+            onClick={() => onNavigate(action.target)}
+            aria-label={`${action.title}: ${action.description}`}
+            sx={(theme) => {
+              const accent = theme.palette[action.tone].main;
 
-      <Box
-        component="ul"
-        sx={(theme) => ({
-          display: "grid",
-          gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" },
-          m: 0,
-          p: 0,
-          listStyle: "none",
-          borderBottom: { xs: `1px solid ${theme.palette.divider}`, md: 0 },
-          "& > li": {
-            minWidth: 0,
-            borderTop: `1px solid ${theme.palette.divider}`
-          },
-          "& > li:nth-of-type(even)": {
-            borderLeft: { xs: 0, md: `1px solid ${theme.palette.divider}` }
-          },
-          "& > li:nth-of-type(n+3)": {
-            borderBottom: { xs: 0, md: `1px solid ${theme.palette.divider}` }
-          }
-        })}
-      >
-        {QUICK_ACTIONS.map((action) => (
-          <Box component="li" key={action.title}>
-            <ButtonBase
-              onClick={() => onNavigate(action.target)}
-              aria-label={`${action.title}: ${action.description}. Vai a ${action.destination}`}
-              sx={(theme) => {
-                const accent = theme.palette[action.tone].main;
-
-                return {
-                  position: "relative",
-                  width: "100%",
-                  minWidth: 0,
-                  minHeight: 76,
-                  display: "grid",
-                  gridTemplateColumns: "28px minmax(0, 1fr) auto",
-                  columnGap: 1.5,
-                  alignItems: "center",
-                  px: { xs: 1, sm: 1.5 },
-                  py: 1.25,
-                  textAlign: "left",
-                  overflow: "hidden",
-                  transition: "background-color 160ms ease",
-                  "&::before": {
-                    content: '""',
-                    position: "absolute",
-                    inset: "10px auto 10px 0",
-                    width: 2,
-                    bgcolor: accent,
-                    transform: "scaleY(0)",
-                    transformOrigin: "center",
-                    transition: "transform 160ms ease"
-                  },
-                  "&:hover": {
-                    bgcolor: alpha(accent, theme.palette.mode === "light" ? 0.055 : 0.1)
-                  },
-                  "&:hover::before": {
-                    transform: "scaleY(1)"
-                  },
-                  "&:hover .quick-action-arrow": {
-                    color: accent,
-                    transform: "translateX(3px)"
-                  },
-                  "&:focus-visible": {
-                    zIndex: 1,
-                    outline: `3px solid ${alpha(accent, 0.24)}`,
-                    outlineOffset: -3
-                  }
-                };
-              }}
+              return {
+                position: "relative",
+                width: "100%",
+                minWidth: 0,
+                minHeight: 78,
+                display: "grid",
+                gridTemplateColumns: { xs: "30px minmax(0, 1fr)", sm: "30px minmax(0, 1fr) 18px" },
+                columnGap: 1,
+                alignItems: "center",
+                px: { xs: 1, sm: 1.25 },
+                py: 1.1,
+                textAlign: "left",
+                overflow: "hidden",
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 1,
+                bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === "light" ? 0.94 : 0.88),
+                transition: "background-color 160ms ease, border-color 160ms ease",
+                "&:hover": {
+                  bgcolor: alpha(accent, theme.palette.mode === "light" ? 0.07 : 0.13),
+                  borderColor: alpha(accent, 0.42)
+                },
+                "&:hover .quick-action-arrow": {
+                  color: accent,
+                  transform: "translateX(2px)"
+                },
+                "&:focus-visible": {
+                  outline: `3px solid ${alpha(accent, 0.24)}`,
+                  outlineOffset: 2
+                }
+              };
+            }}
+          >
+            <Box
+              sx={(theme) => ({
+                width: 30,
+                height: 30,
+                display: "grid",
+                placeItems: "center",
+                color: theme.palette[action.tone].main,
+                bgcolor: alpha(theme.palette[action.tone].main, 0.1),
+                borderRadius: 1,
+                "& svg": { fontSize: 18 }
+              })}
             >
-              <Box
-                sx={(theme) => ({
-                  display: "grid",
-                  placeItems: "center",
-                  color: theme.palette[action.tone].main,
-                  "& svg": { fontSize: 21 }
-                })}
-              >
-                {action.icon}
-              </Box>
+              {action.icon}
+            </Box>
 
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2" sx={{ fontWeight: 800, lineHeight: 1.25 }}>
-                  {action.title}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.2 }}>
-                  {action.description}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  component="div"
-                  sx={(theme) => ({ color: theme.palette[action.tone].main, fontWeight: 750, mt: 0.1 })}
-                >
-                  {action.destination}
-                </Typography>
-              </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body2" noWrap sx={{ fontWeight: 800, lineHeight: 1.25 }}>
+                {action.title}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" component="div" noWrap sx={{ mt: 0.2 }}>
+                {action.description}
+              </Typography>
+            </Box>
 
-              <ArrowForwardRoundedIcon
-                className="quick-action-arrow"
-                sx={{
-                  flexShrink: 0,
-                  fontSize: 19,
-                  color: "text.disabled",
-                  transition: "color 160ms ease, transform 160ms ease"
-                }}
-              />
-            </ButtonBase>
-          </Box>
-        ))}
-      </Box>
+            <ArrowForwardRoundedIcon
+              className="quick-action-arrow"
+              sx={{
+                display: { xs: "none", sm: "block" },
+                fontSize: 17,
+                color: "text.disabled",
+                transition: "color 160ms ease, transform 160ms ease"
+              }}
+            />
+          </ButtonBase>
+        </Box>
+      ))}
     </Box>
   );
 }

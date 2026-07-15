@@ -1,13 +1,25 @@
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
-import { alpha, Box, Chip, CircularProgress, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
+import { alpha, Box, CircularProgress, IconButton, Paper, Stack, Tooltip, Typography } from "@mui/material";
 import React from "react";
 import { fetchRandomDashboardQuote } from "../../api/quotes";
+import type { DockerContainersResponse } from "../../types/docker";
+import type { ProjectSummary } from "../../types/projects";
 import type { DashboardQuote } from "../../types/quotes";
+import { buildDashboardSnapshot } from "./dashboardInsights";
+import { DashboardInsights } from "./DashboardInsights";
+import { DashboardMetrics } from "./DashboardMetrics";
+import { DashboardMotionBackdrop } from "./DashboardMotionBackdrop";
 import type { DashboardSection } from "./DashboardSidebar";
 import { DashboardQuickActions } from "./DashboardQuickActions";
+import { DashboardRecentActivity } from "./DashboardRecentActivity";
 
 type DashboardHomeProps = {
+  projects: ProjectSummary[];
+  favoriteProjectIds: string[];
+  dockerStatus: DockerContainersResponse | undefined;
   onNavigate: (section: DashboardSection) => void;
+  onOpenProject: (projectId: string) => void;
 };
 
 type Quote = {
@@ -120,9 +132,19 @@ const QUOTES: Quote[] = [
   }
 ];
 
-export function DashboardHome({ onNavigate }: DashboardHomeProps) {
+export const DashboardHome = React.memo(function DashboardHome({
+  projects,
+  favoriteProjectIds,
+  dockerStatus,
+  onNavigate,
+  onOpenProject
+}: DashboardHomeProps) {
   const [quote, setQuote] = React.useState<Quote>(pickLocalQuote);
   const [isLoadingQuote, setIsLoadingQuote] = React.useState(true);
+  const snapshot = React.useMemo(
+    () => buildDashboardSnapshot(projects, favoriteProjectIds, dockerStatus),
+    [dockerStatus, favoriteProjectIds, projects]
+  );
 
   React.useEffect(() => {
     window.localStorage.setItem(LAST_QUOTE_STORAGE_KEY, quote.text);
@@ -173,82 +195,117 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
   }
 
   return (
-    <Stack
-      spacing={{ xs: 2.5, md: 3 }}
+    <Box
       sx={{
+        position: "relative",
+        isolation: "isolate",
         minHeight: { xs: "auto", md: "calc(100dvh - 116px)" }
       }}
     >
-      <Box
-        component="figure"
-        sx={{
-          position: "relative",
-          m: 0,
-          minHeight: { xs: 220, md: 270 },
-          flexGrow: { md: 1 },
-          display: "flex",
-          alignItems: "stretch",
-          px: { xs: 2, sm: 3.5, md: 5 },
-          py: { xs: 4, md: 5 },
-          overflow: "hidden",
-          borderTop: "1px solid",
-          borderBottom: "1px solid",
-          borderColor: "divider",
-          bgcolor: (theme) => alpha(theme.palette.primary.main, theme.palette.mode === "light" ? 0.035 : 0.07)
-        }}
-      >
+      <DashboardMotionBackdrop />
+
+      <Stack spacing={{ xs: 1.5, md: 2 }} sx={{ position: "relative", zIndex: 1 }}>
         <Box
-          aria-hidden="true"
           sx={{
-            position: "absolute",
-            inset: "0 auto 0 0",
-            width: 4,
-            bgcolor: "primary.main"
+            display: "grid",
+            gridTemplateColumns: { xs: "minmax(0, 1fr)", xl: "minmax(280px, 0.65fr) minmax(640px, 1.35fr)" },
+            gap: { xs: 1.5, xl: 3 },
+            alignItems: "end",
+            py: { xs: 0.5, md: 1 }
           }}
-        />
-        <Stack sx={{ width: "100%", maxWidth: 1080 }}>
-          <Stack direction="row" alignItems="center">
-            <Chip size="small" variant="outlined" color="primary" label="Dashboard" />
+        >
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="overline" color="primary.main">
+              Workspace operativo
+            </Typography>
+            <Typography
+              id="dashboard-home-title"
+              component="h1"
+              variant="h1"
+              sx={{ mt: 0.15 }}
+            >
+              Cosa vuoi fare oggi?
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, maxWidth: 480 }}>
+              {snapshot.total === 0
+                ? "Seleziona un workspace per iniziare."
+                : `${snapshot.healthy} repository pronti, ${snapshot.total - snapshot.healthy} da controllare.`}
+            </Typography>
+          </Box>
+
+          <DashboardQuickActions onNavigate={onNavigate} />
+        </Box>
+
+        <DashboardMetrics snapshot={snapshot} />
+
+        <DashboardInsights snapshot={snapshot} onOpenProject={onOpenProject} />
+
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1.25fr) minmax(320px, 0.75fr)" },
+            gap: { xs: 1.5, md: 2 }
+          }}
+        >
+          <DashboardRecentActivity snapshot={snapshot} onNavigate={onNavigate} onOpenProject={onOpenProject} />
+
+          <Paper
+            component="figure"
+            variant="outlined"
+            sx={{
+              position: "relative",
+              m: 0,
+              minWidth: 0,
+              minHeight: 194,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              p: { xs: 1.75, sm: 2 },
+              overflow: "hidden",
+              bgcolor: (theme) => alpha(theme.palette.background.paper, theme.palette.mode === "light" ? 0.96 : 0.9)
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ pr: 4 }}>
+              <AutoAwesomeOutlinedIcon sx={{ fontSize: 17, color: "secondary.main" }} />
+              <Typography component="h2" variant="h2">
+                Una prospettiva
+              </Typography>
+            </Stack>
+
             <Tooltip title="Mostra un'altra citazione">
-              <span>
+              <Box
+                component="span"
+                sx={{ position: "absolute", top: 12, right: 12, display: "inline-flex" }}
+              >
                 <IconButton
                   size="small"
                   onClick={showAnotherQuote}
                   disabled={isLoadingQuote}
                   aria-label="Mostra un'altra citazione"
                   aria-busy={isLoadingQuote}
-                  sx={{ position: "absolute", top: { xs: 24, md: 32 }, right: { xs: 20, md: 32 } }}
                 >
-                  {isLoadingQuote ? <CircularProgress size={17} color="inherit" /> : <ArrowForwardRoundedIcon fontSize="small" />}
+                  {isLoadingQuote ? <CircularProgress size={16} color="inherit" /> : <ArrowForwardRoundedIcon fontSize="small" />}
                 </IconButton>
-              </span>
+              </Box>
             </Tooltip>
-          </Stack>
-          <Stack spacing={2} justifyContent="center" sx={{ flexGrow: 1, py: { xs: 3, md: 4 } }}>
+
             <Typography
               component="blockquote"
-              sx={{
-                m: 0,
-                maxWidth: 1000,
-                fontSize: { xs: "1.45rem", md: "2rem" },
-                lineHeight: 1.25,
-                fontWeight: 650,
-                color: "text.primary"
-              }}
+              variant="body1"
+              sx={{ m: 0, py: 2, fontWeight: 650, lineHeight: 1.5, maxWidth: 640 }}
             >
               “{quote.text}”
             </Typography>
-            <Typography component="figcaption" variant="body2" color="text.secondary" sx={{ fontWeight: 700 }}>
+            <Typography component="figcaption" variant="caption" color="text.secondary" sx={{ fontWeight: 750 }}>
               — {quote.author}
             </Typography>
-          </Stack>
-        </Stack>
-      </Box>
+          </Paper>
+        </Box>
+      </Stack>
 
-      <DashboardQuickActions onNavigate={onNavigate} />
-    </Stack>
+    </Box>
   );
-}
+});
 
 function pickLocalQuote(excludedText = window.localStorage.getItem(LAST_QUOTE_STORAGE_KEY) ?? ""): Quote {
   const excludedIndex = QUOTES.findIndex((quote) => quote.text === excludedText);

@@ -7,11 +7,11 @@ import {
   Stack,
   Typography
 } from "@mui/material";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import React from "react";
 import { fetchAppUpdateStatus, updateRepoControl } from "../../api/app";
 import { fetchDockerContainers, stopDockerContainers } from "../../api/docker";
-import { fetchProjects } from "../../api/projects";
+import { fetchProjects, fetchProjectSummary } from "../../api/projects";
 import {
   fetchPreferences,
   pickWorkspaceFolder,
@@ -29,23 +29,34 @@ import {
 import { ProjectTable } from "./ProjectTable";
 import { RepositoryCommandPalette } from "./RepositoryCommandPalette";
 import { FavoriteProjects, WorkspaceMap } from "./WorkspaceMap";
-import { ProjectDetailPanel } from "../project/ProjectDetailPanel";
 import { ProjectWorkspaceTabs } from "../project/ProjectWorkspaceTabs";
 import { getProjectPanelId } from "../project/projectWorkspaceIds";
-import { TaskEngineeringPage } from "../task/TaskEngineeringPage";
 import type { AppUpdateResult } from "../../types/app";
 import type { ColorMode, ViewMode } from "../../types/common";
 import type { DockerContainerGroup } from "../../types/docker";
+import type { ProjectsResponse } from "../../types/projects";
 import { commandErrorResult } from "../../utils/commandResult";
 import { filterProjects, isProject } from "../../utils/projects";
 
 const LEGACY_FAVORITE_PROJECTS_STORAGE_KEY = "repo-control-favorite-projects";
 const APP_UPDATE_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const DOCKER_POLL_INTERVAL_MS = 30 * 1000;
+const MAX_WARM_PROJECT_PANELS = 4;
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "repo-control-sidebar-collapsed";
+const loadAutomationPage = () => import("../automation/AutomationPage");
+const loadProjectDetailPanel = () => import("../project/ProjectDetailPanel");
+const loadTaskEngineeringPage = () => import("../task/TaskEngineeringPage");
 const AutomationPage = React.lazy(async () => {
-  const module = await import("../automation/AutomationPage");
+  const module = await loadAutomationPage();
   return { default: module.AutomationPage };
+});
+const ProjectDetailPanel = React.lazy(async () => {
+  const module = await loadProjectDetailPanel();
+  return { default: module.ProjectDetailPanel };
+});
+const TaskEngineeringPage = React.lazy(async () => {
+  const module = await loadTaskEngineeringPage();
+  return { default: module.TaskEngineeringPage };
 });
 const sectionReveal = keyframes`
   from {
@@ -63,7 +74,11 @@ type ProjectsDashboardProps = {
   onToggleColorMode: () => void;
 };
 
+function ignoreCommandResult(): void {}
+
 export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDashboardProps) {
+  const queryClient = useQueryClient();
+  const [isNavigating, startNavigationTransition] = React.useTransition();
   const [viewMode, setViewMode] = React.useState<ViewMode>("map");
   const [activeSection, setActiveSection] = React.useState<DashboardSection>("overview");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(
@@ -79,6 +94,7 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = React.useState(false);
   const [favoriteProjectIds, setFavoriteProjectIds] = React.useState<string[]>([]);
   const [openProjectIds, setOpenProjectIds] = React.useState<string[]>([]);
+  const [warmProjectIds, setWarmProjectIds] = React.useState<string[]>([]);
   const [activeProjectId, setActiveProjectId] = React.useState<string | null>(null);
   const [stoppingDockerGroupId, setStoppingDockerGroupId] = React.useState<string | null>(null);
   const [dockerActionError, setDockerActionError] = React.useState<string | null>(null);
@@ -95,7 +111,9 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
   } = useQuery({
     queryKey: ["docker-containers"],
     queryFn: fetchDockerContainers,
-    refetchInterval: DOCKER_POLL_INTERVAL_MS
+    staleTime: DOCKER_POLL_INTERVAL_MS - 5 * 1000,
+    refetchInterval: DOCKER_POLL_INTERVAL_MS,
+    refetchIntervalInBackground: false
   });
   const { data: preferences } = useQuery({
     queryKey: ["preferences"],
@@ -110,19 +128,27 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
   } = useQuery({
     queryKey: ["app-update-status"],
     queryFn: fetchAppUpdateStatus,
-    refetchInterval: APP_UPDATE_POLL_INTERVAL_MS
+    staleTime: APP_UPDATE_POLL_INTERVAL_MS,
+    refetchInterval: APP_UPDATE_POLL_INTERVAL_MS,
+    refetchIntervalInBackground: false
   });
 
   const projects = React.useMemo(() => data?.projects ?? [], [data?.projects]);
   const filteredProjects = React.useMemo(() => filterProjects(projects, search), [projects, search]);
+  const favoriteProjectIdSet = React.useMemo(() => new Set(favoriteProjectIds), [favoriteProjectIds]);
+  const projectsById = React.useMemo(
+    () => new Map(projects.map((project) => [project.id, project])),
+    [projects]
+  );
   const favoriteProjectCount = React.useMemo(
-    () => projects.filter((project) => favoriteProjectIds.includes(project.id)).length,
-    [favoriteProjectIds, projects]
+    () => projects.filter((project) => favoriteProjectIdSet.has(project.id)).length,
+    [favoriteProjectIdSet, projects]
   );
   const openProjects = React.useMemo(
-    () => openProjectIds.map((projectId) => projects.find((project) => project.id === projectId)).filter(isProject),
-    [openProjectIds, projects]
+    () => openProjectIds.map((projectId) => projectsById.get(projectId)).filter(isProject),
+    [openProjectIds, projectsById]
   );
+  const warmProjectIdSet = React.useMemo(() => new Set(warmProjectIds), [warmProjectIds]);
   const activeProject = React.useMemo(
     () => openProjects.find((project) => project.id === activeProjectId) ?? null,
     [activeProjectId, openProjects]
@@ -134,12 +160,32 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
   }, [isSidebarCollapsed]);
 
   React.useEffect(() => {
+    if (typeof window.requestIdleCallback === "function") {
+      const idleCallbackId = window.requestIdleCallback(() => {
+        void loadProjectDetailPanel();
+      }, { timeout: 3000 });
+
+      return () => window.cancelIdleCallback(idleCallbackId);
+    }
+
+    const preloadTimer = window.setTimeout(() => {
+      void loadProjectDetailPanel();
+    }, 1000);
+    return () => window.clearTimeout(preloadTimer);
+  }, []);
+
+  React.useEffect(() => {
     const availableProjectIds = new Set(projects.map((project) => project.id));
     const validOpenProjectIds = openProjectIds.filter((projectId) => availableProjectIds.has(projectId));
 
     if (validOpenProjectIds.length !== openProjectIds.length) {
       setOpenProjectIds(validOpenProjectIds);
     }
+
+    setWarmProjectIds((currentProjectIds) => {
+      const validProjectIds = currentProjectIds.filter((projectId) => availableProjectIds.has(projectId));
+      return haveSameProjectIds(validProjectIds, currentProjectIds) ? currentProjectIds : validProjectIds;
+    });
 
     if (activeProjectId && !availableProjectIds.has(activeProjectId)) {
       setActiveProjectId(null);
@@ -173,6 +219,7 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
   const applyRootPath = React.useCallback(async (root: string) => {
     await setRootPath(root);
     setOpenProjectIds([]);
+    setWarmProjectIds([]);
     setActiveProjectId(null);
     setSearch("");
     await refetch();
@@ -215,31 +262,56 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, [handleFolderPick]);
 
-  function navigateToSection(section: DashboardSection) {
-    setActiveSection(section);
-    setActiveProjectId(null);
-    setIsMobileSidebarOpen(false);
-    window.scrollTo({ top: 0, behavior: "auto" });
-  }
+  const navigateToSection = React.useCallback((section: DashboardSection) => {
+    if (section === "tasks") void loadTaskEngineeringPage();
+    if (section === "automations") void loadAutomationPage();
 
-  function openProject(projectId: string) {
-    setOpenProjectIds((currentProjectIds) =>
-      currentProjectIds.includes(projectId) ? currentProjectIds : [...currentProjectIds, projectId]
-    );
-    setActiveSection("repositories");
-    setActiveProjectId(projectId);
-    setIsMobileSidebarOpen(false);
-    window.scrollTo({ top: 0, behavior: "auto" });
-  }
+    startNavigationTransition(() => {
+      setActiveSection(section);
+      setActiveProjectId(null);
+      setIsMobileSidebarOpen(false);
+    });
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, []);
 
-  function activateProject(projectId: string) {
-    setActiveSection("repositories");
-    setActiveProjectId(projectId);
-    setIsMobileSidebarOpen(false);
-    window.scrollTo({ top: 0, behavior: "auto" });
-  }
+  const openProject = React.useCallback((projectId: string) => {
+    void loadProjectDetailPanel();
+    startNavigationTransition(() => {
+      setOpenProjectIds((currentProjectIds) =>
+        currentProjectIds.includes(projectId) ? currentProjectIds : [...currentProjectIds, projectId]
+      );
+      setWarmProjectIds((currentProjectIds) => getNextWarmProjectIds(currentProjectIds, projectId));
+      setActiveSection("repositories");
+      setActiveProjectId(projectId);
+      setIsMobileSidebarOpen(false);
+    });
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, []);
 
-  function toggleFavoriteProject(projectId: string) {
+  const activateProject = React.useCallback((projectId: string) => {
+    startNavigationTransition(() => {
+      setActiveSection("repositories");
+      setActiveProjectId(projectId);
+      setWarmProjectIds((currentProjectIds) => getNextWarmProjectIds(currentProjectIds, projectId));
+      setIsMobileSidebarOpen(false);
+    });
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, []);
+
+  const saveFavoriteProjectIds = React.useCallback(async (
+    nextProjectIds: string[],
+    rollbackProjectIds: string[]
+  ) => {
+    try {
+      await updatePreferences({ favoriteProjectIds: nextProjectIds });
+    } catch {
+      setFavoriteProjectIds((currentProjectIds) =>
+        haveSameProjectIds(currentProjectIds, nextProjectIds) ? rollbackProjectIds : currentProjectIds
+      );
+    }
+  }, []);
+
+  const toggleFavoriteProject = React.useCallback((projectId: string) => {
     setFavoriteProjectIds((currentProjectIds) => {
       const nextProjectIds = currentProjectIds.includes(projectId)
         ? currentProjectIds.filter((currentProjectId) => currentProjectId !== projectId)
@@ -248,17 +320,29 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
       void saveFavoriteProjectIds(nextProjectIds, currentProjectIds);
       return nextProjectIds;
     });
-  }
+  }, [saveFavoriteProjectIds]);
 
-  async function saveFavoriteProjectIds(nextProjectIds: string[], rollbackProjectIds: string[]) {
+  const refreshProjectSummary = React.useCallback(async (projectId: string) => {
     try {
-      await updatePreferences({ favoriteProjectIds: nextProjectIds });
-    } catch {
-      setFavoriteProjectIds(rollbackProjectIds);
-    }
-  }
+      const refreshedProject = await fetchProjectSummary(projectId);
+      queryClient.setQueryData<ProjectsResponse>(["projects"], (currentData) => {
+        if (!currentData) {
+          return currentData;
+        }
 
-  function closeProject(projectId: string) {
+        return {
+          ...currentData,
+          projects: currentData.projects.map((project) =>
+            project.id === refreshedProject.id ? refreshedProject : project
+          )
+        };
+      });
+    } catch {
+      // Git details remain authoritative; the next explicit workspace refresh will reconcile the summary.
+    }
+  }, [queryClient]);
+
+  const closeProject = React.useCallback((projectId: string) => {
     const closingProjectIndex = openProjectIds.indexOf(projectId);
     const nextProjectIds = openProjectIds.filter((openProjectId) => openProjectId !== projectId);
     setOpenProjectIds(nextProjectIds);
@@ -268,8 +352,19 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
         ?? openProjectIds[closingProjectIndex - 1]
         ?? null;
       setActiveProjectId(nextActiveProjectId);
+      setWarmProjectIds((currentProjectIds) => {
+        const remainingProjectIds = currentProjectIds.filter((currentProjectId) => currentProjectId !== projectId);
+        return nextActiveProjectId
+          ? getNextWarmProjectIds(remainingProjectIds, nextActiveProjectId)
+          : remainingProjectIds;
+      });
+      return;
     }
-  }
+
+    setWarmProjectIds((currentProjectIds) =>
+      currentProjectIds.filter((currentProjectId) => currentProjectId !== projectId)
+    );
+  }, [activeProjectId, openProjectIds]);
 
   async function handleAppUpdate() {
     setIsUpdatingApp(true);
@@ -358,6 +453,7 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
 
       <Container
         component="main"
+        aria-busy={isNavigating}
         maxWidth={false}
         sx={{
           maxWidth: 1680,
@@ -384,13 +480,18 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
                     hidden={project.id !== activeProject.id}
                     sx={{ minHeight: "100%", height: "100%" }}
                   >
-                    <ProjectDetailPanel
-                      project={project}
-                      isFavorite={favoriteProjectIds.includes(project.id)}
-                      onToggleFavorite={() => toggleFavoriteProject(project.id)}
-                      onResult={() => undefined}
-                      onRefresh={() => void refetch()}
-                    />
+                    {warmProjectIdSet.has(project.id) ? (
+                      <React.Suspense fallback={<ProjectDetailLoading />}>
+                        <ProjectDetailPanel
+                          project={project}
+                          isActive={project.id === activeProject.id}
+                          isFavorite={favoriteProjectIdSet.has(project.id)}
+                          onToggleFavorite={toggleFavoriteProject}
+                          onResult={ignoreCommandResult}
+                          onRefresh={refreshProjectSummary}
+                        />
+                      </React.Suspense>
+                    ) : null}
                   </Box>
                 ))}
               </Box>
@@ -400,25 +501,29 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
           {!activeProject && activeSection === "overview" ? (
             <ViewEntrance>
               <Box component="section" aria-labelledby="dashboard-home-title">
-                <DashboardHome onNavigate={navigateToSection} />
+                <DashboardHome
+                  projects={projects}
+                  favoriteProjectIds={favoriteProjectIds}
+                  dockerStatus={dockerStatus}
+                  onNavigate={navigateToSection}
+                  onOpenProject={openProject}
+                />
               </Box>
             </ViewEntrance>
           ) : null}
 
           {!activeProject && activeSection === "tasks" ? (
             <ViewEntrance>
-              <TaskEngineeringPage projects={projects} />
+              <React.Suspense fallback={<SectionLoading label="Caricamento task engineering" />}>
+                <TaskEngineeringPage projects={projects} />
+              </React.Suspense>
             </ViewEntrance>
           ) : null}
 
           {!activeProject && activeSection === "automations" ? (
             <ViewEntrance>
               <React.Suspense
-                fallback={
-                  <Box sx={{ minHeight: 420, display: "grid", placeItems: "center" }}>
-                    <CircularProgress aria-label="Caricamento automazioni" />
-                  </Box>
-                }
+                fallback={<SectionLoading label="Caricamento automazioni" />}
               >
                 <AutomationPage projects={projects} />
               </React.Suspense>
@@ -554,6 +659,23 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
   );
 }
 
+function ProjectDetailLoading() {
+  return <SectionLoading label="Caricamento repository" minHeight={620} />;
+}
+
+type SectionLoadingProps = {
+  label: string;
+  minHeight?: number;
+};
+
+function SectionLoading({ label, minHeight = 420 }: SectionLoadingProps) {
+  return (
+    <Box sx={{ minHeight, display: "grid", placeItems: "center" }}>
+      <CircularProgress aria-label={label} />
+    </Box>
+  );
+}
+
 function ViewEntrance({ children }: React.PropsWithChildren) {
   return (
     <Box
@@ -565,6 +687,15 @@ function ViewEntrance({ children }: React.PropsWithChildren) {
       {children}
     </Box>
   );
+}
+
+function haveSameProjectIds(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((projectId, index) => projectId === right[index]);
+}
+
+function getNextWarmProjectIds(currentProjectIds: string[], projectId: string): string[] {
+  return [projectId, ...currentProjectIds.filter((currentProjectId) => currentProjectId !== projectId)]
+    .slice(0, MAX_WARM_PROJECT_PANELS);
 }
 
 function getLegacyFavoriteProjectIds(): string[] {

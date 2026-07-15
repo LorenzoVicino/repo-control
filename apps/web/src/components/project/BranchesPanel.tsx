@@ -1,6 +1,7 @@
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import AddIcon from "@mui/icons-material/Add";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SyncIcon from "@mui/icons-material/Sync";
 import { Box, Button, Chip, CircularProgress, Stack, TextField, Typography } from "@mui/material";
 import React from "react";
@@ -11,6 +12,9 @@ import { LoadingPanel } from "../shared/LoadingPanel";
 import type { CommandResult } from "../../types/common";
 import type { GitBranchInfo, GitDetails } from "../../types/git";
 import { commandErrorResult } from "../../utils/commandResult";
+
+const INITIAL_VISIBLE_BRANCHES = 12;
+const BRANCH_REVEAL_BATCH_SIZE = 24;
 
 type BranchesPanelProps = {
   projectId: string;
@@ -158,6 +162,11 @@ type BranchGroupProps = {
 };
 
 function BranchGroup({ title, branches, isDirty, runningBranchAction, onCheckout }: BranchGroupProps) {
+  const [visibleBranchCount, setVisibleBranchCount] = React.useState(INITIAL_VISIBLE_BRANCHES);
+  const [, startRevealTransition] = React.useTransition();
+  const visibleBranches = branches.slice(0, visibleBranchCount);
+  const hiddenBranchCount = branches.length - visibleBranches.length;
+
   return (
     <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, overflow: "hidden" }}>
       <Stack
@@ -174,13 +183,13 @@ function BranchGroup({ title, branches, isDirty, runningBranchAction, onCheckout
       </Stack>
       <Stack spacing={0.75} sx={{ p: 1, maxHeight: 320, overflow: "auto" }}>
         {branches.length > 0 ? (
-          branches.map((branch) => (
+          visibleBranches.map((branch) => (
             <BranchRow
               key={`${title}-${branch.name}`}
               branch={branch}
               isDirty={isDirty}
               isRunning={runningBranchAction === `checkout:${branch.name}`}
-              onCheckout={() => onCheckout(branch)}
+              onCheckout={onCheckout}
             />
           ))
         ) : (
@@ -188,6 +197,21 @@ function BranchGroup({ title, branches, isDirty, runningBranchAction, onCheckout
             Nessun branch
           </Typography>
         )}
+        {hiddenBranchCount > 0 ? (
+          <Button
+            size="small"
+            variant="text"
+            startIcon={<ExpandMoreIcon />}
+            onClick={() => {
+              startRevealTransition(() => {
+                setVisibleBranchCount((currentCount) => currentCount + BRANCH_REVEAL_BATCH_SIZE);
+              });
+            }}
+            sx={{ alignSelf: "stretch" }}
+          >
+            Mostra altri {Math.min(hiddenBranchCount, BRANCH_REVEAL_BATCH_SIZE)}
+          </Button>
+        ) : null}
       </Stack>
     </Box>
   );
@@ -197,10 +221,10 @@ type BranchRowProps = {
   branch: GitBranchInfo;
   isDirty: boolean;
   isRunning: boolean;
-  onCheckout: () => void;
+  onCheckout: (branch: GitBranchInfo) => void;
 };
 
-function BranchRow({ branch, isDirty, isRunning, onCheckout }: BranchRowProps) {
+const BranchRow = React.memo(function BranchRow({ branch, isDirty, isRunning, onCheckout }: BranchRowProps) {
   return (
     <Box
       sx={{
@@ -226,7 +250,7 @@ function BranchRow({ branch, isDirty, isRunning, onCheckout }: BranchRowProps) {
         <Button
           size="small"
           variant={branch.current ? "contained" : "outlined"}
-          onClick={onCheckout}
+          onClick={() => onCheckout(branch)}
           disabled={branch.current || isDirty || isRunning}
           startIcon={isRunning ? <CircularProgress size={14} /> : <AccountTreeIcon fontSize="small" />}
           sx={{ minWidth: 106 }}
@@ -236,4 +260,4 @@ function BranchRow({ branch, isDirty, isRunning, onCheckout }: BranchRowProps) {
       </Stack>
     </Box>
   );
-}
+});

@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { promises as fs } from "node:fs";
 import { z } from "zod";
 import { openNativeFolderPicker } from "../folderPicker.js";
-import { scanProjects } from "../gitScanner.js";
+import { readProjectSummary, scanProjects } from "../gitScanner.js";
 import type { CommandResult, CommandRunner } from "../lib/commandRunner.js";
 import { resolveRootInput } from "../lib/projectResolver.js";
 import type { ProjectResolver } from "../lib/projectResolver.js";
@@ -28,6 +28,19 @@ export async function registerAppRoutes(app: FastifyInstance, context: AppRoutes
     root: context.getActiveRootPath(),
     projects: await scanProjects(context.getActiveRootPath())
   }));
+
+  app.get("/api/projects/:id/summary", async (request, reply) => {
+    const params = z.object({ id: z.string() }).parse(request.params);
+    const rootPath = context.getActiveRootPath();
+    const projectPath = await context.resolveProjectPath(params.id);
+    const project = await readProjectSummary(projectPath, rootPath);
+
+    if (!project) {
+      return reply.code(404).send({ message: "Unable to read project summary" });
+    }
+
+    return project;
+  });
 
   app.get("/api/preferences", async () => readPreferences());
 

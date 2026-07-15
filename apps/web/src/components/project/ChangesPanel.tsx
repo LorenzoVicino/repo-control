@@ -27,6 +27,10 @@ import type { GitDetails, GitFileChange, GitFileStatus, GitStashEntry } from "..
 import { commandErrorResult } from "../../utils/commandResult";
 import { formatDate } from "../../utils/projects";
 
+const GIT_FILE_ROW_HEIGHT = 41;
+const GIT_FILE_LIST_MAX_HEIGHT = 230;
+const GIT_FILE_LIST_OVERSCAN = 1;
+
 type ChangesPanelProps = {
   projectId: string;
   details: GitDetails | undefined;
@@ -280,25 +284,106 @@ function GitFileSection({
         />
       </Stack>
 
-      <Box sx={{ maxHeight: 230, overflow: "auto" }}>
+      <Box>
         {files.length > 0 ? (
-          files.map((file) => (
-            <GitFileRow
-              key={`${title}-${file.previousPath ?? ""}-${file.path}-${file.status}`}
-              projectId={projectId}
-              file={file}
-              actionPath={fileActionPath}
-              actionLabel={fileActionLabel}
-              actionIcon={fileActionIcon}
-              onResult={onResult}
-              onCompleted={onCompleted}
-            />
-          ))
+          <GitFileList
+            projectId={projectId}
+            title={title}
+            files={files}
+            actionPath={fileActionPath}
+            actionLabel={fileActionLabel}
+            actionIcon={fileActionIcon}
+            onResult={onResult}
+            onCompleted={onCompleted}
+          />
         ) : (
           <Typography variant="caption" color="text.secondary" component="div" sx={{ px: 1.25, py: 1.5 }}>
             {emptyLabel}
           </Typography>
         )}
+      </Box>
+    </Box>
+  );
+}
+
+type GitFileListProps = {
+  projectId: string;
+  title: string;
+  files: GitFileChange[];
+  actionPath: string;
+  actionLabel: string;
+  actionIcon: React.ReactNode;
+  onResult: (result: CommandResult) => void;
+  onCompleted: () => void;
+};
+
+function GitFileList({
+  projectId,
+  title,
+  files,
+  actionPath,
+  actionLabel,
+  actionIcon,
+  onResult,
+  onCompleted
+}: GitFileListProps) {
+  const [scrollTop, setScrollTop] = React.useState(0);
+  const pendingScrollTopRef = React.useRef(0);
+  const animationFrameRef = React.useRef<number | null>(null);
+  const totalHeight = files.length * GIT_FILE_ROW_HEIGHT;
+  const viewportHeight = Math.min(totalHeight, GIT_FILE_LIST_MAX_HEIGHT);
+  const effectiveScrollTop = Math.min(scrollTop, Math.max(0, totalHeight - viewportHeight));
+  const startIndex = Math.max(0, Math.floor(effectiveScrollTop / GIT_FILE_ROW_HEIGHT) - GIT_FILE_LIST_OVERSCAN);
+  const endIndex = Math.min(
+    files.length,
+    Math.ceil((effectiveScrollTop + viewportHeight) / GIT_FILE_ROW_HEIGHT) + GIT_FILE_LIST_OVERSCAN
+  );
+
+  React.useEffect(() => () => {
+    if (animationFrameRef.current !== null) {
+      window.cancelAnimationFrame(animationFrameRef.current);
+    }
+  }, []);
+
+  function handleScroll(event: React.UIEvent<HTMLDivElement>) {
+    pendingScrollTopRef.current = event.currentTarget.scrollTop;
+
+    if (animationFrameRef.current !== null) {
+      return;
+    }
+
+    animationFrameRef.current = window.requestAnimationFrame(() => {
+      animationFrameRef.current = null;
+      setScrollTop(pendingScrollTopRef.current);
+    });
+  }
+
+  return (
+    <Box
+      onScroll={handleScroll}
+      sx={{ position: "relative", height: viewportHeight, maxHeight: GIT_FILE_LIST_MAX_HEIGHT, overflowY: "auto" }}
+    >
+      <Box sx={{ position: "relative", height: totalHeight }}>
+        {files.slice(startIndex, endIndex).map((file, visibleIndex) => {
+          const fileIndex = startIndex + visibleIndex;
+
+          return (
+            <Box
+              key={`${title}-${file.previousPath ?? ""}-${file.path}-${file.status}`}
+              sx={{ position: "absolute", inset: `${fileIndex * GIT_FILE_ROW_HEIGHT}px 0 auto`, height: GIT_FILE_ROW_HEIGHT }}
+            >
+              <GitFileRow
+                projectId={projectId}
+                file={file}
+                actionPath={actionPath}
+                actionLabel={actionLabel}
+                actionIcon={actionIcon}
+                onResult={onResult}
+                onCompleted={onCompleted}
+              />
+            </Box>
+          );
+        })}
       </Box>
     </Box>
   );
@@ -314,7 +399,7 @@ type GitFileRowProps = {
   onCompleted: () => void;
 };
 
-function GitFileRow({
+const GitFileRow = React.memo(function GitFileRow({
   projectId,
   file,
   actionPath,
@@ -330,14 +415,11 @@ function GitFileRow({
         gridTemplateColumns: "minmax(0, 1fr) auto 34px",
         gap: 0.75,
         alignItems: "center",
-        minHeight: 40,
+        height: GIT_FILE_ROW_HEIGHT,
         px: 1.25,
         py: 0.5,
         borderBottom: "1px solid",
-        borderColor: "divider",
-        "&:last-child": {
-          borderBottom: 0
-        }
+        borderColor: "divider"
       }}
     >
       <Typography
@@ -374,7 +456,7 @@ function GitFileRow({
       />
     </Box>
   );
-}
+});
 
 type GitFileActionButtonProps = {
   projectId: string;

@@ -1,10 +1,14 @@
 import type { CommandResult } from "../types/common";
 import type { GitActivity, GitDetails } from "../types/git";
-import type { ProjectsResponse } from "../types/projects";
+import type { ProjectSummary, ProjectsResponse } from "../types/projects";
 import { isRecord, jsonRequest, requestJson } from "./http";
 
 export function fetchProjects(): Promise<ProjectsResponse> {
   return requestJson("/api/projects", "Unable to load projects");
+}
+
+export function fetchProjectSummary(projectId: string): Promise<ProjectSummary> {
+  return requestJson(`/api/projects/${projectId}/summary`, "Unable to refresh project");
 }
 
 export async function runProjectAction(

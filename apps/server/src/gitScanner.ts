@@ -38,11 +38,16 @@ const IGNORED_DIRS = new Set([
   "out",
   "target"
 ]);
+const PROJECT_SCAN_CONCURRENCY = 8;
 
 export async function scanProjects(rootPath: string): Promise<ProjectSummary[]> {
   const resolvedRoot = path.resolve(rootPath);
   const repoPaths = await findGitRepos(resolvedRoot);
-  const projects = await Promise.all(repoPaths.map((repoPath) => readProjectSummary(repoPath, resolvedRoot)));
+  const projects = await mapWithConcurrency(
+    repoPaths,
+    PROJECT_SCAN_CONCURRENCY,
+    (repoPath) => readProjectSummary(repoPath, resolvedRoot)
+  );
 
   return projects
     .filter((project): project is ProjectSummary => project !== null)
@@ -76,7 +81,7 @@ async function findGitRepos(rootPath: string): Promise<string[]> {
   return repositories;
 }
 
-async function readProjectSummary(repoPath: string, rootPath: string): Promise<ProjectSummary | null> {
+export async function readProjectSummary(repoPath: string, rootPath: string): Promise<ProjectSummary | null> {
   const git = simpleGit(repoPath);
 
   try {
@@ -115,6 +120,27 @@ async function readProjectSummary(repoPath: string, rootPath: string): Promise<P
   } catch {
     return null;
   }
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapItem: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  async function runWorker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const itemIndex = nextIndex;
+      nextIndex += 1;
+      results[itemIndex] = await mapItem(items[itemIndex]);
+    }
+  }
+
+  const workerCount = Math.min(concurrency, items.length);
+  await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
+  return results;
 }
 
 async function findComposeFiles(repoPath: string): Promise<string[]> {

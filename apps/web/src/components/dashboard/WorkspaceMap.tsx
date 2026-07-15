@@ -18,14 +18,16 @@ type WorkspaceMapProps = {
   onToggleFavorite: (projectId: string) => void;
 };
 
-export function WorkspaceMap({
+export const WorkspaceMap = React.memo(function WorkspaceMap({
   root,
   projects,
   favoriteProjectIds,
   onSelectProject,
   onToggleFavorite
 }: WorkspaceMapProps) {
-  const groups = groupProjects(projects, root);
+  const groups = React.useMemo(() => groupProjects(projects, root), [projects, root]);
+  const favoriteProjectIdSet = React.useMemo(() => new Set(favoriteProjectIds), [favoriteProjectIds]);
+  const [, startGroupTransition] = React.useTransition();
   const [collapsedGroupLabels, setCollapsedGroupLabels] = React.useState<Set<string>>(() => new Set());
 
   if (projects.length === 0) {
@@ -45,16 +47,18 @@ export function WorkspaceMap({
             count={group.projects.length}
             isExpanded={isExpanded}
             onToggle={() => {
-              setCollapsedGroupLabels((currentLabels) => {
-                const nextLabels = new Set(currentLabels);
+              startGroupTransition(() => {
+                setCollapsedGroupLabels((currentLabels) => {
+                  const nextLabels = new Set(currentLabels);
 
-                if (nextLabels.has(group.label)) {
-                  nextLabels.delete(group.label);
-                } else {
-                  nextLabels.add(group.label);
-                }
+                  if (nextLabels.has(group.label)) {
+                    nextLabels.delete(group.label);
+                  } else {
+                    nextLabels.add(group.label);
+                  }
 
-                return nextLabels;
+                  return nextLabels;
+                });
               });
             }}
           >
@@ -63,9 +67,9 @@ export function WorkspaceMap({
                 <ProjectCard
                   key={project.id}
                   project={project}
-                  isFavorite={favoriteProjectIds.includes(project.id)}
-                  onClick={() => onSelectProject(project.id)}
-                  onToggleFavorite={() => onToggleFavorite(project.id)}
+                  isFavorite={favoriteProjectIdSet.has(project.id)}
+                  onSelectProject={onSelectProject}
+                  onToggleFavorite={onToggleFavorite}
                 />
               ))}
             </ProjectCardGrid>
@@ -74,7 +78,7 @@ export function WorkspaceMap({
       })}
     </Stack>
   );
-}
+});
 
 type FavoriteProjectsProps = {
   projects: ProjectSummary[];
@@ -83,14 +87,18 @@ type FavoriteProjectsProps = {
   onToggleFavorite: (projectId: string) => void;
 };
 
-export function FavoriteProjects({
+export const FavoriteProjects = React.memo(function FavoriteProjects({
   projects,
   favoriteProjectIds,
   onSelectProject,
   onToggleFavorite
 }: FavoriteProjectsProps) {
   const [isExpanded, setIsExpanded] = React.useState(true);
-  const favoriteProjects = projects.filter((project) => favoriteProjectIds.includes(project.id));
+  const favoriteProjectIdSet = React.useMemo(() => new Set(favoriteProjectIds), [favoriteProjectIds]);
+  const favoriteProjects = React.useMemo(
+    () => projects.filter((project) => favoriteProjectIdSet.has(project.id)),
+    [favoriteProjectIdSet, projects]
+  );
 
   if (favoriteProjects.length === 0) {
     return null;
@@ -112,15 +120,15 @@ export function FavoriteProjects({
               key={project.id}
               project={project}
               isFavorite
-              onClick={() => onSelectProject(project.id)}
-              onToggleFavorite={() => onToggleFavorite(project.id)}
+              onSelectProject={onSelectProject}
+              onToggleFavorite={onToggleFavorite}
             />
           ))}
         </ProjectCardGrid>
       </CollapsibleProjectSection>
     </Box>
   );
-}
+});
 
 type CollapsibleProjectSectionProps = {
   id: string;
@@ -215,11 +223,16 @@ function ProjectCardGrid({ children }: { children: ReactNode }) {
 type ProjectCardProps = {
   project: ProjectSummary;
   isFavorite: boolean;
-  onClick: () => void;
-  onToggleFavorite: () => void;
+  onSelectProject: (projectId: string) => void;
+  onToggleFavorite: (projectId: string) => void;
 };
 
-function ProjectCard({ project, isFavorite, onClick, onToggleFavorite }: ProjectCardProps) {
+const ProjectCard = React.memo(function ProjectCard({
+  project,
+  isFavorite,
+  onSelectProject,
+  onToggleFavorite
+}: ProjectCardProps) {
   const theme = useTheme();
   const tone = getProjectTone(project, theme.palette.mode);
   const localChanges = project.modified + project.staged + project.untracked;
@@ -238,6 +251,8 @@ function ProjectCard({ project, isFavorite, onClick, onToggleFavorite }: Project
         borderColor: "divider",
         bgcolor: "background.paper",
         cursor: "pointer",
+        contentVisibility: "auto",
+        containIntrinsicSize: "auto 168px",
         transition: "border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease",
         "&::before": {
           content: '""',
@@ -259,7 +274,7 @@ function ProjectCard({ project, isFavorite, onClick, onToggleFavorite }: Project
     >
       <ButtonBase
         aria-label={`Apri ${project.name}`}
-        onClick={onClick}
+        onClick={() => onSelectProject(project.id)}
         sx={{
           position: "absolute",
           inset: 0,
@@ -303,7 +318,7 @@ function ProjectCard({ project, isFavorite, onClick, onToggleFavorite }: Project
               aria-label={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
               onClick={(event) => {
                 event.stopPropagation();
-                onToggleFavorite();
+                onToggleFavorite(project.id);
               }}
               sx={{ position: "relative", zIndex: 2, mr: -0.5 }}
             >
@@ -334,7 +349,7 @@ function ProjectCard({ project, isFavorite, onClick, onToggleFavorite }: Project
       </Stack>
     </Paper>
   );
-}
+});
 
 function WorkspaceEmptyState() {
   return (

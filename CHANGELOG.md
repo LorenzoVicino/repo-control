@@ -6,6 +6,19 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.1.10] - 2026-07-15
+
+### Added
+
+- Add an operational Dashboard with live workspace metrics, Git health charts, local change distribution and recent commit activity.
+- Add direct repository navigation from Dashboard insights and a lightweight animated technical backdrop with reduced-motion support.
+
+### Changed
+
+- Replace the oversized quote area with a compact rotating quote panel and correctly anchored navigation tooltip.
+- Improve repository scanning, per-project summary refreshes, query caching and rendering of large Git workspaces.
+- Lazy-load heavy application sections, keep only recently used repository panels warm and reduce initial font and stylesheet loading.
+
 ## [0.1.9] - 2026-07-14
 
 ### Added

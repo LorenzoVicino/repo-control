@@ -1,6 +1,7 @@
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import BuildIcon from "@mui/icons-material/Build";
 import CommitIcon from "@mui/icons-material/Commit";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -28,18 +29,23 @@ import type { ProjectDetailTab, ProjectSummary } from "../../types/projects";
 import { formatDate } from "../../utils/projects";
 
 const DOCKER_POLL_INTERVAL_MS = 30 * 1000;
-const GIT_ACTIVITY_PAGE_SIZE = 12;
+const GIT_ACTIVITY_PAGE_SIZE = 6;
+const GIT_DETAILS_STALE_TIME_MS = 15 * 1000;
+const GIT_ACTIVITY_STALE_TIME_MS = 60 * 1000;
+const DOCKER_STALE_TIME_MS = 25 * 1000;
 
 type ProjectDetailPanelProps = {
   project: ProjectSummary;
+  isActive: boolean;
   isFavorite: boolean;
-  onToggleFavorite: () => void;
+  onToggleFavorite: (projectId: string) => void;
   onResult: (result: CommandResult) => void;
-  onRefresh: () => void;
+  onRefresh: (projectId: string) => void;
 };
 
-export function ProjectDetailPanel({
+export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
   project,
+  isActive,
   isFavorite,
   onToggleFavorite,
   onResult,
@@ -52,7 +58,10 @@ export function ProjectDetailPanel({
     refetch: refetchGitDetails
   } = useQuery({
     queryKey: ["project-git-details", project.id],
-    queryFn: () => fetchGitDetails(project.id)
+    queryFn: () => fetchGitDetails(project.id),
+    enabled: isActive,
+    staleTime: GIT_DETAILS_STALE_TIME_MS,
+    notifyOnChangeProps: isActive ? ["data", "isFetching"] : []
   });
   const {
     data: gitActivityPages,
@@ -65,7 +74,12 @@ export function ProjectDetailPanel({
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
       fetchGitActivity(project.id, { offset: Number(pageParam), limit: GIT_ACTIVITY_PAGE_SIZE }),
-    getNextPageParam: (lastPage) => lastPage.nextOffset ?? undefined
+    getNextPageParam: (lastPage) => lastPage.nextOffset ?? undefined,
+    enabled: isActive,
+    staleTime: GIT_ACTIVITY_STALE_TIME_MS,
+    notifyOnChangeProps: isActive
+      ? ["data", "isFetching", "isFetchingNextPage", "hasNextPage"]
+      : []
   });
   const {
     data: dockerStatus,
@@ -73,7 +87,11 @@ export function ProjectDetailPanel({
   } = useQuery({
     queryKey: ["docker-containers"],
     queryFn: fetchDockerContainers,
-    refetchInterval: DOCKER_POLL_INTERVAL_MS
+    enabled: isActive,
+    staleTime: DOCKER_STALE_TIME_MS,
+    refetchInterval: isActive ? DOCKER_POLL_INTERVAL_MS : false,
+    refetchIntervalInBackground: false,
+    notifyOnChangeProps: isActive ? ["data"] : []
   });
   const dockerGroup = React.useMemo(
     () => findDockerGroupForProject(dockerStatus?.groups ?? [], project),
@@ -88,6 +106,11 @@ export function ProjectDetailPanel({
     () => gitActivityPages?.pages.flatMap((page) => page.commits) ?? [],
     [gitActivityPages]
   );
+  const deferredGitDetails = React.useDeferredValue(gitDetails);
+  const deferredGitActivityCommits = React.useDeferredValue(gitActivityCommits);
+  const isGitDetailsPending = !deferredGitDetails && (isFetchingGitDetails || Boolean(gitDetails));
+  const isGitActivityPending = deferredGitActivityCommits.length === 0
+    && (isFetchingGitActivity || gitActivityCommits.length > 0);
   const loadMoreGitActivity = React.useCallback(() => {
     if (!hasNextGitActivityPage || isFetchingNextGitActivityPage) {
       return;
@@ -99,7 +122,7 @@ export function ProjectDetailPanel({
   function refreshAfterProjectAction() {
     void refetchGitDetails();
     void refetchDockerContainers();
-    onRefresh();
+    onRefresh(project.id);
   }
 
   return (
@@ -145,7 +168,7 @@ export function ProjectDetailPanel({
         </Box>
         <Tooltip title={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}>
           <IconButton
-            onClick={onToggleFavorite}
+            onClick={() => onToggleFavorite(project.id)}
             color={isFavorite ? "warning" : "default"}
             aria-label={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
           >
@@ -181,10 +204,10 @@ export function ProjectDetailPanel({
           }}
         >
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-            <Chip label={gitDetails?.status.current ?? project.branch} color="primary" />
+            <Chip label={deferredGitDetails?.status.current ?? project.branch} color="primary" />
             <Chip
-              color={(gitDetails?.status.isClean ?? project.isClean) ? "success" : "warning"}
-              label={(gitDetails?.status.isClean ?? project.isClean) ? "pulito" : "modificato"}
+              color={(deferredGitDetails?.status.isClean ?? project.isClean) ? "success" : "warning"}
+              label={(deferredGitDetails?.status.isClean ?? project.isClean) ? "pulito" : "modificato"}
             />
             {project.hasDockerCompose ? (
               <Chip
@@ -240,8 +263,8 @@ export function ProjectDetailPanel({
           </DetailBlock>
 
           <GitActivityGraph
-            commits={gitActivityCommits}
-            isLoading={isFetchingGitActivity && !gitActivityPages}
+            commits={deferredGitActivityCommits}
+            isLoading={isGitActivityPending}
             isLoadingMore={isFetchingNextGitActivityPage}
             hasMore={Boolean(hasNextGitActivityPage)}
             onLoadMore={loadMoreGitActivity}
@@ -267,8 +290,8 @@ export function ProjectDetailPanel({
               {detailTab === "git" ? (
                 <ChangesPanel
                   projectId={project.id}
-                  details={gitDetails}
-                  isLoading={isFetchingGitDetails && !gitDetails}
+                  details={deferredGitDetails}
+                  isLoading={isGitDetailsPending}
                   onResult={onResult}
                   onCompleted={refreshAfterProjectAction}
                 />
@@ -295,8 +318,8 @@ export function ProjectDetailPanel({
               {detailTab === "branches" ? (
                 <BranchesPanel
                   projectId={project.id}
-                  details={gitDetails}
-                  isLoading={isFetchingGitDetails && !gitDetails}
+                  details={deferredGitDetails}
+                  isLoading={isGitDetailsPending}
                   onResult={onResult}
                   onCompleted={refreshAfterProjectAction}
                 />
@@ -317,7 +340,7 @@ export function ProjectDetailPanel({
       </Box>
     </Stack>
   );
-}
+});
 
 type ProjectDetailTabsProps = {
   value: ProjectDetailTab;
@@ -436,7 +459,7 @@ type GitActivityGraphProps = {
   onLoadMore: () => void;
 };
 
-function GitActivityGraph({
+const GitActivityGraph = React.memo(function GitActivityGraph({
   commits,
   isLoading,
   isLoadingMore,
@@ -457,10 +480,6 @@ function GitActivityGraph({
       onLoadMore();
     }
   }, [hasMore, isLoadingMore, onLoadMore]);
-
-  React.useEffect(() => {
-    maybeLoadMore();
-  }, [commits.length, maybeLoadMore]);
 
   return (
     <Box
@@ -525,6 +544,15 @@ function GitActivityGraph({
                   <Typography variant="caption">Carico altri commit</Typography>
                 </Stack>
               ) : null}
+              {hasMore && !isLoadingMore ? (
+                <Box sx={{ display: "grid", placeItems: "center", py: 0.5 }}>
+                  <Tooltip title="Carica altri commit">
+                    <IconButton size="small" onClick={onLoadMore} aria-label="Carica altri commit">
+                      <ExpandMoreRoundedIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              ) : null}
             </>
           ) : (
             <Typography variant="caption" color="text.secondary">
@@ -535,7 +563,7 @@ function GitActivityGraph({
       </Stack>
     </Box>
   );
-}
+});
 
 type GitActivityRowProps = {
   commit: GitActivityCommit;
@@ -543,7 +571,7 @@ type GitActivityRowProps = {
   isLast: boolean;
 };
 
-function GitActivityRow({ commit, index, isLast }: GitActivityRowProps) {
+const GitActivityRow = React.memo(function GitActivityRow({ commit, index, isLast }: GitActivityRowProps) {
   const graphColor = getGraphColor(index);
 
   return (
@@ -614,7 +642,7 @@ function GitActivityRow({ commit, index, isLast }: GitActivityRowProps) {
       </Box>
     </Box>
   );
-}
+});
 
 function findDockerGroupForProject(groups: DockerContainerGroup[], project: ProjectSummary): DockerContainerGroup | null {
   const normalizedProjectPath = normalizePath(project.path);

@@ -1,3 +1,4 @@
+import "@xyflow/react/dist/style.css";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import {

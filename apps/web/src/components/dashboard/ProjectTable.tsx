@@ -1,6 +1,7 @@
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import CallSplitIcon from "@mui/icons-material/CallSplit";
 import { alpha, Box, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
+import React from "react";
 import { StatusChips } from "../shared/StatusChips";
 import { SyncChips } from "../shared/SyncChips";
 import type { ProjectSummary } from "../../types/projects";
@@ -10,7 +11,7 @@ type ProjectTableProps = {
   onSelectProject: (projectId: string) => void;
 };
 
-export function ProjectTable({ projects, onSelectProject }: ProjectTableProps) {
+export const ProjectTable = React.memo(function ProjectTable({ projects, onSelectProject }: ProjectTableProps) {
   if (projects.length === 0) {
     return (
       <Box sx={{ p: 4, textAlign: "center" }}>
@@ -125,4 +126,4 @@ export function ProjectTable({ projects, onSelectProject }: ProjectTableProps) {
       </Table>
     </TableContainer>
   );
-}
+});

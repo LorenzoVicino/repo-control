@@ -5,7 +5,16 @@ import { ProjectsDashboard } from "./components/dashboard/ProjectsDashboard";
 import { COLOR_MODE_STORAGE_KEY, createAppTheme, getInitialColorMode } from "./theme";
 import type { ColorMode } from "./types/common";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      gcTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 10 * 1000
+    }
+  }
+});
 
 export function App() {
   const [colorMode, setColorMode] = React.useState<ColorMode>(getInitialColorMode);

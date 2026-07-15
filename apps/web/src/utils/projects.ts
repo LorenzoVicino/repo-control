@@ -1,6 +1,11 @@
 import type { ColorMode } from "../types/common";
 import type { ProjectSummary, ProjectTone } from "../types/projects";
 
+const PROJECT_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short"
+});
+
 export function isProject(project: ProjectSummary | undefined): project is ProjectSummary {
   return project !== undefined;
 }
@@ -82,10 +87,7 @@ export function getProjectTone(project: ProjectSummary, colorMode: ColorMode): P
 }
 
 export function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date(value));
+  return PROJECT_DATE_FORMATTER.format(new Date(value));
 }
 
 function getGroupLabel(project: ProjectSummary, root: string): string {

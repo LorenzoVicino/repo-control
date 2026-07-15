@@ -2,7 +2,7 @@ import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import { alpha, Box, ButtonBase, IconButton, Tooltip, Typography } from "@mui/material";
-import type { KeyboardEvent } from "react";
+import React, { type KeyboardEvent } from "react";
 import type { ProjectSummary } from "../../types/projects";
 import { getProjectPanelId, getProjectTabId } from "./projectWorkspaceIds";
 
@@ -13,7 +13,7 @@ type ProjectWorkspaceTabsProps = {
   onCloseProject: (projectId: string) => void;
 };
 
-export function ProjectWorkspaceTabs({
+export const ProjectWorkspaceTabs = React.memo(function ProjectWorkspaceTabs({
   projects,
   activeProjectId,
   onActiveProjectChange,
@@ -191,4 +191,4 @@ export function ProjectWorkspaceTabs({
       </Box>
     </Box>
   );
-}
+});

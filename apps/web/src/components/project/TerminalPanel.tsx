@@ -35,6 +35,7 @@ type TerminalEntry = {
 
 const terminalFontFamily =
   "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace";
+const MAX_TERMINAL_ENTRIES = 100;
 
 export function TerminalPanel({ projectId, projectName, projectPath, onResult, onCompleted }: TerminalPanelProps) {
   const theme = useTheme();
@@ -82,7 +83,9 @@ export function TerminalPanel({ projectId, projectName, projectPath, onResult, o
     setHistory((currentHistory) => appendHistory(currentHistory, nextCommand));
 
     const entryId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    setEntries((currentEntries) => [...currentEntries, { id: entryId, command: nextCommand, result: null }]);
+    setEntries((currentEntries) =>
+      [...currentEntries, { id: entryId, command: nextCommand, result: null }].slice(-MAX_TERMINAL_ENTRIES)
+    );
 
     try {
       const result = await runTerminalCommand(projectId, nextCommand);
@@ -318,9 +321,9 @@ function TerminalWelcome({ projectName, projectPath }: { projectName: string; pr
   );
 }
 
-function TerminalEntryBlock({ entry }: { entry: TerminalEntry }) {
+const TerminalEntryBlock = React.memo(function TerminalEntryBlock({ entry }: { entry: TerminalEntry }) {
   return (
-    <Box sx={{ mb: 1.5 }}>
+    <Box sx={{ mb: 1.5, contentVisibility: "auto", containIntrinsicSize: "auto 72px" }}>
       <Stack direction="row" spacing={0.75} sx={{ minWidth: 0, color: "#e2e8f0" }}>
         <Typography component="span" sx={{ fontFamily: terminalFontFamily, fontSize: 12.5, color: "#22d3ee" }}>
           $
@@ -366,7 +369,7 @@ function TerminalEntryBlock({ entry }: { entry: TerminalEntry }) {
       )}
     </Box>
   );
-}
+});
 
 function Prompt({ projectName, promptPath }: { projectName: string; promptPath: string }) {
   return (

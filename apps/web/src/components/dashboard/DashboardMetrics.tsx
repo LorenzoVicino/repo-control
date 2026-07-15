@@ -1,36 +1,55 @@
-import AccountTreeIcon from "@mui/icons-material/AccountTree";
-import BuildIcon from "@mui/icons-material/Build";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import SyncIcon from "@mui/icons-material/Sync";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
+import CheckCircleOutlineRoundedIcon from "@mui/icons-material/CheckCircleOutlineRounded";
+import DifferenceOutlinedIcon from "@mui/icons-material/DifferenceOutlined";
+import DnsOutlinedIcon from "@mui/icons-material/DnsOutlined";
 import { alpha, Box, Paper, Stack, Typography } from "@mui/material";
 import React from "react";
-import { getStats } from "../../utils/projects";
+import type { DashboardSnapshot } from "./dashboardInsights";
 
 type DashboardMetricsProps = {
-  stats: ReturnType<typeof getStats>;
+  snapshot: DashboardSnapshot;
 };
 
-export function DashboardMetrics({ stats }: DashboardMetricsProps) {
+export function DashboardMetrics({ snapshot }: DashboardMetricsProps) {
   return (
     <Box
       sx={{
         display: "grid",
         gridTemplateColumns: {
           xs: "1fr 1fr",
-          md: "repeat(5, minmax(0, 1fr))"
+          md: "repeat(4, minmax(0, 1fr))"
         },
-        gap: 1.25,
-        "& > :last-child": {
-          gridColumn: { xs: "1 / -1", md: "auto" }
-        }
+        gap: { xs: 1, md: 1.25 }
       }}
     >
-      <MetricTile label="Repository" value={stats.total} icon={<AccountTreeIcon />} color="#2563eb" />
-      <MetricTile label="Puliti" value={stats.clean} icon={<CheckCircleIcon />} color="#059669" />
-      <MetricTile label="Da verificare" value={stats.dirty} icon={<WarningAmberIcon />} color="#d97706" />
-      <MetricTile label="Da aggiornare" value={stats.behind} icon={<SyncIcon />} color="#e11d48" />
-      <MetricTile label="Con Compose" value={stats.compose} icon={<BuildIcon />} color="#0ea5e9" />
+      <MetricTile
+        label="Repository"
+        value={snapshot.total}
+        detail={`${snapshot.favorite} preferiti`}
+        icon={<AccountTreeOutlinedIcon />}
+        color="#2563eb"
+      />
+      <MetricTile
+        label="Pronti al lavoro"
+        value={snapshot.healthy}
+        detail={`${snapshot.healthPercentage}% del workspace`}
+        icon={<CheckCircleOutlineRoundedIcon />}
+        color="#059669"
+      />
+      <MetricTile
+        label="Modifiche locali"
+        value={snapshot.localChanges}
+        detail={`${snapshot.dirty} repository coinvolti`}
+        icon={<DifferenceOutlinedIcon />}
+        color="#d97706"
+      />
+      <MetricTile
+        label="Container attivi"
+        value={snapshot.runningContainers}
+        detail={`${snapshot.dockerGroups} gruppi runtime`}
+        icon={<DnsOutlinedIcon />}
+        color="#e11d48"
+      />
     </Box>
   );
 }
@@ -38,32 +57,34 @@ export function DashboardMetrics({ stats }: DashboardMetricsProps) {
 type MetricTileProps = {
   label: string;
   value: number;
+  detail: string;
   icon: React.ReactNode;
   color: string;
 };
 
-function MetricTile({ label, value, icon, color }: MetricTileProps) {
+function MetricTile({ label, value, detail, icon, color }: MetricTileProps) {
   return (
     <Paper
       variant="outlined"
       sx={{
-        p: 1.5,
-        minHeight: 88,
+        p: { xs: 1.25, sm: 1.5 },
+        minHeight: 82,
         display: "flex",
         alignItems: "center",
+        bgcolor: (theme) => alpha(theme.palette.background.paper, theme.palette.mode === "light" ? 0.94 : 0.88),
         borderColor: "divider",
         transition: "border-color 160ms ease, box-shadow 160ms ease",
         "&:hover": {
           borderColor: alpha(color, 0.4),
-          boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.common.black, theme.palette.mode === "light" ? 0.055 : 0.18)}`
+          boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.common.black, theme.palette.mode === "light" ? 0.045 : 0.15)}`
         }
       }}
     >
       <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
         <Box
           sx={{
-            width: 38,
-            height: 38,
+            width: 36,
+            height: 36,
             flexShrink: 0,
             display: "grid",
             placeItems: "center",
@@ -79,8 +100,11 @@ function MetricTile({ label, value, icon, color }: MetricTileProps) {
           <Typography variant="caption" color="text.secondary" component="div">
             {label}
           </Typography>
-          <Typography sx={{ mt: 0.2, fontSize: "1.35rem", fontWeight: 750, lineHeight: 1.05 }}>
+          <Typography sx={{ mt: 0.15, fontSize: "1.3rem", fontWeight: 750, lineHeight: 1.05 }}>
             {value}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" component="div" noWrap sx={{ mt: 0.2 }}>
+            {detail}
           </Typography>
         </Box>
       </Stack>
