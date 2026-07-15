@@ -99,6 +99,7 @@ export function RepositoryCommandPalette({
       aria-label="Repository command palette"
       fullWidth
       maxWidth="sm"
+      transitionDuration={{ enter: 160, exit: 0 }}
       PaperProps={{
         sx: {
           mt: { xs: 2, sm: 8 },

@@ -154,8 +154,13 @@ export function DashboardAppBar({
               fullWidth
               size="small"
               value={search}
-              onFocus={onOpenSearch}
               onClick={onOpenSearch}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onOpenSearch();
+                }
+              }}
               placeholder="Cerca repository"
               variant="outlined"
               inputProps={{ "aria-label": "Apri ricerca repository, scorciatoia Ctrl+P" }}

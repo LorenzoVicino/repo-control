@@ -283,6 +283,7 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
       setWarmProjectIds((currentProjectIds) => getNextWarmProjectIds(currentProjectIds, projectId));
       setActiveSection("repositories");
       setActiveProjectId(projectId);
+      setIsCommandPaletteOpen(false);
       setIsMobileSidebarOpen(false);
     });
     window.scrollTo({ top: 0, behavior: "instant" });
