@@ -70,8 +70,8 @@ export function RepositoryCommandPalette({
     const project = results[activeIndex];
 
     if (project) {
-      onOpenProject(project.id);
       onClose();
+      onOpenProject(project.id);
     }
   }
 
@@ -96,11 +96,11 @@ export function RepositoryCommandPalette({
     <Dialog
       open={open}
       onClose={onClose}
-      aria-label="Repository command palette"
       fullWidth
       maxWidth="sm"
       transitionDuration={{ enter: 160, exit: 0 }}
       PaperProps={{
+        "aria-label": "Repository command palette",
         sx: {
           mt: { xs: 2, sm: 8 },
           alignSelf: "flex-start",
@@ -147,8 +147,8 @@ export function RepositoryCommandPalette({
                 selected={index === activeIndex}
                 onMouseEnter={() => setActiveIndex(index)}
                 onClick={() => {
-                  onOpenProject(project.id);
                   onClose();
+                  onOpenProject(project.id);
                 }}
                 sx={{
                   minHeight: 58,

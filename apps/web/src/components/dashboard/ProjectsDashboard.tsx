@@ -276,16 +276,14 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
 
   const openProject = React.useCallback((projectId: string) => {
     void loadProjectDetailPanel();
-    startNavigationTransition(() => {
-      setOpenProjectIds((currentProjectIds) =>
-        currentProjectIds.includes(projectId) ? currentProjectIds : [...currentProjectIds, projectId]
-      );
-      setWarmProjectIds((currentProjectIds) => getNextWarmProjectIds(currentProjectIds, projectId));
-      setActiveSection("repositories");
-      setActiveProjectId(projectId);
-      setIsCommandPaletteOpen(false);
-      setIsMobileSidebarOpen(false);
-    });
+    setIsCommandPaletteOpen(false);
+    setOpenProjectIds((currentProjectIds) =>
+      currentProjectIds.includes(projectId) ? currentProjectIds : [...currentProjectIds, projectId]
+    );
+    setWarmProjectIds((currentProjectIds) => getNextWarmProjectIds(currentProjectIds, projectId));
+    setActiveSection("repositories");
+    setActiveProjectId(projectId);
+    setIsMobileSidebarOpen(false);
     window.scrollTo({ top: 0, behavior: "instant" });
   }, []);
 
