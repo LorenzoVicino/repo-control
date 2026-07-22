@@ -2,8 +2,12 @@ import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   alpha,
   Box,
@@ -31,7 +35,9 @@ type ImplementationPanelProps = {
 
 export function ImplementationPanel({ projectId, task, onChanged }: ImplementationPanelProps) {
   const [prompt, setPrompt] = React.useState("");
-  const [checksText, setChecksText] = React.useState("npm run build");
+  const [checksText, setChecksText] = React.useState(
+    task.verificationChecks.length > 0 ? task.verificationChecks.join("\n") : "npm run build"
+  );
   const [runError, setRunError] = React.useState<string | null>(null);
   const contextQuery = useQuery({
     queryKey: ["brain-context", projectId, task.id, task.updatedAt],
@@ -86,11 +92,16 @@ export function ImplementationPanel({ projectId, task, onChanged }: Implementati
           </Button>
         </Stack>
 
-        <Paper variant="outlined" sx={{ minWidth: 0, bgcolor: (theme) => alpha(theme.palette.primary.main, 0.025) }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1.5, py: 1.25 }}>
+        <Accordion
+          variant="outlined"
+          disableGutters
+          sx={{ minWidth: 0, alignSelf: "start", bgcolor: (theme) => alpha(theme.palette.primary.main, 0.025), "&:before": { display: "none" } }}
+        >
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Stack direction="row" spacing={0.75} alignItems="center">
               <AutoAwesomeOutlinedIcon color="primary" fontSize="small" />
               <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Context pack</Typography>
+              <Chip size="small" variant="outlined" label={`${task.contextRepositoryPaths.length + 1} repo`} />
             </Stack>
             <Tooltip title="Copia contesto">
               <span>
@@ -98,16 +109,19 @@ export function ImplementationPanel({ projectId, task, onChanged }: Implementati
                   aria-label="Copia context pack"
                   size="small"
                   disabled={!contextQuery.data}
-                  onClick={() => void navigator.clipboard.writeText(contextQuery.data?.content ?? "")}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void navigator.clipboard.writeText(contextQuery.data?.content ?? "");
+                  }}
+                  onFocus={(event) => event.stopPropagation()}
                   sx={{ minWidth: 32, px: 0.75 }}
                 >
                   <ContentCopyOutlinedIcon fontSize="small" />
                 </Button>
               </span>
             </Tooltip>
-          </Stack>
-          <Divider />
-          <Box sx={{ p: 1.5, maxHeight: 330, overflow: "auto" }}>
+          </AccordionSummary>
+          <AccordionDetails sx={{ borderTop: "1px solid", borderColor: "divider", p: 1.5, maxHeight: 360, overflow: "auto" }}>
             {contextQuery.isLoading ? <CircularProgress size={22} /> : contextQuery.error instanceof Error ? (
               <Alert severity="error">{contextQuery.error.message}</Alert>
             ) : (
@@ -119,8 +133,8 @@ export function ImplementationPanel({ projectId, task, onChanged }: Implementati
                 {contextQuery.data?.content}
               </Typography>
             )}
-          </Box>
-        </Paper>
+          </AccordionDetails>
+        </Accordion>
       </Box>
 
       {latestRun ? (

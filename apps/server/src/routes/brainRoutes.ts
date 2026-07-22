@@ -9,6 +9,7 @@ import {
   appendBrainTaskLog,
   assembleBrainContext,
   approveBrainTaskPhase,
+  createApprovedBrainTask,
   createBrainTask,
   deleteBrainTask,
   readBrainTask,
@@ -17,6 +18,7 @@ import {
   getBrainTaskSpecHash
 } from "../services/brainService.js";
 import { executeEngineeringRun } from "../services/engineeringRunService.js";
+import { planEngineeringTask } from "../services/taskPlanningService.js";
 
 const projectParamsSchema = z.object({ id: z.string() });
 const taskParamsSchema = z.object({
@@ -24,8 +26,10 @@ const taskParamsSchema = z.object({
   taskId: z.string().trim().min(1).max(160)
 });
 const taskTypeSchema = z.enum(["feature", "fix", "refactor", "chore", "spike"]);
+const taskProfileSchema = z.enum(["lean", "full", "research"]);
 const contentPhaseSchema = z.enum(["requirements", "design", "breakdown"]);
 const gatePhaseSchema = z.enum(["definition", "requirements", "design", "breakdown", "implementation"]);
+const planningRequestIdSchema = z.string().uuid();
 const contextProjectIdsSchema = z
   .array(z.string().trim().min(1).max(2048))
   .max(12)
@@ -37,6 +41,63 @@ const createTaskBodySchema = z.object({
   description: z.string().max(20_000).default(""),
   motivation: z.string().max(20_000).default(""),
   contextProjectIds: contextProjectIdsSchema.default([])
+});
+
+const planningQuestionSchema = z.object({
+  id: z.string().trim().min(1).max(80),
+  question: z.string().trim().min(1).max(600),
+  options: z.array(z.string().trim().min(1).max(240)).min(2).max(4),
+  recommendedOption: z.string().trim().max(240).nullable()
+});
+
+const taskPlanDraftSchema = z.object({
+  provider: z.literal("claude"),
+  providerLabel: z.string().trim().min(1).max(80),
+  sessionId: z.string().trim().min(1).max(160).nullable(),
+  generatedAt: z.string().datetime(),
+  title: z.string().trim().min(1).max(160),
+  type: taskTypeSchema,
+  profile: taskProfileSchema,
+  description: z.string().trim().min(1).max(20_000),
+  motivation: z.string().max(20_000),
+  requirements: z.string().trim().min(1).max(120_000),
+  design: z.string().trim().min(1).max(120_000),
+  breakdown: z.string().trim().min(1).max(120_000),
+  checks: z.array(z.string().trim().min(1).max(1000)).min(1).max(12),
+  assumptions: z.array(z.string().trim().min(1).max(2000)).max(12),
+  questions: z.array(planningQuestionSchema).max(3)
+});
+
+const planTaskBodySchema = z.object({
+  requestId: planningRequestIdSchema,
+  brief: z.string().trim().min(8).max(20_000),
+  profile: z.enum(["auto", "lean", "full", "research"]).default("auto"),
+  contextProjectIds: contextProjectIdsSchema.default([]),
+  feedback: z.string().trim().max(8000).optional(),
+  answers: z.record(z.string().trim().min(1).max(2000)).optional(),
+  currentDraft: taskPlanDraftSchema.optional()
+});
+
+const createPlannedTaskBodySchema = z.object({
+  title: z.string().trim().min(1).max(160),
+  type: taskTypeSchema,
+  profile: taskProfileSchema,
+  brief: z.string().trim().min(1).max(20_000),
+  description: z.string().trim().min(1).max(20_000),
+  motivation: z.string().max(20_000),
+  requirements: z.string().trim().min(1).max(120_000),
+  design: z.string().trim().min(1).max(120_000),
+  breakdown: z.string().trim().min(1).max(120_000),
+  checks: z.array(z.string().trim().min(1).max(1000)).min(1).max(12),
+  assumptions: z.array(z.string().trim().min(1).max(2000)).max(12),
+  provider: z.enum(["claude", "codex"]),
+  generatedAt: z.string().datetime(),
+  sessionId: z.string().trim().min(1).max(160).nullable(),
+  contextProjectIds: contextProjectIdsSchema.default([]),
+  clarifications: z.array(z.object({
+    question: z.string().trim().min(1).max(600),
+    answer: z.string().trim().min(1).max(2000)
+  })).max(3).default([])
 });
 
 const updateTaskBodySchema = z
@@ -52,6 +113,7 @@ const updateTaskBodySchema = z
       .optional(),
     phase: contentPhaseSchema.optional(),
     content: z.string().max(120_000).optional(),
+    verificationChecks: z.array(z.string().trim().min(1).max(1000)).max(12).optional(),
     git: z
       .object({
         branch: z.string().max(255).nullable().optional(),
@@ -94,6 +156,8 @@ type BrainRoutesContext = ProjectResolver & {
 };
 
 export async function registerBrainRoutes(app: FastifyInstance, context: BrainRoutesContext): Promise<void> {
+  const activePlanningRequests = new Map<string, AbortController>();
+
   app.get("/api/projects/:id/tasks", async (request) => {
     const params = projectParamsSchema.parse(request.params);
     const projectPath = await context.resolveProjectPath(params.id);
@@ -127,6 +191,93 @@ export async function registerBrainRoutes(app: FastifyInstance, context: BrainRo
       specHash: getBrainTaskSpecHash(task),
       generatedAt: new Date().toISOString()
     };
+  });
+
+  app.post("/api/projects/:id/tasks/plan", async (request, reply) => {
+    const params = projectParamsSchema.parse(request.params);
+    const body = planTaskBodySchema.parse(request.body);
+    const projectPath = await context.resolveProjectPath(params.id);
+    const contextRepositoryPaths = await resolveContextRepositoryPaths(
+      context,
+      body.contextProjectIds,
+      projectPath
+    );
+
+    const planningRequestKey = `${params.id}:${body.requestId}`;
+    activePlanningRequests.get(planningRequestKey)?.abort();
+    const abortController = new AbortController();
+    activePlanningRequests.set(planningRequestKey, abortController);
+    const abortPlanning = () => abortController.abort();
+    request.raw.once("aborted", abortPlanning);
+    reply.raw.once("close", abortPlanning);
+
+    try {
+      return await planEngineeringTask(projectPath, {
+        brief: body.brief,
+        profile: body.profile,
+        contextRepositoryPaths,
+        feedback: body.feedback,
+        answers: body.answers,
+        currentDraft: body.currentDraft
+      }, abortController.signal);
+    } finally {
+      request.raw.removeListener("aborted", abortPlanning);
+      reply.raw.removeListener("close", abortPlanning);
+      if (activePlanningRequests.get(planningRequestKey) === abortController) {
+        activePlanningRequests.delete(planningRequestKey);
+      }
+    }
+  });
+
+  app.post("/api/projects/:id/tasks/plan/cancel", async (request) => {
+    const params = projectParamsSchema.parse(request.params);
+    const body = z.object({ requestId: planningRequestIdSchema }).parse(request.body);
+    const planningRequestKey = `${params.id}:${body.requestId}`;
+    const abortController = activePlanningRequests.get(planningRequestKey);
+
+    abortController?.abort();
+    activePlanningRequests.delete(planningRequestKey);
+
+    return { ok: Boolean(abortController) };
+  });
+
+  app.post("/api/projects/:id/tasks/from-plan", async (request, reply) => {
+    const params = projectParamsSchema.parse(request.params);
+    const body = createPlannedTaskBodySchema.parse(request.body);
+    const projectPath = await context.resolveProjectPath(params.id);
+    const contextRepositoryPaths = await resolveContextRepositoryPaths(
+      context,
+      body.contextProjectIds,
+      projectPath
+    );
+    const clarifications = body.clarifications.length > 0
+      ? [
+          "## Chiarimenti approvati",
+          ...body.clarifications.map(({ question, answer }) => `- **${question}** ${answer}`)
+        ].join("\n")
+      : "";
+
+    return sendBrainMutation(reply, () => createApprovedBrainTask(projectPath, {
+      title: body.title,
+      type: body.type,
+      contextRepositoryPaths,
+      definition: {
+        description: body.description,
+        motivation: body.motivation
+      },
+      requirements: body.requirements,
+      design: [body.design, clarifications].filter(Boolean).join("\n\n"),
+      breakdown: body.breakdown,
+      verificationChecks: body.checks,
+      planning: {
+        profile: body.profile,
+        provider: body.provider,
+        brief: body.brief,
+        generatedAt: body.generatedAt,
+        assumptions: body.assumptions
+      },
+      claudeSessionId: body.provider === "claude" ? body.sessionId : null
+    }));
   });
 
   app.post("/api/projects/:id/tasks", async (request) => {

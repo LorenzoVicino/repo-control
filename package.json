@@ -1,14 +1,17 @@
 {
   "name": "repo-control",
-  "version": "0.1.11",
+  "version": "0.2.0",
   "private": true,
   "license": "MIT",
-  "description": "Local dashboard to inspect and operate Git projects from one place.",
+  "description": "Local-first command center for inspecting, operating and automating multi-repository workspaces.",
   "type": "module",
   "engines": {
     "node": "^20.19.0 || ^22.13.0 || >=24"
   },
   "scripts": {
+    "check:node": "node scripts/check-node-version.cjs",
+    "preinstall": "node scripts/check-node-version.cjs",
+    "predev": "node scripts/check-node-version.cjs",
     "dev": "concurrently -n server,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "node --env-file-if-exists=.env --watch --import tsx apps/server/src/index.ts",
     "dev:web": "vite --host 127.0.0.1 apps/web",

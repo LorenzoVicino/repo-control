@@ -6,6 +6,28 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.2.0] - 2026-07-22
+
+### Added
+
+- Add repository-aware task planning through Claude Code, including selectable planning depth, clarification questions, editable review and explicit approval before implementation.
+- Persist planning provenance, assumptions and safe verification commands with approved engineering tasks.
+- Add cancellation support for active planning and command execution.
+- Add Node.js runtime guards and a WSL-friendly startup script that loads `nvm` before launching repo-control.
+- Add automated quality gates with linting, strict TypeScript checks, coverage thresholds and Playwright browser flows across Node.js 20, 22 and 24.
+- Add a privacy-safe product walkthrough and a dedicated social preview asset.
+
+### Changed
+
+- Reframe the project documentation around the multi-repository workflow problem, architectural boundaries and safety model.
+- Replace the manual task creation dialog with a brief-to-plan workflow that keeps repository context read-only during planning.
+- Remove the external API Ninjas integration and keep dashboard quotes bundled locally.
+
+### Fixed
+
+- Close the repository command palette reliably after navigation.
+- Propagate cancellation signals through Claude Code and engineering command runners.
+
 ## [0.1.11] - 2026-07-15
 
 ### Fixed

@@ -8,7 +8,7 @@ import {
   readBrainTask
 } from "./brainService.js";
 import type { BrainRunCheck, BrainTaskRun } from "./brain/types.js";
-import { runClaudeMessage } from "./claudeService.js";
+import { getAgentProvider } from "./agentProvider.js";
 
 const CHECK_TIMEOUT_MS = 1000 * 60 * 10;
 
@@ -41,16 +41,16 @@ export async function executeEngineeringRun(
   const specHash = getBrainTaskSpecHash(task);
   const brainContext = await assembleBrainContext(projectPath, task);
   const runPrompt = buildRunPrompt(brainContext, input);
-  const claudeResult = await runClaudeMessage(
-    projectPath,
-    runPrompt,
-    task.claudeSessionId,
-    "acceptEdits",
-    task.contextRepositoryPaths
-  );
+  const agentResult = await getAgentProvider().run({
+    cwd: projectPath,
+    prompt: runPrompt,
+    mode: "implement",
+    sessionId: task.claudeSessionId,
+    additionalDirectories: task.contextRepositoryPaths
+  });
   const checks: BrainRunCheck[] = [];
 
-  if (claudeResult.ok) {
+  if (agentResult.ok) {
     for (const command of input.checks) {
       const result = await context.runShellCommand(projectPath, command, CHECK_TIMEOUT_MS);
       checks.push({
@@ -65,14 +65,14 @@ export async function executeEngineeringRun(
   }
 
   const failedCheck = checks.find((check) => !check.ok);
-  const succeeded = claudeResult.ok && !failedCheck && checks.length === input.checks.length;
+  const succeeded = agentResult.ok && !failedCheck && checks.length === input.checks.length;
   const run: BrainTaskRun = {
     id: randomUUID(),
     status: succeeded ? "succeeded" : "failed",
     prompt: input.prompt,
-    response: claudeResult.response,
-    error: claudeResult.error ?? (failedCheck ? `Check failed: ${failedCheck.command}` : null),
-    claudeSessionId: claudeResult.sessionId,
+    response: agentResult.response,
+    error: agentResult.error ?? (failedCheck ? `Check failed: ${failedCheck.command}` : null),
+    claudeSessionId: agentResult.sessionId,
     specHash,
     checks,
     startedAt,

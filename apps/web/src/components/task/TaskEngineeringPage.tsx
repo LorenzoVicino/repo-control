@@ -1,5 +1,4 @@
 import AddIcon from "@mui/icons-material/Add";
-import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import {
   Alert,
@@ -20,8 +19,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import React from "react";
 import { fetchBrainTasks } from "../../api/brain";
 import type { ProjectSummary } from "../../types/projects";
-import { CreateTaskDialog } from "./CreateTaskDialog";
 import { TaskList } from "./TaskList";
+import { TaskPlanningComposer } from "./TaskPlanningComposer";
 import { TaskWorkbench } from "./TaskWorkbench";
 
 type TaskEngineeringPageProps = {
@@ -32,7 +31,7 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
   const queryClient = useQueryClient();
   const [projectId, setProjectId] = React.useState(projects[0]?.id ?? "");
   const [selectedTaskId, setSelectedTaskId] = React.useState<string | null>(null);
-  const [createOpen, setCreateOpen] = React.useState(false);
+  const [creating, setCreating] = React.useState(false);
 
   React.useEffect(() => {
     if (!projects.some((project) => project.id === projectId)) {
@@ -73,10 +72,10 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
         <Box>
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography component="h1" variant="h1">Task engineering</Typography>
-            <Chip size="small" color="primary" variant="outlined" label="Spec driven" />
+            <Chip size="small" color="primary" variant="outlined" label="AI assisted" />
           </Stack>
           <Typography color="text.secondary" variant="body2" sx={{ mt: 0.4 }}>
-            Specifica, contesto operativo ed evidenze in un unico flusso controllato.
+            Dal brief al piano verificabile, con il repository come fonte di verità.
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ width: { xs: "100%", md: "auto" } }}>
@@ -89,6 +88,7 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
               onChange={(event) => {
                 setProjectId(event.target.value);
                 setSelectedTaskId(null);
+                setCreating(false);
               }}
             >
               {projects.map((project) => (
@@ -112,8 +112,8 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
           <Button
             startIcon={<AddIcon />}
             variant="contained"
-            onClick={() => setCreateOpen(true)}
-            disabled={!projectId}
+            onClick={() => setCreating(true)}
+            disabled={!projectId || creating}
           >
             Nuovo task
           </Button>
@@ -130,13 +130,31 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
           alignItems: "start"
         }}
       >
-        <TaskList
-          tasks={tasks}
-          selectedTaskId={selectedTaskId}
-          loading={tasksQuery.isLoading}
-          onSelect={setSelectedTaskId}
-        />
-        {selectedTask ? (
+        <Box sx={{ display: { xs: creating || tasks.length === 0 ? "none" : "block", lg: "block" } }}>
+          <TaskList
+            tasks={tasks}
+            selectedTaskId={selectedTaskId}
+            loading={tasksQuery.isLoading}
+            onSelect={(taskId) => {
+              setSelectedTaskId(taskId);
+              setCreating(false);
+            }}
+          />
+        </Box>
+        {creating || (!selectedTask && !tasksQuery.isLoading) ? (
+          <TaskPlanningComposer
+            key={projectId}
+            projectId={projectId}
+            projects={projects}
+            canCancel={Boolean(selectedTask)}
+            onCancel={() => setCreating(false)}
+            onCreated={async (task) => {
+              await refreshTasks();
+              setSelectedTaskId(task.id);
+              setCreating(false);
+            }}
+          />
+        ) : selectedTask ? (
           <TaskWorkbench
             key={`${selectedTask.id}:${selectedTask.updatedAt}`}
             projectId={projectId}
@@ -146,28 +164,10 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
           />
         ) : (
           <Paper variant="outlined" sx={{ minHeight: 420, display: "grid", placeItems: "center", p: 3 }}>
-            <Stack alignItems="center" spacing={1} sx={{ maxWidth: 360, textAlign: "center" }}>
-              <AutoAwesomeOutlinedIcon color="primary" />
-              <Typography variant="h3">Nessun task selezionato</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Crea un task per iniziare dalla definizione e costruire il context pack.
-              </Typography>
-            </Stack>
+            <CircularProgress size={26} />
           </Paper>
         )}
       </Box>
-
-      <CreateTaskDialog
-        open={createOpen}
-        projectId={projectId}
-        projects={projects}
-        onClose={() => setCreateOpen(false)}
-        onCreated={async (task) => {
-          setCreateOpen(false);
-          await refreshTasks();
-          setSelectedTaskId(task.id);
-        }}
-      />
     </Stack>
   );
 }

@@ -1,4 +1,6 @@
 export type BrainTaskType = "feature" | "fix" | "refactor" | "chore" | "spike";
+export type BrainTaskProfile = "lean" | "full" | "research";
+export type BrainAgentProvider = "claude" | "codex" | "manual";
 export type BrainTaskStatus =
   | "definition"
   | "requirements"
@@ -50,6 +52,14 @@ export type BrainTaskRun = {
   completedAt: string;
 };
 
+export type BrainTaskPlanning = {
+  profile: BrainTaskProfile;
+  provider: BrainAgentProvider;
+  brief: string;
+  generatedAt: string | null;
+  assumptions: string[];
+};
+
 export type BrainTask = {
   id: string;
   title: string;
@@ -63,6 +73,8 @@ export type BrainTask = {
   requirements: BrainPhaseState;
   design: BrainPhaseState;
   breakdown: BrainPhaseState;
+  verificationChecks: string[];
+  planning: BrainTaskPlanning;
   implementation: {
     log: BrainLogEntry[];
     runs: BrainTaskRun[];
@@ -94,6 +106,15 @@ export type CreateBrainTaskInput = {
   };
 };
 
+export type CreateApprovedBrainTaskInput = CreateBrainTaskInput & {
+  requirements: string;
+  design: string;
+  breakdown: string;
+  verificationChecks: string[];
+  planning: BrainTaskPlanning;
+  claudeSessionId?: string | null;
+};
+
 export type UpdateBrainTaskInput = {
   title?: string;
   type?: BrainTaskType;
@@ -101,6 +122,7 @@ export type UpdateBrainTaskInput = {
   definition?: Partial<BrainTask["definition"]>;
   phase?: BrainContentPhase;
   content?: string;
+  verificationChecks?: string[];
   git?: Partial<BrainTask["git"]>;
   claudeSessionId?: string | null;
 };

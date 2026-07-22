@@ -99,7 +99,8 @@ export async function runClaudeMessage(
   prompt: string,
   sessionId: string | null | undefined,
   permissionMode: ClaudePermissionMode,
-  additionalDirectories: string[] = []
+  additionalDirectories: string[] = [],
+  signal?: AbortSignal
 ): Promise<ClaudeRunResponse> {
   const args = buildClaudeMessageArgs(prompt, sessionId, permissionMode, additionalDirectories);
   const displayCommand = [
@@ -113,7 +114,8 @@ export async function runClaudeMessage(
     .filter(Boolean)
     .join(" ");
   const result = await runProjectCommand(projectPath, getClaudeCommand(), args, CLAUDE_COMMAND_TIMEOUT_MS, {
-    displayCommand
+    displayCommand,
+    signal
   });
   const parsedOutput = parseClaudeRunOutput(result.stdout);
   const nextSessionId = parsedOutput.sessionId ?? sessionId ?? null;
