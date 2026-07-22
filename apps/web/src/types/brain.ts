@@ -1,4 +1,6 @@
 export type BrainTaskType = "feature" | "fix" | "refactor" | "chore" | "spike";
+export type BrainTaskProfile = "lean" | "full" | "research";
+export type BrainAgentProvider = "claude" | "codex" | "manual";
 export type BrainTaskStatus = "definition" | "requirements" | "design" | "breakdown" | "implementation" | "done";
 export type BrainContentPhase = "requirements" | "design" | "breakdown";
 export type BrainGatePhase = "definition" | BrainContentPhase | "implementation";
@@ -30,6 +32,39 @@ export type BrainTaskRun = {
   completedAt: string;
 };
 
+export type BrainTaskPlanning = {
+  profile: BrainTaskProfile;
+  provider: BrainAgentProvider;
+  brief: string;
+  generatedAt: string | null;
+  assumptions: string[];
+};
+
+export type TaskPlanningQuestion = {
+  id: string;
+  question: string;
+  options: string[];
+  recommendedOption: string | null;
+};
+
+export type TaskPlanDraft = {
+  provider: "claude";
+  providerLabel: string;
+  sessionId: string | null;
+  generatedAt: string;
+  title: string;
+  type: BrainTaskType;
+  profile: BrainTaskProfile;
+  description: string;
+  motivation: string;
+  requirements: string;
+  design: string;
+  breakdown: string;
+  checks: string[];
+  assumptions: string[];
+  questions: TaskPlanningQuestion[];
+};
+
 export type BrainTask = {
   id: string;
   title: string;
@@ -40,6 +75,8 @@ export type BrainTask = {
   requirements: BrainPhaseState;
   design: BrainPhaseState;
   breakdown: BrainPhaseState;
+  verificationChecks: string[];
+  planning: BrainTaskPlanning;
   implementation: {
     log: Array<{ id: string; kind: "note" | "fix" | "result"; content: string; createdAt: string }>;
     runs: BrainTaskRun[];

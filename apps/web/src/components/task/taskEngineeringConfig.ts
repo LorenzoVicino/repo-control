@@ -1,4 +1,4 @@
-import type { BrainGatePhase, BrainTaskStatus, BrainTaskType } from "../../types/brain";
+import type { BrainGatePhase, BrainTaskProfile, BrainTaskStatus, BrainTaskType } from "../../types/brain";
 
 export const TASK_PHASES: Array<{ id: BrainGatePhase; label: string }> = [
   { id: "definition", label: "Definizione" },
@@ -25,6 +25,12 @@ export const TASK_TYPE_LABELS: Record<BrainTaskType, string> = {
   refactor: "Refactor",
   chore: "Chore",
   spike: "Spike"
+};
+
+export const TASK_PROFILE_LABELS: Record<BrainTaskProfile, string> = {
+  lean: "Rapido",
+  full: "Completo",
+  research: "Ricerca"
 };
 
 export const TASK_STATUS_LABELS: Record<BrainTaskStatus, string> = {

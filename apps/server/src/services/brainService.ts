@@ -14,10 +14,12 @@ import type {
   BrainPhaseState,
   BrainRunCheck,
   BrainTask,
+  BrainTaskProfile,
   BrainTaskRun,
   BrainTasksResponse,
   BrainTaskStatus,
   BrainTaskType,
+  CreateApprovedBrainTaskInput,
   CreateBrainTaskInput,
   RepositoryContext,
   UpdateBrainTaskInput
@@ -31,6 +33,7 @@ const MAX_RELATED_TASKS = 5;
 const MAX_CONTEXT_SECTION_LENGTH = 2400;
 const MAX_CONTEXT_REPOSITORIES = 12;
 const TASK_TYPES: BrainTaskType[] = ["feature", "fix", "refactor", "chore", "spike"];
+const TASK_PROFILES: BrainTaskProfile[] = ["lean", "full", "research"];
 const TASK_STATUSES: BrainTaskStatus[] = [
   "definition",
   "requirements",
@@ -71,10 +74,61 @@ export async function createBrainTask(projectPath: string, input: CreateBrainTas
     requirements: createEmptyPhase(),
     design: createEmptyPhase(),
     breakdown: createEmptyPhase(),
+    verificationChecks: [],
+    planning: {
+      profile: getDefaultTaskProfile(input.type),
+      provider: "manual",
+      brief: input.definition.description,
+      generatedAt: null,
+      assumptions: []
+    },
     implementation: { log: [], runs: [] },
     decisions: [],
     git: { branch: null, prUrl: null },
     claudeSessionId: null,
+    createdAt: now,
+    updatedAt: now
+  }, projectPath);
+
+  brainFile.tasks = [task, ...brainFile.tasks];
+  await writeBrainFile(projectPath, brainFile);
+  return task;
+}
+
+export async function createApprovedBrainTask(
+  projectPath: string,
+  input: CreateApprovedBrainTaskInput
+): Promise<BrainTask> {
+  assertHasText(input.title, "Task title is required.");
+  assertHasText(input.definition.description, "Task description is required.");
+  assertHasText(input.requirements, "Requirements content is required.");
+  assertHasText(input.design, "Design content is required.");
+  assertHasText(input.breakdown, "Task breakdown content is required.");
+
+  const verificationChecks = normalizeVerificationChecks(input.verificationChecks);
+
+  if (verificationChecks.length === 0) {
+    throw new BrainValidationError("At least one verification command is required.");
+  }
+
+  const brainFile = await readBrainFile(projectPath);
+  const now = new Date().toISOString();
+  const task = normalizeBrainTask({
+    id: randomUUID(),
+    title: input.title,
+    type: input.type,
+    status: "implementation",
+    contextRepositoryPaths: input.contextRepositoryPaths,
+    definition: input.definition,
+    requirements: { content: input.requirements, approvedAt: now },
+    design: { content: input.design, approvedAt: now },
+    breakdown: { content: input.breakdown, approvedAt: now },
+    verificationChecks,
+    planning: input.planning,
+    implementation: { log: [], runs: [] },
+    decisions: [],
+    git: { branch: null, prUrl: null },
+    claudeSessionId: input.claudeSessionId ?? null,
     createdAt: now,
     updatedAt: now
   }, projectPath);
@@ -104,6 +158,8 @@ export async function updateBrainTask(
     requirements: { ...task.requirements },
     design: { ...task.design },
     breakdown: { ...task.breakdown },
+    verificationChecks: [...task.verificationChecks],
+    planning: { ...task.planning, assumptions: [...task.planning.assumptions] },
     implementation: { log: [...task.implementation.log], runs: [...task.implementation.runs] },
     decisions: [...task.decisions],
     git: { ...task.git },
@@ -166,6 +222,10 @@ export async function updateBrainTask(
     if (previousContent !== nextTask[input.phase].content && nextTask[input.phase].approvedAt) {
       nextTask = rollbackApprovalsFromPhase(nextTask, input.phase);
     }
+  }
+
+  if (input.verificationChecks !== undefined) {
+    nextTask.verificationChecks = normalizeVerificationChecks(input.verificationChecks);
   }
 
   if (input.git) {
@@ -482,22 +542,35 @@ function normalizeBrainTask(value: unknown, projectPath?: string): BrainTask {
   const raw = isRecord(value) ? value : {};
   const now = new Date().toISOString();
   const rawDefinition = isRecord(raw.definition) ? raw.definition : {};
+  const rawPlanning = isRecord(raw.planning) ? raw.planning : {};
   const rawImplementation = isRecord(raw.implementation) ? raw.implementation : {};
   const rawGit = isRecord(raw.git) ? raw.git : {};
+  const type = normalizeTaskType(raw.type);
+  const description = getString(rawDefinition.description).slice(0, 20_000);
 
   return {
     id: normalizeText(raw.id, randomUUID()).slice(0, 160),
     title: normalizeText(raw.title, "Untitled task").slice(0, 160),
-    type: normalizeTaskType(raw.type),
+    type,
     status: normalizeTaskStatus(raw.status),
     contextRepositoryPaths: normalizeContextRepositoryPaths(raw.contextRepositoryPaths, projectPath),
     definition: {
-      description: getString(rawDefinition.description).slice(0, 20_000),
+      description,
       motivation: getString(rawDefinition.motivation).slice(0, 20_000)
     },
     requirements: normalizePhase(raw.requirements),
     design: normalizePhase(raw.design),
     breakdown: normalizePhase(raw.breakdown),
+    verificationChecks: normalizeVerificationChecks(raw.verificationChecks),
+    planning: {
+      profile: normalizeTaskProfile(rawPlanning.profile, type),
+      provider: rawPlanning.provider === "claude" || rawPlanning.provider === "codex"
+        ? rawPlanning.provider
+        : "manual",
+      brief: getString(rawPlanning.brief).slice(0, 20_000) || description,
+      generatedAt: normalizeNullableIsoString(rawPlanning.generatedAt),
+      assumptions: normalizeTextList(rawPlanning.assumptions, 12, 2000)
+    },
     implementation: {
       log: Array.isArray(rawImplementation.log)
         ? rawImplementation.log
@@ -789,6 +862,18 @@ function normalizeTaskType(value: unknown): BrainTaskType {
   return TASK_TYPES.includes(value as BrainTaskType) ? (value as BrainTaskType) : "feature";
 }
 
+function getDefaultTaskProfile(type: BrainTaskType): BrainTaskProfile {
+  if (type === "spike") return "research";
+  if (type === "fix" || type === "chore") return "lean";
+  return "full";
+}
+
+function normalizeTaskProfile(value: unknown, type: BrainTaskType): BrainTaskProfile {
+  return TASK_PROFILES.includes(value as BrainTaskProfile)
+    ? (value as BrainTaskProfile)
+    : getDefaultTaskProfile(type);
+}
+
 function normalizeTaskStatus(value: unknown): BrainTaskStatus {
   return TASK_STATUSES.includes(value as BrainTaskStatus) ? (value as BrainTaskStatus) : "definition";
 }
@@ -812,6 +897,24 @@ function normalizeContextRepositoryPaths(value: unknown, primaryProjectPath?: st
     .filter((repositoryPath) => repositoryPath !== primaryPath);
 
   return [...new Set(repositoryPaths)].slice(0, MAX_CONTEXT_REPOSITORIES);
+}
+
+function normalizeVerificationChecks(value: unknown): string[] {
+  return normalizeTextList(value, 12, 1000);
+}
+
+function normalizeTextList(value: unknown, maxItems: number, maxLength: number): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const items = value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => item.slice(0, maxLength));
+
+  return [...new Set(items)].slice(0, maxItems);
 }
 
 function getString(value: unknown): string {
@@ -852,7 +955,10 @@ function formatTaskForContext(task: BrainTask): string {
     task.definition.motivation ? `Motivation: ${truncateContext(task.definition.motivation)}` : null,
     task.requirements.content ? `Requirements:\n${truncateContext(task.requirements.content)}` : null,
     task.design.content ? `Design:\n${truncateContext(task.design.content)}` : null,
-    task.breakdown.content ? `Tasks:\n${truncateContext(task.breakdown.content)}` : null
+    task.breakdown.content ? `Tasks:\n${truncateContext(task.breakdown.content)}` : null,
+    task.verificationChecks.length > 0
+      ? `Verification commands:\n${task.verificationChecks.map((command) => `- ${command}`).join("\n")}`
+      : null
   ]
     .filter((line): line is string => Boolean(line))
     .join("\n\n");

@@ -1,3 +1,4 @@
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import {
   Box,
   Chip,
@@ -48,8 +49,11 @@ export function TaskList({ tasks, selectedTaskId, loading, onSelect }: TaskListP
               <ListItemText
                 primary={task.title}
                 secondary={
-                  <Stack component="span" direction="row" spacing={0.75} sx={{ mt: 0.75 }}>
+                  <Stack component="span" direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
                     <Chip component="span" size="small" label={TASK_TYPE_LABELS[task.type]} />
+                    {task.planning.provider !== "manual" ? (
+                      <Chip component="span" size="small" color="primary" icon={<AutoAwesomeOutlinedIcon />} label="AI" />
+                    ) : null}
                     <Chip
                       component="span"
                       size="small"

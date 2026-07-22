@@ -22,6 +22,7 @@ export type CommandRunner = (
 export type CommandRunnerOptions = {
   displayCommand?: string;
   shell?: boolean;
+  signal?: AbortSignal;
 };
 
 export function runProjectCommand(
@@ -43,6 +44,18 @@ export function runProjectCommand(
     let stdout = "";
     let stderr = "";
     let didTimeout = false;
+    let didAbort = false;
+
+    const abortCommand = () => {
+      didAbort = true;
+      child.kill("SIGTERM");
+    };
+
+    if (options.signal?.aborted) {
+      abortCommand();
+    } else {
+      options.signal?.addEventListener("abort", abortCommand, { once: true });
+    }
 
     const timeout = setTimeout(() => {
       didTimeout = true;
@@ -59,6 +72,7 @@ export function runProjectCommand(
 
     child.on("error", (error) => {
       clearTimeout(timeout);
+      options.signal?.removeEventListener("abort", abortCommand);
       resolve({
         ok: false,
         command: displayCommand,
@@ -72,15 +86,20 @@ export function runProjectCommand(
 
     child.on("close", (exitCode) => {
       clearTimeout(timeout);
-      const timeoutMessage = didTimeout ? `Command timed out after ${timeoutMs}ms` : "";
+      options.signal?.removeEventListener("abort", abortCommand);
+      const stopMessage = didTimeout
+        ? `Command timed out after ${timeoutMs}ms`
+        : didAbort
+          ? "Command cancelled"
+          : "";
 
       resolve({
-        ok: exitCode === 0 && !didTimeout,
+        ok: exitCode === 0 && !didTimeout && !didAbort,
         command: displayCommand,
         exitCode,
         stdout,
-        stderr: appendOutput(stderr, timeoutMessage),
-        output: [stdout, stderr, timeoutMessage].filter(Boolean).join("\n"),
+        stderr: appendOutput(stderr, stopMessage),
+        output: [stdout, stderr, stopMessage].filter(Boolean).join("\n"),
         durationMs: Date.now() - startedAt
       });
     });
