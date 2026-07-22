@@ -35,7 +35,7 @@
     "@fastify/cors": "^9.0.1",
     "@fontsource/roboto": "^5.0.13",
     "@mui/icons-material": "^5.15.21",
-    "@mui/material": "^5.15.21",
+    "@mui/material": "^9.2.0",
     "@tanstack/react-query": "^5.45.1",
     "@xyflow/react": "^12.11.2",
     "fastify": "^4.28.1",
