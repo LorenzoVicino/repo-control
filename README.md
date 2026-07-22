@@ -72,12 +72,9 @@ Copy `.env.example` if you want to keep local settings outside the command line.
 | `PORT` | `3747` | API port. |
 | `LOG_LEVEL` | `error` | Server log level. Request/response logs are disabled by default. |
 | `REPO_CONTROL_ROOT` | current directory | Workspace folder scanned for Git repositories. |
-| `API_NINJAS_API_KEY` | not configured | Optional free API Ninjas key for random Dashboard quotes. |
 | `REPO_CONTROL_CONFIG_DIR` | OS user config folder | Optional directory for local preferences. |
 | `REPO_CONTROL_SHELL` | auto-detect | Optional shell used by the embedded terminal command runner. |
 | `REPO_CONTROL_VSCODE` | auto-detect | Optional full path to a VS Code launcher. |
-
-Dashboard quotes use API Ninjas [`/v2/randomquotes`](https://api-ninjas.com/api/quotes) with the free `wisdom` filter when `API_NINJAS_API_KEY` is configured. The key is used only by the local API server and is never sent to the browser. Without a key, or when the external request is unavailable, repo-control falls back to its bundled quote set. API Ninjas does not permit commercial use of the Quotes API on its free tier.
 
 ## Features
 

@@ -1,11 +1,9 @@
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
-import { alpha, Box, CircularProgress, IconButton, Paper, Stack, Tooltip, Typography } from "@mui/material";
+import { alpha, Box, IconButton, Paper, Stack, Tooltip, Typography } from "@mui/material";
 import React from "react";
-import { fetchRandomDashboardQuote } from "../../api/quotes";
 import type { DockerContainersResponse } from "../../types/docker";
 import type { ProjectSummary } from "../../types/projects";
-import type { DashboardQuote } from "../../types/quotes";
 import { buildDashboardSnapshot } from "./dashboardInsights";
 import { DashboardInsights } from "./DashboardInsights";
 import { DashboardMetrics } from "./DashboardMetrics";
@@ -25,110 +23,89 @@ type DashboardHomeProps = {
 type Quote = {
   text: string;
   author: string;
-  source: "local" | DashboardQuote["source"];
 };
 
 const LAST_QUOTE_STORAGE_KEY = "repo-control-last-dashboard-quote";
 const QUOTES: Quote[] = [
   {
     text: "We can only see a short distance ahead, but we can see plenty there that needs to be done.",
-    author: "Alan Turing",
-    source: "local"
+    author: "Alan Turing"
   },
   {
     text: "The Analytical Engine has no pretensions whatever to originate anything.",
-    author: "Ada Lovelace",
-    source: "local"
+    author: "Ada Lovelace"
   },
   {
     text: "Testing shows the presence, not the absence of bugs.",
-    author: "Edsger W. Dijkstra",
-    source: "local"
+    author: "Edsger W. Dijkstra"
   },
   {
     text: "Premature optimization is the root of all evil.",
-    author: "Donald Knuth",
-    source: "local"
+    author: "Donald Knuth"
   },
   {
     text: "What I cannot create, I do not understand.",
-    author: "Richard Feynman",
-    source: "local"
+    author: "Richard Feynman"
   },
   {
     text: "The purpose of computing is insight, not numbers.",
-    author: "Richard Hamming",
-    source: "local"
+    author: "Richard Hamming"
   },
   {
     text: "A distributed system is one in which the failure of a computer you didn't even know existed can render your own computer unusable.",
-    author: "Leslie Lamport",
-    source: "local"
+    author: "Leslie Lamport"
   },
   {
     text: "The Web should be a medium for communication between people: communication through shared knowledge.",
-    author: "Tim Berners-Lee",
-    source: "local"
+    author: "Tim Berners-Lee"
   },
   {
     text: "The best way to predict the future is to invent it.",
-    author: "Alan Kay",
-    source: "local"
+    author: "Alan Kay"
   },
   {
     text: "There are only two kinds of languages: the ones people complain about and the ones nobody uses.",
-    author: "Bjarne Stroustrup",
-    source: "local"
+    author: "Bjarne Stroustrup"
   },
   {
     text: "Everyone knows that debugging is twice as hard as writing a program in the first place.",
-    author: "Brian Kernighan",
-    source: "local"
+    author: "Brian Kernighan"
   },
   {
     text: "The bearing of a child takes nine months, no matter how many women are assigned.",
-    author: "Fred Brooks",
-    source: "local"
+    author: "Fred Brooks"
   },
   {
     text: "Talk is cheap. Show me the code.",
-    author: "Linus Torvalds",
-    source: "local"
+    author: "Linus Torvalds"
   },
   {
     text: "There was no choice but to be pioneers; no time to be beginners.",
-    author: "Margaret Hamilton",
-    source: "local"
+    author: "Margaret Hamilton"
   },
   {
     text: "A language that doesn't affect the way you think about programming is not worth knowing.",
-    author: "Alan Perlis",
-    source: "local"
+    author: "Alan Perlis"
   },
   {
     text: "You don't understand anything until you learn it more than one way.",
-    author: "Marvin Minsky",
-    source: "local"
+    author: "Marvin Minsky"
   },
   {
     text: "Nothing in life is to be feared; it is only to be understood.",
-    author: "Marie Curie",
-    source: "local"
+    author: "Marie Curie"
   },
   {
     text: "If I have seen further, it is by standing on the shoulders of giants.",
-    author: "Isaac Newton",
-    source: "local"
+    author: "Isaac Newton"
   },
   {
     text: "Chance favors the prepared mind.",
-    author: "Louis Pasteur",
-    source: "local"
+    author: "Louis Pasteur"
   },
   {
     text: "There are two ways of constructing a software design. One way is to make it so simple that there are obviously no deficiencies.",
-    author: "C. A. R. Hoare",
-    source: "local"
+    author: "C. A. R. Hoare"
   }
 ];
 
@@ -140,7 +117,6 @@ export const DashboardHome = React.memo(function DashboardHome({
   onOpenProject
 }: DashboardHomeProps) {
   const [quote, setQuote] = React.useState<Quote>(pickLocalQuote);
-  const [isLoadingQuote, setIsLoadingQuote] = React.useState(true);
   const snapshot = React.useMemo(
     () => buildDashboardSnapshot(projects, favoriteProjectIds, dockerStatus),
     [dockerStatus, favoriteProjectIds, projects]
@@ -150,48 +126,8 @@ export const DashboardHome = React.memo(function DashboardHome({
     window.localStorage.setItem(LAST_QUOTE_STORAGE_KEY, quote.text);
   }, [quote.text]);
 
-  React.useEffect(() => {
-    const controller = new AbortController();
-    let isActive = true;
-
-    void fetchRandomDashboardQuote(controller.signal)
-      .then((response) => {
-        const apiQuote = response.quote;
-
-        if (isActive && apiQuote) {
-          setQuote((currentQuote) => toNextQuote(apiQuote, currentQuote));
-        }
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (isActive) {
-          setIsLoadingQuote(false);
-        }
-      });
-
-    return () => {
-      isActive = false;
-      controller.abort();
-    };
-  }, []);
-
-  async function showAnotherQuote() {
-    if (isLoadingQuote) {
-      return;
-    }
-
-    setIsLoadingQuote(true);
-
-    try {
-      const response = await fetchRandomDashboardQuote();
-      setQuote((currentQuote) =>
-        response.quote ? toNextQuote(response.quote, currentQuote) : pickLocalQuote(currentQuote.text)
-      );
-    } catch {
-      setQuote((currentQuote) => pickLocalQuote(currentQuote.text));
-    } finally {
-      setIsLoadingQuote(false);
-    }
+  function showAnotherQuote() {
+    setQuote((currentQuote) => pickLocalQuote(currentQuote.text));
   }
 
   return (
@@ -280,11 +216,9 @@ export const DashboardHome = React.memo(function DashboardHome({
                 <IconButton
                   size="small"
                   onClick={showAnotherQuote}
-                  disabled={isLoadingQuote}
                   aria-label="Mostra un'altra citazione"
-                  aria-busy={isLoadingQuote}
                 >
-                  {isLoadingQuote ? <CircularProgress size={16} color="inherit" /> : <ArrowForwardRoundedIcon fontSize="small" />}
+                  <ArrowForwardRoundedIcon fontSize="small" />
                 </IconButton>
               </Box>
             </Tooltip>
@@ -319,16 +253,4 @@ function pickRandomIndex(excludedIndex: number): number {
 
   const candidate = Math.floor(Math.random() * (QUOTES.length - 1));
   return candidate >= excludedIndex && excludedIndex >= 0 ? candidate + 1 : candidate;
-}
-
-function toNextQuote(apiQuote: DashboardQuote, currentQuote: Quote): Quote {
-  if (apiQuote.text === currentQuote.text) {
-    return pickLocalQuote(currentQuote.text);
-  }
-
-  return {
-    text: apiQuote.text,
-    author: apiQuote.author,
-    source: apiQuote.source
-  };
 }

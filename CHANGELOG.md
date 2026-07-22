@@ -32,7 +32,7 @@ This project follows semantic versioning where practical.
 
 - Add a visual automation workspace with workflow editing, dry runs, execution history and reusable Git, Docker and terminal nodes.
 - Add multi-repository context selection to Task engineering.
-- Add a Dashboard home with rotating API Ninjas quotes, bundled fallbacks and quick navigation actions.
+- Add a Dashboard home with bundled rotating quotes and quick navigation actions.
 - Add application-level tabs for every open repository, including keyboard navigation and independent close actions.
 
 ### Changed

@@ -10,7 +10,6 @@ import { registerBrainRoutes } from "./routes/brainRoutes.js";
 import { registerClaudeRoutes } from "./routes/claudeRoutes.js";
 import { registerDockerRoutes } from "./routes/dockerRoutes.js";
 import { registerGitRoutes } from "./routes/gitRoutes.js";
-import { registerQuoteRoutes } from "./routes/quoteRoutes.js";
 import { registerTerminalRoutes } from "./routes/terminalRoutes.js";
 import { registerWorkflowRoutes } from "./routes/workflowRoutes.js";
 
@@ -63,15 +62,13 @@ export async function createServer(): Promise<{
     ...projectResolver,
     runProjectCommand,
     runShellCommand,
-    scheduleServerRestart,
-    apiNinjasApiKey: env.API_NINJAS_API_KEY
+    scheduleServerRestart
   };
 
   await registerAppRoutes(app, context);
   await registerDockerRoutes(app, context);
   await registerGitRoutes(app, context);
   await registerTerminalRoutes(app, context);
-  await registerQuoteRoutes(app, context);
   await registerBrainRoutes(app, context);
   await registerClaudeRoutes(app, context);
   await registerWorkflowRoutes(app, context);
