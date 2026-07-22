@@ -1,8 +1,10 @@
 node_modules
+coverage
 dist
 apps/web/dist
+playwright-report
+test-results
 .env
 .DS_Store
 *.log
 .repo-control/
-package-lock.json

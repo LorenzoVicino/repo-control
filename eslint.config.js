@@ -6,12 +6,25 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist/**", "apps/web/dist/**", "node_modules/**"]
+    ignores: [
+      "dist/**",
+      "apps/web/dist/**",
+      "coverage/**",
+      "node_modules/**",
+      "playwright-report/**",
+      "test-results/**"
+    ]
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["apps/server/src/**/*.ts", "apps/web/vite.config.ts"],
+    files: [
+      "apps/server/src/**/*.ts",
+      "apps/web/vite.config.ts",
+      "e2e/**/*.ts",
+      "playwright.config.ts",
+      "vitest.config.ts"
+    ],
     languageOptions: {
       globals: globals.node
     }

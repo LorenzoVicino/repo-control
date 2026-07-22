@@ -4,6 +4,8 @@
 
 # repo-control
 
+[![CI](https://github.com/LorenzoVicino/repo-control/actions/workflows/ci.yml/badge.svg)](https://github.com/LorenzoVicino/repo-control/actions/workflows/ci.yml)
+
 Local dashboard to inspect and operate Git projects from one place.
 
 ## What it does
@@ -29,7 +31,7 @@ Do not expose the web server or API to a public network. The default host is `12
 
 ## Requirements
 
-- Node.js 20 or newer
+- Node.js 20.19+, 22.13+, or 24+ (Node 24 recommended)
 - Git
 - Docker, optional, only for Compose actions
 - VS Code, optional, only for the open-in-editor action
@@ -90,9 +92,11 @@ Copy `.env.example` if you want to keep local settings outside the command line.
 ## Development checks
 
 ```bash
-npm run check
-npm run build
+npm run verify
+npm run test:e2e
 ```
+
+`verify` runs linting, strict TypeScript checks, server and React tests with coverage thresholds, and the production web build. `test:e2e` exercises the live dashboard and backend through Chromium. CI runs both gates, with `verify` checked on every supported Node.js release line.
 
 See [Architecture](docs/architecture.md) for module boundaries and code placement conventions.
 

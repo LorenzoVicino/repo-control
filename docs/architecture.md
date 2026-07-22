@@ -50,8 +50,8 @@ logic once they have their own state, props or testable behavior.
 Run the following before sharing a change:
 
 ```bash
-npm run check
-npm run build
+npm run verify
+npm run test:e2e
 ```
 
-`check` runs ESLint, React Hooks validation and the strict TypeScript compiler.
+`verify` runs ESLint, React Hooks validation, the strict TypeScript compiler, server and React test suites with global coverage thresholds, and the production web build. `test:e2e` starts the real local server and dashboard, then verifies critical user flows in Chromium.

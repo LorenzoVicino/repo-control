@@ -5,13 +5,24 @@
   "license": "MIT",
   "description": "Local dashboard to inspect and operate Git projects from one place.",
   "type": "module",
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  },
   "scripts": {
     "dev": "concurrently -n server,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "node --env-file-if-exists=.env --watch --import tsx apps/server/src/index.ts",
     "dev:web": "vite --host 127.0.0.1 apps/web",
     "build": "npm run typecheck && vite build apps/web",
+    "test": "npm run test:server && npm run test:web",
+    "test:server": "node scripts/run-tests.cjs",
+    "test:server:coverage": "c8 --all --include=apps/server/src/**/*.ts --exclude=apps/server/src/**/*.test.ts --exclude=apps/server/src/**/types.ts --check-coverage --lines=35 --branches=75 --functions=34 --statements=35 npm run test:server",
+    "test:web": "vitest run --config vitest.config.ts",
+    "test:web:coverage": "vitest run --config vitest.config.ts --coverage",
+    "test:coverage": "npm run test:server:coverage && npm run test:web:coverage",
+    "test:e2e": "playwright test",
     "check": "npm run lint && npm run typecheck",
-    "lint": "eslint apps/server/src apps/web/src apps/web/vite.config.ts",
+    "verify": "npm run check && npm run test:coverage && npm run build",
+    "lint": "eslint apps/server/src apps/web/src apps/web/vite.config.ts e2e vitest.config.ts playwright.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -32,18 +43,26 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.1",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20.14.9",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "@vitest/coverage-v8": "^4.1.10",
+    "c8": "^12.0.0",
     "concurrently": "^8.2.2",
     "eslint": "^10.7.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.7.0",
+    "jsdom": "^29.1.1",
     "tsx": "^4.16.2",
     "typescript": "^5.5.2",
     "typescript-eslint": "^8.64.0",
-    "vite": "^5.3.1"
+    "vite": "^5.3.1",
+    "vitest": "^4.1.10"
   }
 }
