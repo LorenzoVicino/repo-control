@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="docs/repo-control-hero.png" alt="repo-control — local repository command center" width="100%" />
-</p>
-
 # repo-control
 
 [![CI](https://github.com/LorenzoVicino/repo-control/actions/workflows/ci.yml/badge.svg)](https://github.com/LorenzoVicino/repo-control/actions/workflows/ci.yml)
