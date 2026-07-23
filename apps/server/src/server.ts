@@ -1,5 +1,5 @@
 import cors from "@fastify/cors";
-import Fastify from "fastify";
+import Fastify, { LogController } from "fastify";
 import { readEnv } from "./config/env.js";
 import type { ServerEnv } from "./config/env.js";
 import { runProjectCommand, runShellCommand } from "./lib/commandRunner.js";
@@ -23,7 +23,7 @@ export async function createServer(): Promise<{
   const env = readEnv();
   const projectResolver = createProjectResolver(env.REPO_CONTROL_ROOT);
   const app = Fastify({
-    disableRequestLogging: true,
+    logController: new LogController({ disableRequestLogging: true }),
     logger: {
       level: env.LOG_LEVEL
     }
