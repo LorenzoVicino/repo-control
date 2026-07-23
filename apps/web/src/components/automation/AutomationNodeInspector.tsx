@@ -1,5 +1,6 @@
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import {
+  Alert,
   Autocomplete,
   Box,
   Button,
@@ -23,6 +24,7 @@ import {
   getConfigString,
   getConfigStringArray
 } from "./automationNodeCatalog";
+import { WORKFLOW_INPUT_KEY_PATTERN } from "./workflowInputs";
 
 type AutomationNodeInspectorProps = {
   node: WorkflowNode | null;
@@ -59,6 +61,8 @@ export function AutomationNodeInspector({
   const definition = getAutomationNodeDefinition(node.type);
   const selectedProjectIds = getConfigStringArray(node, "projectIds");
   const selectedProjects = projects.filter((project) => selectedProjectIds.includes(project.id));
+  const inputKey = getConfigString(node, "key", "");
+  const inputKeyInvalid = node.type === "input.text" && !WORKFLOW_INPUT_KEY_PATTERN.test(inputKey);
 
   function updateConfig(config: Record<string, unknown>) {
     onUpdateNode({ ...node!, config: { ...node!.config, ...config } });
@@ -84,6 +88,77 @@ export function AutomationNodeInspector({
           inputProps={{ maxLength: 80 }}
           onChange={(event) => onUpdateNode({ ...node, name: event.target.value })}
         />
+
+        {node.type === "input.text" ? (
+          <Stack spacing={1.5}>
+            <Alert severity="info" variant="outlined">
+              Il valore viene richiesto prima di anteprima o esecuzione. Non utilizzare questo nodo per password o token.
+            </Alert>
+            <TextField
+              size="small"
+              label="Chiave"
+              value={inputKey}
+              error={inputKeyInvalid}
+              onChange={(event) => updateConfig({ key: event.target.value.toLowerCase() })}
+              helperText={
+                inputKeyInvalid
+                  ? "Inizia con una lettera minuscola; usa solo lettere, numeri e underscore."
+                  : `Nel comando terminale: {{inputs.${inputKey}}}`
+              }
+              inputProps={{ maxLength: 40 }}
+            />
+            <TextField
+              size="small"
+              label="Etichetta"
+              value={getConfigString(node, "label", "")}
+              onChange={(event) => updateConfig({ label: event.target.value })}
+              inputProps={{ maxLength: 120 }}
+            />
+            <TextField
+              size="small"
+              label="Descrizione"
+              value={getConfigString(node, "description", "")}
+              onChange={(event) => updateConfig({ description: event.target.value })}
+              inputProps={{ maxLength: 240 }}
+              multiline
+              minRows={2}
+            />
+            <TextField
+              size="small"
+              label="Placeholder"
+              value={getConfigString(node, "placeholder", "")}
+              onChange={(event) => updateConfig({ placeholder: event.target.value })}
+              inputProps={{ maxLength: 160 }}
+            />
+            <TextField
+              size="small"
+              label="Valore predefinito"
+              value={getConfigString(node, "defaultValue", "")}
+              onChange={(event) => updateConfig({ defaultValue: event.target.value })}
+              inputProps={{ maxLength: 4000 }}
+              multiline={getConfigBoolean(node, "multiline", false)}
+              minRows={getConfigBoolean(node, "multiline", false) ? 3 : undefined}
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={getConfigBoolean(node, "required", true)}
+                  onChange={(event) => updateConfig({ required: event.target.checked })}
+                />
+              }
+              label="Input obbligatorio"
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={getConfigBoolean(node, "multiline", false)}
+                  onChange={(event) => updateConfig({ multiline: event.target.checked })}
+                />
+              }
+              label="Testo su più righe"
+            />
+          </Stack>
+        ) : null}
 
         {node.type === "repository.select" ? (
           <Stack spacing={1.5}>

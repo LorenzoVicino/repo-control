@@ -46,6 +46,25 @@ export function getTerminalCommand(commandLine: string): RuntimeCommandSpec {
   };
 }
 
+export function getShellEnvironmentReference(variableName: string): string {
+  const configuredShell = process.env.REPO_CONTROL_SHELL?.trim();
+  const shellName = configuredShell
+    ? path.basename(configuredShell).toLowerCase()
+    : process.platform === "win32"
+      ? "powershell.exe"
+      : path.basename(process.env.SHELL ?? "/bin/bash").toLowerCase();
+
+  if (shellName === "cmd.exe" || shellName === "cmd") {
+    return `"%${variableName}%"`;
+  }
+
+  if (shellName.includes("powershell") || shellName === "pwsh.exe" || shellName === "pwsh") {
+    return `"$env:${variableName}"`;
+  }
+
+  return `"\${${variableName}}"`;
+}
+
 export function shouldUseShellForCommand(command: string): boolean {
   if (process.platform !== "win32") {
     return false;

@@ -8,12 +8,13 @@ import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import StopCircleOutlinedIcon from "@mui/icons-material/StopCircleOutlined";
 import SummarizeOutlinedIcon from "@mui/icons-material/SummarizeOutlined";
 import TerminalOutlinedIcon from "@mui/icons-material/TerminalOutlined";
+import TextFieldsOutlinedIcon from "@mui/icons-material/TextFieldsOutlined";
 import UploadOutlinedIcon from "@mui/icons-material/UploadOutlined";
 import type { SvgIconProps } from "@mui/material";
 import React from "react";
 import type { WorkflowNode, WorkflowNodeType } from "../../types/workflows";
 
-export type AutomationNodeGroup = "Avvio" | "Repository" | "Git" | "Docker" | "Output";
+export type AutomationNodeGroup = "Avvio" | "Input" | "Repository" | "Git" | "Docker" | "Output";
 
 export type AutomationNodeDefinition = {
   type: WorkflowNodeType;
@@ -34,6 +35,23 @@ export const AUTOMATION_NODE_DEFINITIONS: AutomationNodeDefinition[] = [
     color: "#2563eb",
     icon: PlayArrowRoundedIcon,
     defaultConfig: {}
+  },
+  {
+    type: "input.text",
+    label: "Input di testo",
+    description: "Richiedi un valore prima dell'esecuzione",
+    group: "Input",
+    color: "#db2777",
+    icon: TextFieldsOutlinedIcon,
+    defaultConfig: {
+      key: "text",
+      label: "Valore",
+      description: "",
+      placeholder: "",
+      defaultValue: "",
+      required: true,
+      multiline: false
+    }
   },
   {
     type: "repository.select",
@@ -136,7 +154,14 @@ export const AUTOMATION_NODE_DEFINITIONS: AutomationNodeDefinition[] = [
   }
 ];
 
-export const AUTOMATION_NODE_GROUPS: AutomationNodeGroup[] = ["Avvio", "Repository", "Git", "Docker", "Output"];
+export const AUTOMATION_NODE_GROUPS: AutomationNodeGroup[] = [
+  "Avvio",
+  "Input",
+  "Repository",
+  "Git",
+  "Docker",
+  "Output"
+];
 
 export function getAutomationNodeDefinition(type: WorkflowNodeType): AutomationNodeDefinition {
   return AUTOMATION_NODE_DEFINITIONS.find((definition) => definition.type === type) ?? AUTOMATION_NODE_DEFINITIONS[0];
@@ -144,6 +169,12 @@ export function getAutomationNodeDefinition(type: WorkflowNodeType): AutomationN
 
 export function getAutomationNodeSummary(node: WorkflowNode): string {
   switch (node.type) {
+    case "input.text": {
+      const key = getConfigString(node, "key", "");
+      return key
+        ? `${key}${getConfigBoolean(node, "required", true) ? " · obbligatorio" : " · opzionale"}`
+        : "Chiave da configurare";
+    }
     case "repository.select": {
       const mode = getConfigString(node, "mode", "all");
       if (mode === "favorites") return "Repository preferiti";

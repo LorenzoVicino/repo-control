@@ -105,6 +105,27 @@ test("provides a connected default workflow", () => {
   assert.equal(workflows[0]?.edges[0]?.source, workflows[0]?.nodes[0]?.id);
 });
 
+test("preserves text input nodes during workflow normalization", () => {
+  const workflow = normalizeWorkflowDefinition({
+    id: "workflow-input",
+    nodes: [
+      {
+        id: "release-name",
+        type: "input.text",
+        name: "Release name",
+        position: { x: 120, y: 40 },
+        config: { key: "release_name", required: true }
+      }
+    ]
+  });
+
+  assert.equal(workflow.nodes[0]?.type, "input.text");
+  assert.deepEqual(workflow.nodes[0]?.config, {
+    key: "release_name",
+    required: true
+  });
+});
+
 test("workflow value helpers reject values of the wrong shape", () => {
   assert.equal(getString(" value ", "fallback"), "value");
   assert.equal(getString(" ", "fallback"), "fallback");

@@ -3,6 +3,7 @@ import type {
   WorkflowDraft,
   WorkflowListResponse,
   WorkflowRun,
+  WorkflowRunInputs,
   WorkflowRunMode,
   WorkflowRunsResponse
 } from "../types/workflows";
@@ -36,7 +37,11 @@ export function deleteWorkflow(workflowId: string): Promise<{ ok: true }> {
   );
 }
 
-export function executeWorkflow(workflowId: string, mode: WorkflowRunMode): Promise<WorkflowRun> {
+export function executeWorkflow(
+  workflowId: string,
+  mode: WorkflowRunMode,
+  inputs: WorkflowRunInputs = {}
+): Promise<WorkflowRun> {
   const action = mode === "dry-run" ? "dry-run" : "run";
   const fallbackMessage = mode === "dry-run"
     ? "Unable to preview workflow"
@@ -45,7 +50,7 @@ export function executeWorkflow(workflowId: string, mode: WorkflowRunMode): Prom
   return requestJson(
     `/api/workflows/${workflowId}/${action}`,
     fallbackMessage,
-    { method: "POST" }
+    jsonRequest("POST", { inputs })
   );
 }
 
