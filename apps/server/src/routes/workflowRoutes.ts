@@ -1,7 +1,9 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
-import type { CommandResult, CommandRunner } from "../lib/commandRunner.js";
+import type { CommandRunner, ShellCommandRunner } from "../lib/commandRunner.js";
 import type { ProjectResolver } from "../lib/projectResolver.js";
+import { WorkflowInputValidationError } from "../services/workflow/input.js";
+import type { WorkflowRunMode } from "../services/workflow/types.js";
 import {
   createWorkflow,
   deleteWorkflow,
@@ -13,7 +15,7 @@ import {
 
 type WorkflowRoutesContext = Pick<ProjectResolver, "getActiveRootPath"> & {
   runProjectCommand: CommandRunner;
-  runShellCommand: (cwd: string, commandLine: string, timeoutMs: number) => Promise<CommandResult>;
+  runShellCommand: ShellCommandRunner;
 };
 
 const workflowParamsSchema = z.object({ id: z.string().trim().min(1).max(160) });
@@ -23,6 +25,27 @@ const workflowBodySchema = z.object({
   active: z.boolean().default(false),
   nodes: z.array(z.unknown()).min(1).max(80),
   edges: z.array(z.unknown()).max(120)
+});
+const workflowInputsSchema = z.record(z.string().max(4000)).superRefine((inputs, context) => {
+  if (Object.keys(inputs).length > 20) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "A workflow run can provide at most 20 inputs"
+    });
+  }
+
+  for (const key of Object.keys(inputs)) {
+    if (!/^[a-z][a-z0-9_]{0,39}$/.test(key)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [key],
+        message: `Invalid workflow input key "${key}"`
+      });
+    }
+  }
+});
+const workflowExecutionBodySchema = z.object({
+  inputs: workflowInputsSchema.default({})
 });
 
 export async function registerWorkflowRoutes(app: FastifyInstance, context: WorkflowRoutesContext): Promise<void> {
@@ -67,30 +90,12 @@ export async function registerWorkflowRoutes(app: FastifyInstance, context: Work
 
   app.post("/api/workflows/:id/dry-run", async (request, reply) => {
     const params = workflowParamsSchema.parse(request.params);
-    const run = await executeWorkflow(params.id, "dry-run", context);
-
-    if (!run) {
-      return reply.code(404).send({
-        ok: false,
-        message: "Workflow not found"
-      });
-    }
-
-    return run;
+    return executeWorkflowRequest(params.id, "dry-run", request.body, context, reply);
   });
 
   app.post("/api/workflows/:id/run", async (request, reply) => {
     const params = workflowParamsSchema.parse(request.params);
-    const run = await executeWorkflow(params.id, "run", context);
-
-    if (!run) {
-      return reply.code(404).send({
-        ok: false,
-        message: "Workflow not found"
-      });
-    }
-
-    return run;
+    return executeWorkflowRequest(params.id, "run", request.body, context, reply);
   });
 
   app.get("/api/workflows/:id/runs", async (request) => {
@@ -100,4 +105,42 @@ export async function registerWorkflowRoutes(app: FastifyInstance, context: Work
   });
 
   app.get("/api/workflow-runs", async () => readWorkflowRuns());
+}
+
+async function executeWorkflowRequest(
+  workflowId: string,
+  mode: WorkflowRunMode,
+  body: unknown,
+  context: WorkflowRoutesContext,
+  reply: FastifyReply
+) {
+  const parsedBody = workflowExecutionBodySchema.safeParse(body ?? {});
+
+  if (!parsedBody.success) {
+    return reply.code(400).send({
+      ok: false,
+      message: parsedBody.error.issues[0]?.message ?? "Invalid workflow inputs"
+    });
+  }
+
+  let run;
+
+  try {
+    run = await executeWorkflow(workflowId, mode, context, parsedBody.data.inputs);
+  } catch (error) {
+    if (error instanceof WorkflowInputValidationError) {
+      return reply.code(400).send({ ok: false, message: error.message });
+    }
+
+    throw error;
+  }
+
+  if (!run) {
+    return reply.code(404).send({
+      ok: false,
+      message: "Workflow not found"
+    });
+  }
+
+  return run;
 }

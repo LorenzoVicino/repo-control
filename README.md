@@ -55,8 +55,12 @@ repo-control keeps the convenience of a dashboard without moving control to a re
 | Git workspace | Inspect staged and unstaged changes, stage files, commit, stash, fetch, pull and push without losing repository context. |
 | Branches | Compare local and remote branches, create or check out branches and track upstream divergence. |
 | Local tooling | Open a repository in VS Code, run scoped terminal commands and operate Docker Compose projects. |
-| Automations | Build visual Git, Docker and terminal workflows with dry runs, execution history and reusable nodes. |
+| Automations | Build visual Git, Docker and terminal workflows with per-run text inputs, dry runs, execution history and reusable nodes. |
 | Task engineering | Turn a short brief into repository-aware planning and implementation flows, with optional Claude Code integration. |
+
+### Runtime inputs for automations
+
+Add an **Input di testo** node when a workflow needs a value at launch, then reference its key from a terminal node with `{{inputs.key}}`. Preview and execution both prompt for required values. repo-control passes each value through an execution-scoped environment variable instead of concatenating raw text into the shell command.
 
 ## Architecture at a glance
 

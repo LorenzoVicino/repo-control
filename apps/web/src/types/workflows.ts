@@ -1,5 +1,6 @@
 export type WorkflowNodeType =
   | "trigger.manual"
+  | "input.text"
   | "repository.select"
   | "repository.filter"
   | "git.fetch"
@@ -39,6 +40,7 @@ export type WorkflowDefinition = {
 
 export type WorkflowDraft = Pick<WorkflowDefinition, "name" | "description" | "active" | "nodes" | "edges">;
 export type WorkflowRunMode = "run" | "dry-run";
+export type WorkflowRunInputs = Record<string, string>;
 export type WorkflowRunStatus = "success" | "failed";
 export type WorkflowStepStatus = "success" | "failed" | "skipped";
 

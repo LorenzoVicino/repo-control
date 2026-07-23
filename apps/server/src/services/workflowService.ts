@@ -3,6 +3,11 @@ import { scanProjects } from "../gitScanner.js";
 import type { ProjectSummary } from "../gitScanner.js";
 import type { CommandResult } from "../lib/commandRunner.js";
 import { readPreferences } from "../preferences.js";
+import { getShellEnvironmentReference } from "../runtime.js";
+import {
+  interpolateWorkflowInputReferences,
+  resolveWorkflowInputs
+} from "./workflow/input.js";
 import { normalizeWorkflowDefinition } from "./workflow/schema.js";
 import {
   readWorkflowFile,
@@ -18,6 +23,7 @@ import type {
   WorkflowListResponse,
   WorkflowNode,
   WorkflowRun,
+  WorkflowRunInputs,
   WorkflowRunMode,
   WorkflowRunsResponse,
   WorkflowRunStep,
@@ -109,7 +115,8 @@ export async function readWorkflowRuns(workflowId?: string): Promise<WorkflowRun
 export async function executeWorkflow(
   workflowId: string,
   mode: WorkflowRunMode,
-  context: WorkflowExecutionContext
+  context: WorkflowExecutionContext,
+  inputs: WorkflowRunInputs = {}
 ): Promise<WorkflowRun | null> {
   const workflowFile = await readWorkflowFile();
   const workflow = workflowFile.workflows.find((currentWorkflow) => currentWorkflow.id === workflowId);
@@ -118,6 +125,19 @@ export async function executeWorkflow(
     return null;
   }
 
+  const resolvedInputs = resolveWorkflowInputs(workflow.nodes, inputs);
+  const terminalCommands = new Map(
+    workflow.nodes
+      .filter((node) => node.type === "terminal.command")
+      .map((node) => [
+        node.id,
+        interpolateWorkflowInputReferences(
+          getString(node.config.command, ""),
+          resolvedInputs.definitions,
+          getShellEnvironmentReference
+        )
+      ])
+  );
   const startedAt = new Date().toISOString();
   const startedAtMs = Date.now();
   const projects = await scanProjects(context.getActiveRootPath());
@@ -130,6 +150,15 @@ export async function executeWorkflow(
       case "trigger.manual":
         steps.push(createStep(node, "success", null, null, "Manual trigger ready"));
         break;
+      case "input.text": {
+        const definition = resolvedInputs.definitions.find((input) => input.nodeId === node.id);
+        const value = definition ? resolvedInputs.values[definition.key] : "";
+        const message = value
+          ? `Input "${definition?.label ?? node.name}" received`
+          : `Optional input "${definition?.label ?? node.name}" left empty`;
+        steps.push(createStep(node, "success", null, null, message));
+        break;
+      }
       case "repository.select":
         selectedProjects = await selectProjects(projects, node);
         steps.push(createStep(node, "success", null, null, `${selectedProjects.length} repository selected`));
@@ -144,7 +173,14 @@ export async function executeWorkflow(
         steps.push(createStep(node, "success", null, null, `${selectedProjects.length} repositories in current selection`));
         break;
       default:
-        steps.push(...await executeProjectNode(node, selectedProjects, mode, context));
+        steps.push(...await executeProjectNode(
+          node,
+          selectedProjects,
+          mode,
+          context,
+          terminalCommands,
+          resolvedInputs.environment
+        ));
         break;
     }
   }
@@ -260,7 +296,9 @@ async function executeProjectNode(
   node: WorkflowNode,
   projects: ProjectSummary[],
   mode: WorkflowRunMode,
-  context: WorkflowExecutionContext
+  context: WorkflowExecutionContext,
+  terminalCommands: Map<string, string>,
+  inputEnvironment: NodeJS.ProcessEnv
 ): Promise<WorkflowRunStep[]> {
   if (projects.length === 0) {
     return [createStep(node, "skipped", null, null, "No repositories selected")];
@@ -269,7 +307,7 @@ async function executeProjectNode(
   const steps: WorkflowRunStep[] = [];
 
   for (const project of projects) {
-    const action = getProjectAction(node, project, context);
+    const action = getProjectAction(node, project, context, terminalCommands, inputEnvironment);
 
     if (!action) {
       steps.push(createStep(node, "skipped", project, null, getSkipMessage(node, project)));
@@ -306,7 +344,9 @@ async function executeProjectNode(
 function getProjectAction(
   node: WorkflowNode,
   project: ProjectSummary,
-  context: WorkflowExecutionContext
+  context: WorkflowExecutionContext,
+  terminalCommands: Map<string, string>,
+  inputEnvironment: NodeJS.ProcessEnv
 ): ProjectAction | null {
   switch (node.type) {
     case "git.fetch":
@@ -366,7 +406,7 @@ function getProjectAction(
         run: () => context.runProjectCommand(project.path, "docker", ["compose", "stop"], 1000 * 60 * 5)
       };
     case "terminal.command": {
-      const command = getString(node.config.command, "");
+      const command = terminalCommands.get(node.id) ?? "";
 
       if (!command) {
         return null;
@@ -374,7 +414,12 @@ function getProjectAction(
 
       return {
         command,
-        run: () => context.runShellCommand(project.path, command, 1000 * 60 * 10)
+        run: () => context.runShellCommand(
+          project.path,
+          command,
+          1000 * 60 * 10,
+          { env: inputEnvironment }
+        )
       };
     }
     default:

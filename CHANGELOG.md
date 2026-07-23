@@ -6,6 +6,11 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+### Added
+
+- Add reusable text-input nodes to visual automations, with required/default values and per-run prompts for previews and executions.
+- Allow terminal nodes to consume runtime values through safe `{{inputs.key}}` environment references.
+
 ## [0.2.0] - 2026-07-22
 
 ### Added

@@ -25,6 +25,17 @@ export type CommandRunnerOptions = {
   signal?: AbortSignal;
 };
 
+export type ShellCommandRunnerOptions = {
+  env?: NodeJS.ProcessEnv;
+};
+
+export type ShellCommandRunner = (
+  cwd: string,
+  commandLine: string,
+  timeoutMs: number,
+  options?: ShellCommandRunnerOptions
+) => Promise<CommandResult>;
+
 export function runProjectCommand(
   cwd: string,
   command: string,
@@ -106,7 +117,12 @@ export function runProjectCommand(
   });
 }
 
-export function runShellCommand(cwd: string, commandLine: string, timeoutMs: number): Promise<CommandResult> {
+export function runShellCommand(
+  cwd: string,
+  commandLine: string,
+  timeoutMs: number,
+  options: ShellCommandRunnerOptions = {}
+): Promise<CommandResult> {
   const startedAt = Date.now();
   const terminalCommand = getTerminalCommand(commandLine);
 
@@ -116,6 +132,7 @@ export function runShellCommand(cwd: string, commandLine: string, timeoutMs: num
       shell: terminalCommand.shell ?? shouldUseShellForCommand(terminalCommand.command),
       env: {
         ...process.env,
+        ...options.env,
         FORCE_COLOR: "1",
         TERM: process.env.TERM ?? "xterm-256color"
       }

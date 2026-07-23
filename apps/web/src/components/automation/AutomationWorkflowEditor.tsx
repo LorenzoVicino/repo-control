@@ -48,9 +48,11 @@ import type {
   WorkflowNode,
   WorkflowNodeType,
   WorkflowRun,
+  WorkflowRunInputs,
   WorkflowRunMode
 } from "../../types/workflows";
 import type { ProjectSummary } from "../../types/projects";
+import { AutomationExecutionDialog } from "./AutomationExecutionDialog";
 import { AutomationNode, type AutomationFlowNode } from "./AutomationNode";
 import { AutomationNodeInspector } from "./AutomationNodeInspector";
 import { AutomationNodePalette } from "./AutomationNodePalette";
@@ -69,6 +71,10 @@ import {
   toFlowNodes,
   toWorkflowDraft
 } from "./automationWorkflowGraph";
+import {
+  getUniqueWorkflowInputKey,
+  getWorkflowInputConfigurationError
+} from "./workflowInputs";
 
 const NODE_TYPES = { automation: AutomationNode };
 
@@ -95,7 +101,7 @@ export function AutomationWorkflowEditor({
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
   const [nodeMenuAnchor, setNodeMenuAnchor] = React.useState<HTMLElement | null>(null);
   const [runToDisplay, setRunToDisplay] = React.useState<WorkflowRun | null>(null);
-  const [confirmRunOpen, setConfirmRunOpen] = React.useState(false);
+  const [executionMode, setExecutionMode] = React.useState<WorkflowRunMode | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
   const [editorError, setEditorError] = React.useState<string | null>(null);
 
@@ -105,6 +111,10 @@ export function AutomationWorkflowEditor({
   );
   const initialDraftHash = React.useMemo(() => JSON.stringify(toWorkflowDraft(workflow)), [workflow]);
   const dirty = JSON.stringify(draft) !== initialDraftHash;
+  const workflowInputConfigurationError = React.useMemo(
+    () => getWorkflowInputConfigurationError(draft.nodes),
+    [draft.nodes]
+  );
   const selectedFlowNode = nodes.find((node) => node.id === selectedNodeId) ?? null;
   const selectedWorkflowNode = selectedFlowNode
     ? { ...selectedFlowNode.data.workflowNode, position: selectedFlowNode.position }
@@ -119,15 +129,21 @@ export function AutomationWorkflowEditor({
     onError: (error) => setEditorError(getErrorMessage(error))
   });
   const runMutation = useMutation({
-    mutationFn: async (mode: WorkflowRunMode) => {
+    mutationFn: async ({
+      mode,
+      inputs
+    }: {
+      mode: WorkflowRunMode;
+      inputs: WorkflowRunInputs;
+    }) => {
       if (dirty) {
         await updateWorkflow(workflow.id, draft);
       }
-      return executeWorkflow(workflow.id, mode);
+      return executeWorkflow(workflow.id, mode, inputs);
     },
     onSuccess: async (run) => {
       setEditorError(null);
-      setConfirmRunOpen(false);
+      setExecutionMode(null);
       setRunToDisplay(run);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["workflows"] }),
@@ -180,6 +196,12 @@ export function AutomationWorkflowEditor({
 
     const definition = getAutomationNodeDefinition(type);
     const sourceNode = getConnectionSource(nodes, edges, selectedNodeId);
+    const defaultConfig = type === "input.text"
+      ? {
+          ...definition.defaultConfig,
+          key: getUniqueWorkflowInputKey(nodes.map((node) => node.data.workflowNode))
+        }
+      : { ...definition.defaultConfig };
     const newNode: AutomationFlowNode = {
       id: crypto.randomUUID(),
       type: "automation",
@@ -193,7 +215,7 @@ export function AutomationWorkflowEditor({
           type,
           name: definition.label,
           position: { x: 0, y: 0 },
-          config: { ...definition.defaultConfig }
+          config: defaultConfig
         }
       }
     };
@@ -233,6 +255,11 @@ export function AutomationWorkflowEditor({
     setNodes((currentNodes) => currentNodes.filter((node) => node.id !== nodeId));
     setEdges((currentEdges) => currentEdges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
     setSelectedNodeId(null);
+  }
+
+  function openExecutionDialog(mode: WorkflowRunMode) {
+    setEditorError(null);
+    setExecutionMode(mode);
   }
 
   return (
@@ -275,7 +302,7 @@ export function AutomationWorkflowEditor({
               size="small"
               variant="outlined"
               startIcon={saveMutation.isPending ? <CircularProgress size={15} /> : <SaveOutlinedIcon />}
-              disabled={!dirty || busy || !name.trim()}
+              disabled={!dirty || busy || !name.trim() || Boolean(workflowInputConfigurationError)}
               onClick={() => saveMutation.mutate()}
             >
               Salva
@@ -284,8 +311,8 @@ export function AutomationWorkflowEditor({
               size="small"
               variant="outlined"
               startIcon={runMutation.isPending ? <CircularProgress size={15} /> : <PreviewOutlinedIcon />}
-              disabled={busy || !name.trim()}
-              onClick={() => runMutation.mutate("dry-run")}
+              disabled={busy || !name.trim() || Boolean(workflowInputConfigurationError)}
+              onClick={() => openExecutionDialog("dry-run")}
             >
               Anteprima
             </Button>
@@ -293,8 +320,8 @@ export function AutomationWorkflowEditor({
               size="small"
               variant="contained"
               startIcon={<PlayArrowIcon />}
-              disabled={busy || !name.trim()}
-              onClick={() => setConfirmRunOpen(true)}
+              disabled={busy || !name.trim() || Boolean(workflowInputConfigurationError)}
+              onClick={() => openExecutionDialog("run")}
             >
               Esegui
             </Button>
@@ -309,6 +336,11 @@ export function AutomationWorkflowEditor({
         </Stack>
         <Divider />
         {editorError ? <Alert severity="warning" onClose={() => setEditorError(null)} sx={{ borderRadius: 0 }}>{editorError}</Alert> : null}
+        {workflowInputConfigurationError ? (
+          <Alert severity="error" sx={{ borderRadius: 0 }}>
+            {workflowInputConfigurationError}
+          </Alert>
+        ) : null}
         <Box
           sx={{
             display: "grid",
@@ -383,20 +415,18 @@ export function AutomationWorkflowEditor({
         })}
       </Menu>
 
-      <Dialog open={confirmRunOpen} onClose={runMutation.isPending ? undefined : () => setConfirmRunOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Esegui workflow</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary">
-            Verranno eseguite {draft.nodes.length} azioni sul workspace corrente.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmRunOpen(false)} disabled={runMutation.isPending}>Annulla</Button>
-          <Button variant="contained" startIcon={<PlayArrowIcon />} onClick={() => runMutation.mutate("run")} disabled={runMutation.isPending}>
-            Avvia esecuzione
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {executionMode ? (
+        <AutomationExecutionDialog
+          key={executionMode}
+          workflowName={name.trim() || workflow.name}
+          mode={executionMode}
+          nodes={draft.nodes}
+          loading={runMutation.isPending}
+          error={editorError}
+          onClose={() => setExecutionMode(null)}
+          onSubmit={(inputs) => runMutation.mutate({ mode: executionMode, inputs })}
+        />
+      ) : null}
 
       <Dialog open={confirmDeleteOpen} onClose={deleteMutation.isPending ? undefined : () => setConfirmDeleteOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Elimina workflow</DialogTitle>

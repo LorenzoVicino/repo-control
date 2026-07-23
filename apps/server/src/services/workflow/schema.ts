@@ -193,6 +193,7 @@ function getDefaultNodes(id: string): WorkflowNode[] {
 function normalizeNodeType(value: unknown): WorkflowNodeType {
   const nodeTypes: WorkflowNodeType[] = [
     "trigger.manual",
+    "input.text",
     "repository.select",
     "repository.filter",
     "git.fetch",
@@ -214,6 +215,7 @@ function normalizeNodeType(value: unknown): WorkflowNodeType {
 function getDefaultNodeName(type: WorkflowNodeType): string {
   const names: Record<WorkflowNodeType, string> = {
     "trigger.manual": "Manual trigger",
+    "input.text": "Text input",
     "repository.select": "Select repositories",
     "repository.filter": "Filter repositories",
     "git.fetch": "Git fetch",
