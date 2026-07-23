@@ -11,6 +11,16 @@ This project follows semantic versioning where practical.
 - Add reusable text-input nodes to visual automations, with required/default values and per-run prompts for previews and executions.
 - Allow terminal nodes to consume runtime values through safe `{{inputs.key}}` environment references.
 
+### Changed
+
+- Upgrade Fastify and its CORS plugin together to their compatible v5/v11 releases.
+- Move Material UI and Material Icons from unsupported v5 releases to the supported v7 line, including the React 18 compatibility override recommended by MUI.
+- Keep Dependabot focused on low-risk minor and patch updates; major upgrades now require an explicit migration plan.
+
+### Security
+
+- Remove the production dependency vulnerabilities reported by `npm audit` through the coordinated Fastify migration.
+
 ## [0.2.0] - 2026-07-22
 
 ### Added

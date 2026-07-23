@@ -13,6 +13,11 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # Major upgrades require an explicit migration plan and are handled manually.
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: github-actions
     directory: /
