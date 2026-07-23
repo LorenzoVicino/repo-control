@@ -6,6 +6,8 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.2.1] - 2026-07-23
+
 ### Added
 
 - Add reusable text-input nodes to visual automations, with required/default values and per-run prompts for previews and executions.
