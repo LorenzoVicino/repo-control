@@ -4,8 +4,13 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import {
   Alert,
   Box,
+  Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   Paper,
   Stack,
@@ -30,6 +35,9 @@ export function AutomationPage({ projects }: AutomationPageProps) {
   const [selectedWorkflowId, setSelectedWorkflowId] = React.useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [createError, setCreateError] = React.useState<string | null>(null);
+  const [editorDirty, setEditorDirty] = React.useState(false);
+  const [pendingWorkflowId, setPendingWorkflowId] = React.useState<string | null>(null);
+  const [createAfterDiscard, setCreateAfterDiscard] = React.useState(false);
   const workflowsQuery = useQuery({ queryKey: ["workflows"], queryFn: fetchWorkflows });
   const runsQuery = useQuery({ queryKey: ["workflow-runs"], queryFn: () => fetchWorkflowRuns() });
   const workflows = React.useMemo(
@@ -44,6 +52,7 @@ export function AutomationPage({ projects }: AutomationPageProps) {
     onSuccess: async (workflow) => {
       setCreateError(null);
       await queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      setEditorDirty(false);
       setSelectedWorkflowId(workflow.id);
       setCreateDialogOpen(false);
     },
@@ -56,7 +65,21 @@ export function AutomationPage({ projects }: AutomationPageProps) {
     }
   }, [selectedWorkflowId, workflows]);
 
+  React.useEffect(() => {
+    if (!editorDirty) {
+      return;
+    }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [editorDirty]);
+
   async function handleWorkflowDeleted() {
+    setEditorDirty(false);
     setSelectedWorkflowId(null);
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["workflows"] }),
@@ -64,16 +87,54 @@ export function AutomationPage({ projects }: AutomationPageProps) {
     ]);
   }
 
+  function requestWorkflowSelection(workflowId: string) {
+    if (workflowId === selectedWorkflowId) {
+      return;
+    }
+
+    if (!editorDirty) {
+      setSelectedWorkflowId(workflowId);
+      return;
+    }
+
+    setPendingWorkflowId(workflowId);
+  }
+
+  function requestCreateWorkflow() {
+    setCreateError(null);
+    if (!editorDirty) {
+      setCreateDialogOpen(true);
+      return;
+    }
+
+    setCreateAfterDiscard(true);
+  }
+
+  function discardChangesAndContinue() {
+    setEditorDirty(false);
+
+    if (pendingWorkflowId) {
+      setSelectedWorkflowId(pendingWorkflowId);
+      setPendingWorkflowId(null);
+      return;
+    }
+
+    if (createAfterDiscard) {
+      setCreateAfterDiscard(false);
+      setCreateDialogOpen(true);
+    }
+  }
+
   return (
     <Stack spacing={2.5}>
-      <Stack direction="row" spacing={1.5} alignItems="flex-end" justifyContent="space-between">
-        <Box>
+      <Stack direction="row" spacing={1.5} alignItems="flex-start" justifyContent="space-between">
+        <Box sx={{ minWidth: 0 }}>
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography component="h1" variant="h1">Automazioni</Typography>
-            <Chip size="small" color="secondary" variant="outlined" label="Visual workflows" />
+            <Chip size="small" color="secondary" variant="outlined" label={`${workflows.length} workflow`} />
           </Stack>
           <Typography color="text.secondary" variant="body2" sx={{ mt: 0.4 }}>
-            Workflow locali per coordinare repository, Git, Docker e comandi.
+            Crea flussi locali, controlla cosa verrà eseguito e verifica ogni risultato.
           </Typography>
         </Box>
         <Tooltip title="Aggiorna workflow">
@@ -95,7 +156,7 @@ export function AutomationPage({ projects }: AutomationPageProps) {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "minmax(0, 1fr)", xl: "250px minmax(0, 1fr)" },
+          gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "260px minmax(0, 1fr)" },
           gap: 2,
           alignItems: "start"
         }}
@@ -105,11 +166,8 @@ export function AutomationPage({ projects }: AutomationPageProps) {
           runs={runs}
           selectedWorkflowId={selectedWorkflowId}
           loading={workflowsQuery.isLoading}
-          onSelectWorkflow={setSelectedWorkflowId}
-          onCreateWorkflow={() => {
-            setCreateError(null);
-            setCreateDialogOpen(true);
-          }}
+          onSelectWorkflow={requestWorkflowSelection}
+          onCreateWorkflow={requestCreateWorkflow}
         />
         {selectedWorkflow ? (
           <AutomationWorkflowEditor
@@ -118,6 +176,7 @@ export function AutomationPage({ projects }: AutomationPageProps) {
             projects={projects}
             runs={selectedRuns}
             onDeleted={handleWorkflowDeleted}
+            onDirtyChange={setEditorDirty}
           />
         ) : workflowsQuery.isLoading ? (
           <Paper variant="outlined" sx={{ minHeight: 520, display: "grid", placeItems: "center" }}>
@@ -140,6 +199,36 @@ export function AutomationPage({ projects }: AutomationPageProps) {
         onClose={() => setCreateDialogOpen(false)}
         onCreate={(draft) => createMutation.mutate(draft)}
       />
+
+      <Dialog
+        open={Boolean(pendingWorkflowId) || createAfterDiscard}
+        onClose={() => {
+          setPendingWorkflowId(null);
+          setCreateAfterDiscard(false);
+        }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Modifiche non salvate</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Se continui, le modifiche apportate a “{selectedWorkflow?.name ?? "questo workflow"}” verranno perse.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setPendingWorkflowId(null);
+              setCreateAfterDiscard(false);
+            }}
+          >
+            Resta qui
+          </Button>
+          <Button color="error" variant="contained" onClick={discardChangesAndContinue}>
+            Scarta e continua
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

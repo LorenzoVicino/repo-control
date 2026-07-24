@@ -94,6 +94,14 @@ test("normalizes persisted workflow runs and rejects unusable records", () => {
     skipped: 1,
     commands: 1
   });
+  assert.equal(
+    normalizeWorkflowRun({
+      workflowId: "workflow-1",
+      workflowName: "Workflow",
+      status: "warning"
+    })?.status,
+    "warning"
+  );
 });
 
 test("provides a connected default workflow", () => {

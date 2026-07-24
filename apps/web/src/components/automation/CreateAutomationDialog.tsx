@@ -1,3 +1,6 @@
+import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
+import CloudSyncOutlinedIcon from "@mui/icons-material/CloudSyncOutlined";
+import RocketLaunchOutlinedIcon from "@mui/icons-material/RocketLaunchOutlined";
 import {
   Alert,
   Button,
@@ -5,12 +8,11 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
   Stack,
-  TextField
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography
 } from "@mui/material";
 import React from "react";
 import type { WorkflowDraft, WorkflowNodeType } from "../../types/workflows";
@@ -47,7 +49,12 @@ export function CreateAutomationDialog({
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Nuova automazione</DialogTitle>
+      <DialogTitle>
+        <Typography component="span" variant="h2">Nuova automazione</Typography>
+        <Typography component="div" variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          Parti da una base pronta oppure costruisci il flusso da zero.
+        </Typography>
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
           {error ? <Alert severity="error">{error}</Alert> : null}
@@ -66,19 +73,39 @@ export function CreateAutomationDialog({
             multiline
             minRows={2}
           />
-          <FormControl>
-            <InputLabel id="automation-template-label">Template</InputLabel>
-            <Select
-              labelId="automation-template-label"
-              label="Template"
+          <Stack spacing={0.75}>
+            <Typography variant="subtitle2" fontWeight={800}>Scegli una base</Typography>
+            <ToggleButtonGroup
+              exclusive
+              orientation="vertical"
               value={template}
-              onChange={(event) => setTemplate(event.target.value as AutomationTemplate)}
+              onChange={(_, value: AutomationTemplate | null) => {
+                if (value) setTemplate(value);
+              }}
+              aria-label="Template automazione"
+              fullWidth
+              sx={{ gap: 0.75, "& .MuiToggleButtonGroup-grouped": { border: "1px solid !important", borderColor: "divider !important", borderRadius: "8px !important" } }}
             >
-              <MenuItem value="empty">Workflow vuoto</MenuItem>
-              <MenuItem value="sync-favorites">Sincronizza preferiti</MenuItem>
-              <MenuItem value="docker-up">Avvia progetti Docker</MenuItem>
-            </Select>
-          </FormControl>
+              <TemplateOption
+                value="empty"
+                icon={<AccountTreeOutlinedIcon />}
+                title="Da zero"
+                description="Solo il nodo di avvio, da completare liberamente."
+              />
+              <TemplateOption
+                value="sync-favorites"
+                icon={<CloudSyncOutlinedIcon />}
+                title="Sincronizza preferiti"
+                description="Fetch e pull sicuro dei repository preferiti e puliti."
+              />
+              <TemplateOption
+                value="docker-up"
+                icon={<RocketLaunchOutlinedIcon />}
+                title="Avvia Docker"
+                description="Seleziona i progetti Compose e avvia i servizi."
+              />
+            </ToggleButtonGroup>
+          </Stack>
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -92,6 +119,40 @@ export function CreateAutomationDialog({
         </Button>
       </DialogActions>
     </Dialog>
+  );
+}
+
+function TemplateOption({
+  value,
+  icon,
+  title,
+  description
+}: {
+  value: AutomationTemplate;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <ToggleButton
+      value={value}
+      sx={{
+        minHeight: 66,
+        px: 1.5,
+        py: 1,
+        justifyContent: "flex-start",
+        textAlign: "left",
+        textTransform: "none"
+      }}
+    >
+      <Stack direction="row" spacing={1.25} alignItems="center">
+        {icon}
+        <Stack spacing={0.15}>
+          <Typography variant="body2" fontWeight={800} color="text.primary">{title}</Typography>
+          <Typography variant="caption" color="text.secondary">{description}</Typography>
+        </Stack>
+      </Stack>
+    </ToggleButton>
   );
 }
 

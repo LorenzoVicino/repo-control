@@ -52,7 +52,7 @@ export function normalizeWorkflowRun(value: unknown): WorkflowRun | null {
     workflowId,
     workflowName,
     mode: value.mode === "dry-run" ? "dry-run" : "run",
-    status: value.status === "failed" ? "failed" : "success",
+    status: value.status === "failed" ? "failed" : value.status === "warning" ? "warning" : "success",
     startedAt: getString(value.startedAt, new Date().toISOString()),
     completedAt: getString(value.completedAt, new Date().toISOString()),
     durationMs: getNumber(value.durationMs, 0),

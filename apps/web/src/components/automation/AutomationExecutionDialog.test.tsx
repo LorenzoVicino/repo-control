@@ -16,6 +16,7 @@ describe("AutomationExecutionDialog", () => {
           createInputNode("message", "Messaggio", true, ""),
           createInputNode("channel", "Canale", false, "stable")
         ]}
+        willSaveChanges={false}
         loading={false}
         error={null}
         onClose={vi.fn()}

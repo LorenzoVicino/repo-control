@@ -5,6 +5,7 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
+  Alert,
   Box,
   Button,
   Chip,
@@ -18,6 +19,10 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type { WorkflowRun, WorkflowRunStep } from "../../types/workflows";
+import {
+  getWorkflowRunStatusColor,
+  getWorkflowRunStatusLabel
+} from "./workflowRunStatus";
 
 type AutomationRunDialogProps = {
   run: WorkflowRun | null;
@@ -35,12 +40,21 @@ export function AutomationRunDialog({ run, onClose }: AutomationRunDialogProps) 
               <Chip size="small" variant="outlined" label={run.mode === "dry-run" ? "Anteprima" : "Esecuzione"} />
               <Chip
                 size="small"
-                color={run.status === "success" ? "success" : "error"}
-                label={run.status === "success" ? "Riuscita" : "Fallita"}
+                color={getWorkflowRunStatusColor(run.status)}
+                label={getWorkflowRunStatusLabel(run.status)}
               />
             </Stack>
           </DialogTitle>
           <DialogContent dividers>
+            {run.status === "failed" ? (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                L'esecuzione si è fermata al primo step fallito. Apri il dettaglio per correggere il problema.
+              </Alert>
+            ) : run.status === "warning" ? (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                L'esecuzione è terminata, ma uno o più comandi sono stati saltati.
+              </Alert>
+            ) : null}
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 2 }}>
               <Chip size="small" label={`${run.summary.selectedProjects} repository`} />
               <Chip size="small" color="success" variant="outlined" label={`${run.summary.succeeded} riusciti`} />

@@ -171,6 +171,185 @@ test("boots the API and serves safe workspace endpoints", async (context) => {
   assert.match(commandStep.command, /REPO_CONTROL_INPUT_MESSAGE/);
   assert.equal(commandStep.command.includes(shellSensitiveValue), false);
 
+  const disconnectedWorkflowResponse = await app.inject({
+    method: "POST",
+    url: "/api/workflows",
+    payload: {
+      name: "Disconnected workflow",
+      description: "",
+      active: true,
+      nodes: [
+        {
+          id: "disconnected-trigger",
+          type: "trigger.manual",
+          name: "Start",
+          position: { x: 0, y: 0 },
+          config: {}
+        },
+        {
+          id: "disconnected-fetch",
+          type: "git.fetch",
+          name: "Fetch",
+          position: { x: 200, y: 0 },
+          config: {}
+        }
+      ],
+      edges: []
+    }
+  });
+  const disconnectedRunResponse = await app.inject({
+    method: "POST",
+    url: `/api/workflows/${disconnectedWorkflowResponse.json().id}/run`,
+    payload: { inputs: {} }
+  });
+  assert.equal(disconnectedRunResponse.statusCode, 400);
+  assert.match(disconnectedRunResponse.json().message, /disconnected/);
+
+  const failFastWorkflowResponse = await app.inject({
+    method: "POST",
+    url: "/api/workflows",
+    payload: {
+      name: "Fail fast workflow",
+      description: "",
+      active: true,
+      nodes: [
+        {
+          id: "fail-fast-trigger",
+          type: "trigger.manual",
+          name: "Start",
+          position: { x: 0, y: 0 },
+          config: {}
+        },
+        {
+          id: "fail-fast-repositories",
+          type: "repository.select",
+          name: "Repositories",
+          position: { x: 200, y: 0 },
+          config: { mode: "all", projectIds: [] }
+        },
+        {
+          id: "fail-fast-command",
+          type: "terminal.command",
+          name: "Expected failure",
+          position: { x: 400, y: 0 },
+          config: { command: "node -e \"process.exit(7)\"" }
+        },
+        {
+          id: "must-not-run",
+          type: "terminal.command",
+          name: "Must not run",
+          position: { x: 600, y: 0 },
+          config: { command: "node -e \"console.log('should not run')\"" }
+        },
+        {
+          id: "fail-fast-summary",
+          type: "output.summary",
+          name: "Summary",
+          position: { x: 800, y: 0 },
+          config: {}
+        }
+      ],
+      edges: [
+        { id: "fail-fast-1", source: "fail-fast-trigger", target: "fail-fast-repositories" },
+        { id: "fail-fast-2", source: "fail-fast-repositories", target: "fail-fast-command" },
+        { id: "fail-fast-3", source: "fail-fast-command", target: "must-not-run" },
+        { id: "fail-fast-4", source: "must-not-run", target: "fail-fast-summary" }
+      ]
+    }
+  });
+  const failFastRunResponse = await app.inject({
+    method: "POST",
+    url: `/api/workflows/${failFastWorkflowResponse.json().id}/run`,
+    payload: { inputs: {} }
+  });
+  assert.equal(failFastRunResponse.statusCode, 200);
+  assert.equal(failFastRunResponse.json().status, "failed");
+  assert.equal(
+    failFastRunResponse.json().steps.find((step: { nodeId: string }) => step.nodeId === "must-not-run").status,
+    "skipped"
+  );
+  assert.equal(
+    failFastRunResponse.json().steps.find((step: { nodeId: string }) => step.nodeId === "must-not-run").message,
+    "Skipped because a previous step failed"
+  );
+
+  const warningWorkflowResponse = await app.inject({
+    method: "POST",
+    url: "/api/workflows",
+    payload: {
+      name: "Warning workflow",
+      description: "",
+      active: true,
+      nodes: [
+        {
+          id: "warning-trigger",
+          type: "trigger.manual",
+          name: "Start",
+          position: { x: 0, y: 0 },
+          config: {}
+        },
+        {
+          id: "warning-repositories",
+          type: "repository.select",
+          name: "Repositories",
+          position: { x: 200, y: 0 },
+          config: { mode: "all", projectIds: [] }
+        },
+        {
+          id: "warning-docker",
+          type: "docker.up",
+          name: "Docker up",
+          position: { x: 400, y: 0 },
+          config: {}
+        }
+      ],
+      edges: [
+        { id: "warning-1", source: "warning-trigger", target: "warning-repositories" },
+        { id: "warning-2", source: "warning-repositories", target: "warning-docker" }
+      ]
+    }
+  });
+  const warningRunResponse = await app.inject({
+    method: "POST",
+    url: `/api/workflows/${warningWorkflowResponse.json().id}/run`,
+    payload: { inputs: {} }
+  });
+  assert.equal(warningRunResponse.statusCode, 200);
+  assert.equal(warningRunResponse.json().status, "warning");
+
+  const concurrentWorkflowPayload = (name: string) => ({
+    name,
+    description: "",
+    active: false,
+    nodes: [{
+      id: `${name}-trigger`,
+      type: "trigger.manual",
+      name: "Start",
+      position: { x: 0, y: 0 },
+      config: {}
+    }],
+    edges: []
+  });
+  const concurrentCreateResponses = await Promise.all([
+    app.inject({
+      method: "POST",
+      url: "/api/workflows",
+      payload: concurrentWorkflowPayload("Concurrent A")
+    }),
+    app.inject({
+      method: "POST",
+      url: "/api/workflows",
+      payload: concurrentWorkflowPayload("Concurrent B")
+    })
+  ]);
+  assert.deepEqual(concurrentCreateResponses.map((response) => response.statusCode), [200, 200]);
+  const workflowsAfterConcurrentCreates = await app.inject({ method: "GET", url: "/api/workflows" });
+  const workflowNames = workflowsAfterConcurrentCreates.json().workflows.map(
+    (workflow: { name: string }) => workflow.name
+  );
+  assert.equal(workflowNames.includes("Concurrent A"), true);
+  assert.equal(workflowNames.includes("Concurrent B"), true);
+
   const missingWorkflowResponse = await app.inject({
     method: "POST",
     url: "/api/workflows/missing/dry-run"

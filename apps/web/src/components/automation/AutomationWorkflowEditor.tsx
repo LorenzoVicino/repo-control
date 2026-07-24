@@ -1,27 +1,32 @@
 import AddIcon from "@mui/icons-material/Add";
+import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PreviewOutlinedIcon from "@mui/icons-material/PreviewOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import {
   Alert,
   alpha,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
-  FormControlLabel,
   IconButton,
   ListItemIcon,
   ListItemText,
   Menu,
   MenuItem,
   Stack,
-  Switch,
+  Tab,
+  Tabs,
   TextField,
   Tooltip,
   Typography,
@@ -34,6 +39,7 @@ import {
   BackgroundVariant,
   Controls,
   MarkerType,
+  Panel,
   ReactFlow,
   useEdgesState,
   useNodesState,
@@ -45,6 +51,7 @@ import React from "react";
 import { deleteWorkflow, executeWorkflow, updateWorkflow } from "../../api/workflows";
 import type {
   WorkflowDefinition,
+  WorkflowDraft,
   WorkflowNode,
   WorkflowNodeType,
   WorkflowRun,
@@ -55,7 +62,6 @@ import type { ProjectSummary } from "../../types/projects";
 import { AutomationExecutionDialog } from "./AutomationExecutionDialog";
 import { AutomationNode, type AutomationFlowNode } from "./AutomationNode";
 import { AutomationNodeInspector } from "./AutomationNodeInspector";
-import { AutomationNodePalette } from "./AutomationNodePalette";
 import { AutomationRunDialog } from "./AutomationRunDialog";
 import { AutomationRunHistory } from "./AutomationRunHistory";
 import {
@@ -73,8 +79,8 @@ import {
 } from "./automationWorkflowGraph";
 import {
   getUniqueWorkflowInputKey,
-  getWorkflowInputConfigurationError
 } from "./workflowInputs";
+import { validateWorkflow } from "./workflowValidation";
 
 const NODE_TYPES = { automation: AutomationNode };
 
@@ -83,19 +89,21 @@ type AutomationWorkflowEditorProps = {
   projects: ProjectSummary[];
   runs: WorkflowRun[];
   onDeleted: () => Promise<void>;
+  onDirtyChange: (dirty: boolean) => void;
 };
 
 export function AutomationWorkflowEditor({
   workflow,
   projects,
   runs,
-  onDeleted
+  onDeleted,
+  onDirtyChange
 }: AutomationWorkflowEditorProps) {
   const theme = useTheme();
   const queryClient = useQueryClient();
   const [name, setName] = React.useState(workflow.name);
   const [description, setDescription] = React.useState(workflow.description);
-  const [active, setActive] = React.useState(workflow.active);
+  const active = workflow.active;
   const [nodes, setNodes, onNodesChange] = useNodesState<AutomationFlowNode>(toFlowNodes(workflow.nodes));
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(toFlowEdges(workflow.edges));
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
@@ -104,25 +112,35 @@ export function AutomationWorkflowEditor({
   const [executionMode, setExecutionMode] = React.useState<WorkflowRunMode | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
   const [editorError, setEditorError] = React.useState<string | null>(null);
+  const [editorTab, setEditorTab] = React.useState<"builder" | "runs">("builder");
+  const [savedDraftHash, setSavedDraftHash] = React.useState(
+    () => JSON.stringify(toWorkflowDraft(workflow))
+  );
 
   const draft = React.useMemo(
     () => buildWorkflowDraft(name, description, active, nodes, edges),
     [active, description, edges, name, nodes]
   );
-  const initialDraftHash = React.useMemo(() => JSON.stringify(toWorkflowDraft(workflow)), [workflow]);
-  const dirty = JSON.stringify(draft) !== initialDraftHash;
-  const workflowInputConfigurationError = React.useMemo(
-    () => getWorkflowInputConfigurationError(draft.nodes),
-    [draft.nodes]
+  const dirty = JSON.stringify(draft) !== savedDraftHash;
+  const validation = React.useMemo(
+    () => validateWorkflow(draft.nodes, draft.edges),
+    [draft.edges, draft.nodes]
   );
   const selectedFlowNode = nodes.find((node) => node.id === selectedNodeId) ?? null;
   const selectedWorkflowNode = selectedFlowNode
     ? { ...selectedFlowNode.data.workflowNode, position: selectedFlowNode.position }
     : null;
 
+  React.useEffect(() => {
+    onDirtyChange(dirty);
+  }, [dirty, onDirtyChange]);
+
+  React.useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
+
   const saveMutation = useMutation({
-    mutationFn: () => updateWorkflow(workflow.id, draft),
-    onSuccess: async () => {
+    mutationFn: (draftToSave: WorkflowDraft) => updateWorkflow(workflow.id, draftToSave),
+    onSuccess: async (savedWorkflow) => {
+      setSavedDraftHash(JSON.stringify(toWorkflowDraft(savedWorkflow)));
       setEditorError(null);
       await queryClient.invalidateQueries({ queryKey: ["workflows"] });
     },
@@ -137,7 +155,8 @@ export function AutomationWorkflowEditor({
       inputs: WorkflowRunInputs;
     }) => {
       if (dirty) {
-        await updateWorkflow(workflow.id, draft);
+        const savedWorkflow = await updateWorkflow(workflow.id, draft);
+        setSavedDraftHash(JSON.stringify(toWorkflowDraft(savedWorkflow)));
       }
       return executeWorkflow(workflow.id, mode, inputs);
     },
@@ -252,9 +271,29 @@ export function AutomationWorkflowEditor({
       return;
     }
 
+    const incomingEdge = edges.find((edge) => edge.target === nodeId);
+    const outgoingEdge = edges.find((edge) => edge.source === nodeId);
+
     setNodes((currentNodes) => currentNodes.filter((node) => node.id !== nodeId));
-    setEdges((currentEdges) => currentEdges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+    setEdges((currentEdges) => {
+      const remainingEdges = currentEdges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId);
+
+      if (!incomingEdge || !outgoingEdge) {
+        return remainingEdges;
+      }
+
+      return addEdge(
+        toFlowEdge({
+          source: incomingEdge.source,
+          target: outgoingEdge.target,
+          sourceHandle: null,
+          targetHandle: null
+        }),
+        remainingEdges
+      );
+    });
     setSelectedNodeId(null);
+    setEditorError(null);
   }
 
   function openExecutionDialog(mode: WorkflowRunMode) {
@@ -262,72 +301,108 @@ export function AutomationWorkflowEditor({
     setExecutionMode(mode);
   }
 
+  const firstValidationError = validation.errors[0] ?? null;
+  const runDisabledReason = !name.trim()
+    ? "Inserisci un nome per il workflow."
+    : firstValidationError?.message ?? "";
+
   return (
     <Stack spacing={2} sx={{ minWidth: 0 }}>
       <Box sx={{ overflow: "hidden", border: "1px solid", borderColor: "divider", borderRadius: 1, bgcolor: "background.paper" }}>
         <Stack
           direction={{ xs: "column", xl: "row" }}
-          spacing={1.5}
+          spacing={2}
           alignItems={{ xl: "center" }}
           justifyContent="space-between"
-          sx={{ px: 1.5, py: 1.25 }}
+          sx={{ px: 2, py: 1.75 }}
         >
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "minmax(180px, 0.7fr) minmax(220px, 1fr)" }, gap: 1, minWidth: 0, flexGrow: 1 }}>
+          <Box sx={{ minWidth: 0, flexGrow: 1, maxWidth: 720 }}>
+            <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center" sx={{ mb: 0.5 }}>
+              <Typography variant="overline" color="text.secondary">Workflow</Typography>
+              <Chip
+                size="small"
+                variant="outlined"
+                color={validation.isRunnable ? "success" : "warning"}
+                icon={validation.isRunnable ? <CheckCircleOutlineIcon /> : <WarningAmberOutlinedIcon />}
+                label={validation.isRunnable ? "Pronta" : "Da completare"}
+              />
+              {dirty ? <Chip size="small" color="info" variant="outlined" label="Modifiche da salvare" /> : null}
+            </Stack>
             <TextField
-              size="small"
+              fullWidth
+              variant="standard"
               value={name}
               onChange={(event) => setName(event.target.value)}
               inputProps={{ "aria-label": "Nome workflow", maxLength: 120 }}
               error={!name.trim()}
               placeholder="Nome workflow"
+              sx={{
+                "& .MuiInputBase-input": {
+                  py: 0.25,
+                  fontSize: "1.08rem",
+                  lineHeight: 1.35,
+                  fontWeight: 800
+                }
+              }}
             />
             <TextField
-              size="small"
+              fullWidth
+              variant="standard"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               inputProps={{ "aria-label": "Descrizione workflow", maxLength: 400 }}
-              placeholder="Descrizione"
+              placeholder="Descrivi cosa fa e quando usarla"
+              sx={{ mt: 0.4, "& .MuiInputBase-input": { py: 0.35, color: "text.secondary" } }}
             />
           </Box>
           <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center">
-            <FormControlLabel
-              sx={{ ml: 0, mr: 0.5 }}
-              control={<Switch size="small" checked={active} onChange={(event) => setActive(event.target.checked)} />}
-              label={<Typography variant="body2">Attivo</Typography>}
-            />
             <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={(event) => setNodeMenuAnchor(event.currentTarget)}>
-              Nodo
+              Aggiungi nodo
             </Button>
             <Button
               size="small"
               variant="outlined"
               startIcon={saveMutation.isPending ? <CircularProgress size={15} /> : <SaveOutlinedIcon />}
-              disabled={!dirty || busy || !name.trim() || Boolean(workflowInputConfigurationError)}
-              onClick={() => saveMutation.mutate()}
+              disabled={!dirty || busy || !name.trim()}
+              onClick={() => saveMutation.mutate(draft)}
             >
               Salva
             </Button>
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={runMutation.isPending ? <CircularProgress size={15} /> : <PreviewOutlinedIcon />}
-              disabled={busy || !name.trim() || Boolean(workflowInputConfigurationError)}
-              onClick={() => openExecutionDialog("dry-run")}
-            >
-              Anteprima
-            </Button>
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={<PlayArrowIcon />}
-              disabled={busy || !name.trim() || Boolean(workflowInputConfigurationError)}
-              onClick={() => openExecutionDialog("run")}
-            >
-              Esegui
-            </Button>
+            <Tooltip title={runDisabledReason} disableHoverListener={!runDisabledReason}>
+              <span>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={runMutation.isPending ? <CircularProgress size={15} /> : <PreviewOutlinedIcon />}
+                  disabled={busy || !name.trim() || !validation.isRunnable}
+                  onClick={() => openExecutionDialog("dry-run")}
+                >
+                  Anteprima
+                </Button>
+              </span>
+            </Tooltip>
+            <Tooltip title={runDisabledReason} disableHoverListener={!runDisabledReason}>
+              <span>
+                <Button
+                  size="small"
+                  variant="contained"
+                  startIcon={<PlayArrowIcon />}
+                  disabled={busy || !name.trim() || !validation.isRunnable}
+                  onClick={() => openExecutionDialog("run")}
+                >
+                  Esegui
+                </Button>
+              </span>
+            </Tooltip>
             <Tooltip title="Elimina workflow">
               <span>
-                <IconButton size="small" color="error" onClick={() => setConfirmDeleteOpen(true)} disabled={busy}>
+                <IconButton
+                  size="small"
+                  color="error"
+                  aria-label="Elimina workflow"
+                  onClick={() => setConfirmDeleteOpen(true)}
+                  disabled={busy}
+                >
                   <DeleteOutlineIcon fontSize="small" />
                 </IconButton>
               </span>
@@ -335,74 +410,142 @@ export function AutomationWorkflowEditor({
           </Stack>
         </Stack>
         <Divider />
-        {editorError ? <Alert severity="warning" onClose={() => setEditorError(null)} sx={{ borderRadius: 0 }}>{editorError}</Alert> : null}
-        {workflowInputConfigurationError ? (
-          <Alert severity="error" sx={{ borderRadius: 0 }}>
-            {workflowInputConfigurationError}
-          </Alert>
-        ) : null}
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "184px minmax(0, 1fr) 272px" },
-            minHeight: { xs: 720, lg: 620 },
-            height: { lg: "min(68dvh, 720px)" }
-          }}
+        <Tabs
+          value={editorTab}
+          onChange={(_, value: "builder" | "runs") => setEditorTab(value)}
+          aria-label="Sezioni workflow"
+          sx={{ px: 1.25, minHeight: 44 }}
         >
-          <Box sx={{ display: { xs: "none", lg: "block" }, minHeight: 0 }}>
-            <AutomationNodePalette
-              nodeTypes={nodes.map((node) => node.data.workflowNode.type)}
-              onAddNode={addNode}
-            />
-          </Box>
-          <Box sx={{ minWidth: 0, minHeight: { xs: 500, lg: 0 }, height: { xs: 500, lg: "100%" }, bgcolor: "background.default" }}>
-            <ReactFlow<AutomationFlowNode, Edge>
-              nodes={nodes}
-              edges={edges}
-              nodeTypes={NODE_TYPES}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              onBeforeDelete={onBeforeDelete}
-              onNodesDelete={() => setSelectedNodeId(null)}
-              onNodeClick={(_, node) => setSelectedNodeId(node.id)}
-              onPaneClick={() => setSelectedNodeId(null)}
-              isValidConnection={isValidConnection}
-              defaultViewport={{ x: 24, y: 80, zoom: 0.85 }}
-              minZoom={0.25}
-              maxZoom={1.6}
-              snapToGrid
-              snapGrid={[20, 20]}
-              colorMode={theme.palette.mode}
-              defaultEdgeOptions={{
-                type: "smoothstep",
-                markerEnd: { type: MarkerType.ArrowClosed },
-                style: { strokeWidth: 1.8, stroke: theme.palette.text.secondary }
+          <Tab value="builder" icon={<AccountTreeOutlinedIcon />} iconPosition="start" label="Editor" />
+          <Tab value="runs" icon={<HistoryOutlinedIcon />} iconPosition="start" label={`Esecuzioni (${runs.length})`} />
+        </Tabs>
+        <Divider />
+
+        {editorTab === "builder" ? (
+          <>
+            {editorError ? (
+              <Alert severity="error" role="alert" onClose={() => setEditorError(null)} sx={{ borderRadius: 0 }}>
+                {editorError}
+              </Alert>
+            ) : null}
+            {firstValidationError ? (
+              <Alert
+                severity="warning"
+                role="alert"
+                icon={<WarningAmberOutlinedIcon />}
+                action={
+                  firstValidationError.nodeId ? (
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => setSelectedNodeId(firstValidationError.nodeId ?? null)}
+                    >
+                      Configura
+                    </Button>
+                  ) : undefined
+                }
+                sx={{ borderRadius: 0 }}
+              >
+                <Typography variant="body2" fontWeight={750}>{firstValidationError.message}</Typography>
+                {validation.errors.length > 1 ? (
+                  <Typography variant="caption">
+                    Altri {validation.errors.length - 1} problemi da risolvere prima dell'esecuzione.
+                  </Typography>
+                ) : null}
+              </Alert>
+            ) : validation.warnings.length > 0 ? (
+              <Alert severity="info" variant="outlined" sx={{ m: 1.25 }}>
+                {validation.warnings[0]?.message}
+              </Alert>
+            ) : (
+              <Alert severity="success" variant="outlined" sx={{ m: 1.25 }}>
+                Il flusso è collegato e pronto per l'anteprima.
+              </Alert>
+            )}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "minmax(0, 1fr)",
+                  lg: selectedWorkflowNode ? "minmax(0, 1fr) 300px" : "minmax(0, 1fr)"
+                },
+                minHeight: { xs: selectedWorkflowNode ? 720 : 520, lg: 620 },
+                height: { lg: "min(68dvh, 720px)" },
+                borderTop: "1px solid",
+                borderColor: "divider"
               }}
-              proOptions={{ hideAttribution: true }}
-              aria-label="Canvas automazione"
             >
-              <Background
-                variant={BackgroundVariant.Dots}
-                gap={20}
-                size={1.2}
-                color={alpha(theme.palette.text.secondary, 0.22)}
-              />
-              <Controls showInteractive={false} position="bottom-left" />
-            </ReactFlow>
+              <Box sx={{ minWidth: 0, minHeight: { xs: 500, lg: 0 }, height: { xs: 500, lg: "100%" }, bgcolor: "background.default" }}>
+                <ReactFlow<AutomationFlowNode, Edge>
+                  nodes={nodes}
+                  edges={edges}
+                  nodeTypes={NODE_TYPES}
+                  onNodesChange={onNodesChange}
+                  onEdgesChange={onEdgesChange}
+                  onConnect={onConnect}
+                  onBeforeDelete={onBeforeDelete}
+                  onNodesDelete={() => setSelectedNodeId(null)}
+                  onNodeClick={(_, node) => setSelectedNodeId(node.id)}
+                  onPaneClick={() => setSelectedNodeId(null)}
+                  isValidConnection={isValidConnection}
+                  fitView
+                  fitViewOptions={{ padding: 0.16, minZoom: 0.35, maxZoom: 0.9 }}
+                  minZoom={0.25}
+                  maxZoom={1.6}
+                  snapToGrid
+                  snapGrid={[20, 20]}
+                  colorMode={theme.palette.mode}
+                  defaultEdgeOptions={{
+                    type: "smoothstep",
+                    markerEnd: { type: MarkerType.ArrowClosed },
+                    style: { strokeWidth: 1.8, stroke: theme.palette.text.secondary }
+                  }}
+                  proOptions={{ hideAttribution: true }}
+                  aria-label="Canvas automazione"
+                >
+                  <Background
+                    variant={BackgroundVariant.Dots}
+                    gap={20}
+                    size={1.2}
+                    color={alpha(theme.palette.text.secondary, 0.22)}
+                  />
+                  <Controls showInteractive={false} position="bottom-left" />
+                  {!selectedWorkflowNode ? (
+                    <Panel position="top-right">
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        label="Seleziona un nodo per configurarlo"
+                        sx={{ bgcolor: "background.paper" }}
+                      />
+                    </Panel>
+                  ) : null}
+                </ReactFlow>
+              </Box>
+              {selectedWorkflowNode ? (
+                <AutomationNodeInspector
+                  node={selectedWorkflowNode}
+                  projects={projects}
+                  onUpdateNode={updateNode}
+                  onDeleteNode={deleteNode}
+                />
+              ) : null}
+            </Box>
+          </>
+        ) : (
+          <Box sx={{ p: 1.5, minHeight: 360, bgcolor: "background.default" }}>
+            <AutomationRunHistory runs={runs} onSelectRun={setRunToDisplay} />
           </Box>
-          <AutomationNodeInspector
-            node={selectedWorkflowNode}
-            projects={projects}
-            onUpdateNode={updateNode}
-            onDeleteNode={deleteNode}
-          />
-        </Box>
+        )}
       </Box>
 
-      <AutomationRunHistory runs={runs} onSelectRun={setRunToDisplay} />
-
-      <Menu anchorEl={nodeMenuAnchor} open={Boolean(nodeMenuAnchor)} onClose={() => setNodeMenuAnchor(null)}>
+      <Menu
+        anchorEl={nodeMenuAnchor}
+        open={Boolean(nodeMenuAnchor)}
+        onClose={() => setNodeMenuAnchor(null)}
+        MenuListProps={{ "aria-label": "Aggiungi nodo al workflow" }}
+        slotProps={{ paper: { sx: { minWidth: 260, maxHeight: 520 } } }}
+      >
         {AUTOMATION_NODE_DEFINITIONS.map((definition) => {
           const Icon = definition.icon;
           const disabled = definition.type === "trigger.manual" && nodes.some((node) => node.data.workflowNode.type === definition.type);
@@ -421,6 +564,7 @@ export function AutomationWorkflowEditor({
           workflowName={name.trim() || workflow.name}
           mode={executionMode}
           nodes={draft.nodes}
+          willSaveChanges={dirty}
           loading={runMutation.isPending}
           error={editorError}
           onClose={() => setExecutionMode(null)}

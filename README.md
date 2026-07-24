@@ -55,7 +55,7 @@ repo-control keeps the convenience of a dashboard without moving control to a re
 | Git workspace | Inspect staged and unstaged changes, stage files, commit, stash, fetch, pull and push without losing repository context. |
 | Branches | Compare local and remote branches, create or check out branches and track upstream divergence. |
 | Local tooling | Open a repository in VS Code, run scoped terminal commands and operate Docker Compose projects. |
-| Automations | Build visual Git, Docker and terminal workflows with per-run text inputs, dry runs, execution history and reusable nodes. |
+| Automations | Build visual Git, Docker and terminal workflows with graph validation, per-run text inputs, dry runs, fail-fast execution and inspectable history. |
 | Task engineering | Turn a short brief into repository-aware planning and implementation flows, with optional Claude Code integration. |
 
 ### Runtime inputs for automations
@@ -100,6 +100,7 @@ repo-control can execute Git, Docker and terminal commands on your machine. Its 
 - the API and web server bind to localhost by default;
 - project commands are resolved against repositories discovered under the active workspace;
 - destructive actions such as discarding changes or force pushing are not implicit flows;
+- workflow execution is blocked when nodes are disconnected or incomplete, and downstream steps stop after a command failure;
 - credentials and workspace content stay local unless an explicitly configured external tool is invoked;
 - personal paths, tokens and machine-specific preferences are excluded from version control.
 

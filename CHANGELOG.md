@@ -6,6 +6,21 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+### Added
+
+- Add workflow readiness checks, actionable configuration feedback and protection against losing unsaved automation edits.
+- Distinguish successful runs from runs completed with skipped steps through a dedicated warning state.
+
+### Changed
+
+- Rework the automation workspace around a focused canvas, on-demand node inspector, searchable workflow list and separate run-history view.
+- Stop downstream workflow nodes after the first failed action while still collecting the result for every selected repository in the active step.
+
+### Fixed
+
+- Prevent disconnected canvas nodes from being executed outside the visible workflow chain.
+- Serialize local workflow and run-history mutations to avoid lost updates during concurrent operations.
+
 ## [0.2.1] - 2026-07-23
 
 ### Added

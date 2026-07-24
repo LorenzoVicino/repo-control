@@ -71,7 +71,7 @@ test("navigates between lazy dashboard sections without browser errors", async (
 
   await page.getByRole("button", { name: "Automazioni", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Automazioni", exact: true })).toBeVisible();
-  await expect(page.getByText("Visual workflows")).toBeVisible();
+  await expect(page.getByText(/\d+ workflow/)).toBeVisible();
 
   await page.getByRole("button", { name: /Repository/ }).first().click();
   await expect(page.getByRole("heading", { name: "Repository", exact: true })).toBeVisible();

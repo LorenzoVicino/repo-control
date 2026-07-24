@@ -47,7 +47,7 @@ export type WorkflowDefinition = {
 
 export type WorkflowRunMode = "run" | "dry-run";
 export type WorkflowRunInputs = Record<string, string>;
-export type WorkflowRunStatus = "success" | "failed";
+export type WorkflowRunStatus = "success" | "warning" | "failed";
 export type WorkflowStepStatus = "success" | "failed" | "skipped";
 
 export type WorkflowRunStep = {

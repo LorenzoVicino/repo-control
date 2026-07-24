@@ -1,7 +1,12 @@
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import { Box, ButtonBase, Chip, Divider, Stack, Typography } from "@mui/material";
 import type { WorkflowRun } from "../../types/workflows";
+import {
+  getWorkflowRunStatusColor,
+  getWorkflowRunStatusLabel
+} from "./workflowRunStatus";
 
 type AutomationRunHistoryProps = {
   runs: WorkflowRun[];
@@ -45,11 +50,7 @@ export function AutomationRunHistory({ runs, onSelectRun }: AutomationRunHistory
                 "&:hover": { bgcolor: "action.hover" }
               }}
             >
-              {run.status === "success" ? (
-                <CheckCircleOutlineIcon color="success" fontSize="small" />
-              ) : (
-                <ErrorOutlineIcon color="error" fontSize="small" />
-              )}
+              <RunStatusIcon run={run} />
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="body2" fontWeight={700} noWrap>{formatRunDate(run.completedAt)}</Typography>
                 <Typography variant="caption" color="text.secondary" component="div" noWrap>
@@ -62,8 +63,8 @@ export function AutomationRunHistory({ runs, onSelectRun }: AutomationRunHistory
               </Typography>
               <Chip
                 size="small"
-                color={run.status === "success" ? "success" : "error"}
-                label={run.status === "success" ? "Riuscita" : "Fallita"}
+                color={getWorkflowRunStatusColor(run.status)}
+                label={getWorkflowRunStatusLabel(run.status)}
                 sx={{ display: { xs: "none", sm: "flex" } }}
               />
             </ButtonBase>
@@ -72,6 +73,12 @@ export function AutomationRunHistory({ runs, onSelectRun }: AutomationRunHistory
       )}
     </Box>
   );
+}
+
+function RunStatusIcon({ run }: { run: WorkflowRun }) {
+  if (run.status === "failed") return <ErrorOutlineIcon color="error" fontSize="small" />;
+  if (run.status === "warning") return <WarningAmberOutlinedIcon color="warning" fontSize="small" />;
+  return <CheckCircleOutlineIcon color="success" fontSize="small" />;
 }
 
 function formatRunDate(value: string): string {
