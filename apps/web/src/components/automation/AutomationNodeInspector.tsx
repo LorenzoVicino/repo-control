@@ -1,3 +1,4 @@
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import {
   Alert,
@@ -8,6 +9,7 @@ import {
   Divider,
   FormControl,
   FormControlLabel,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -29,6 +31,7 @@ import { WORKFLOW_INPUT_KEY_PATTERN } from "./workflowInputs";
 type AutomationNodeInspectorProps = {
   node: WorkflowNode | null;
   projects: ProjectSummary[];
+  onClose: () => void;
   onUpdateNode: (node: WorkflowNode) => void;
   onDeleteNode: (nodeId: string) => void;
 };
@@ -36,12 +39,13 @@ type AutomationNodeInspectorProps = {
 export function AutomationNodeInspector({
   node,
   projects,
+  onClose,
   onUpdateNode,
   onDeleteNode
 }: AutomationNodeInspectorProps) {
   if (!node) {
     return (
-      <InspectorShell title="Configurazione">
+      <InspectorShell title="Configurazione" onClose={onClose}>
         <Box
           sx={{
             minHeight: 150,
@@ -69,7 +73,7 @@ export function AutomationNodeInspector({
   }
 
   return (
-    <InspectorShell title="Configurazione">
+    <InspectorShell title="Configurazione" onClose={onClose}>
       <Stack spacing={2} sx={{ p: 1.5 }}>
         <Stack direction="row" spacing={1} alignItems="center">
           <Chip
@@ -270,7 +274,15 @@ export function AutomationNodeInspector({
   );
 }
 
-function InspectorShell({ title, children }: { title: string; children: React.ReactNode }) {
+function InspectorShell({
+  title,
+  children,
+  onClose
+}: {
+  title: string;
+  children: React.ReactNode;
+  onClose?: () => void;
+}) {
   return (
     <Box
       component="aside"
@@ -284,8 +296,27 @@ function InspectorShell({ title, children }: { title: string; children: React.Re
         bgcolor: "background.paper"
       }}
     >
-      <Box sx={{ position: "sticky", top: 0, zIndex: 1, px: 1.5, py: 1.25, bgcolor: "background.paper" }}>
+      <Box
+        sx={{
+          position: "sticky",
+          top: 0,
+          zIndex: 1,
+          minHeight: 52,
+          px: 1.5,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          bgcolor: "background.paper"
+        }}
+      >
         <Typography variant="subtitle2" fontWeight={800}>{title}</Typography>
+        {onClose ? (
+          <IconButton size="small" aria-label="Chiudi configurazione nodo" onClick={onClose}>
+            <CloseRoundedIcon fontSize="small" />
+          </IconButton>
+        ) : null}
       </Box>
       {children}
     </Box>

@@ -13,7 +13,7 @@ This project follows semantic versioning where practical.
 
 ### Changed
 
-- Rework the automation workspace around a focused canvas, on-demand node inspector, searchable workflow list and separate run-history view.
+- Rework the automation workspace around a viewport-filling, scroll-free canvas with an on-demand node inspector, searchable workflow list and separate run-history view.
 - Stop downstream workflow nodes after the first failed action while still collecting the result for every selected repository in the active step.
 
 ### Fixed

@@ -71,7 +71,7 @@ test("navigates between lazy dashboard sections without browser errors", async (
 
   await page.getByRole("button", { name: "Automazioni", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Automazioni", exact: true })).toBeVisible();
-  await expect(page.getByText(/\d+ workflow/)).toBeVisible();
+  await expect(page.getByLabel("Canvas automazione")).toBeVisible();
 
   await page.getByRole("button", { name: /Repository/ }).first().click();
   await expect(page.getByRole("heading", { name: "Repository", exact: true })).toBeVisible();
@@ -146,6 +146,7 @@ test("collects workflow text inputs and resolves them safely in a dry run", asyn
   try {
     await page.goto("/");
     await page.getByRole("button", { name: "Automazioni", exact: true }).click();
+    await page.locator('button[aria-haspopup="menu"]').filter({ hasText: "Automazioni" }).click();
     await page.getByText(workflowName, { exact: true }).click();
     await page.getByRole("button", { name: "Anteprima", exact: true }).click();
 

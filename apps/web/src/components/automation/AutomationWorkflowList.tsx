@@ -24,6 +24,7 @@ import {
 import { validateWorkflow } from "./workflowValidation";
 
 type AutomationWorkflowListProps = {
+  embedded?: boolean;
   workflows: WorkflowDefinition[];
   runs: WorkflowRun[];
   selectedWorkflowId: string | null;
@@ -33,6 +34,7 @@ type AutomationWorkflowListProps = {
 };
 
 export function AutomationWorkflowList({
+  embedded = false,
   workflows,
   runs,
   selectedWorkflowId,
@@ -47,7 +49,15 @@ export function AutomationWorkflowList({
   });
 
   return (
-    <Paper variant="outlined" sx={{ overflow: "hidden", position: { lg: "sticky" }, top: { lg: 92 } }}>
+    <Paper
+      variant={embedded ? undefined : "outlined"}
+      square={embedded}
+      sx={{
+        overflow: "hidden",
+        position: embedded ? "static" : { lg: "sticky" },
+        top: embedded ? undefined : { lg: 92 }
+      }}
+    >
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1.5, py: 1.4 }}>
         <Box>
           <Typography variant="subtitle2" fontWeight={800}>I tuoi workflow</Typography>
@@ -85,7 +95,13 @@ export function AutomationWorkflowList({
       ) : visibleWorkflows.length === 0 ? (
         <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>Nessun risultato per “{query}”.</Typography>
       ) : (
-        <List disablePadding sx={{ maxHeight: { lg: "calc(100dvh - 240px)" }, overflowY: "auto" }}>
+        <List
+          disablePadding
+          sx={{
+            maxHeight: embedded ? "calc(min(70dvh, 620px) - 132px)" : { lg: "calc(100dvh - 240px)" },
+            overflowY: "auto"
+          }}
+        >
           {visibleWorkflows.map((workflow) => {
             const lastRun = runs.find((run) => run.workflowId === workflow.id);
             const validation = validateWorkflow(workflow.nodes, workflow.edges);

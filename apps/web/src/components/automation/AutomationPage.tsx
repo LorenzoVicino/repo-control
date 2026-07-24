@@ -1,4 +1,6 @@
 import "@xyflow/react/dist/style.css";
+import AddIcon from "@mui/icons-material/Add";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import {
@@ -13,6 +15,7 @@ import {
   DialogTitle,
   IconButton,
   Paper,
+  Popover,
   Stack,
   Tooltip,
   Typography
@@ -38,6 +41,7 @@ export function AutomationPage({ projects }: AutomationPageProps) {
   const [editorDirty, setEditorDirty] = React.useState(false);
   const [pendingWorkflowId, setPendingWorkflowId] = React.useState<string | null>(null);
   const [createAfterDiscard, setCreateAfterDiscard] = React.useState(false);
+  const [workflowMenuAnchor, setWorkflowMenuAnchor] = React.useState<HTMLElement | null>(null);
   const workflowsQuery = useQuery({ queryKey: ["workflows"], queryFn: fetchWorkflows });
   const runsQuery = useQuery({ queryKey: ["workflow-runs"], queryFn: () => fetchWorkflowRuns() });
   const workflows = React.useMemo(
@@ -94,6 +98,7 @@ export function AutomationPage({ projects }: AutomationPageProps) {
 
     if (!editorDirty) {
       setSelectedWorkflowId(workflowId);
+      setWorkflowMenuAnchor(null);
       return;
     }
 
@@ -126,17 +131,84 @@ export function AutomationPage({ projects }: AutomationPageProps) {
   }
 
   return (
-    <Stack spacing={2.5}>
-      <Stack direction="row" spacing={1.5} alignItems="flex-start" justifyContent="space-between">
-        <Box sx={{ minWidth: 0 }}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography component="h1" variant="h1">Automazioni</Typography>
-            <Chip size="small" color="secondary" variant="outlined" label={`${workflows.length} workflow`} />
-          </Stack>
-          <Typography color="text.secondary" variant="body2" sx={{ mt: 0.4 }}>
-            Crea flussi locali, controlla cosa verrà eseguito e verifica ogni risultato.
-          </Typography>
-        </Box>
+    <Box
+      component="section"
+      aria-label="Lavagna automazioni"
+      sx={{
+        position: "relative",
+        height: "100%",
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        bgcolor: "background.default"
+      }}
+    >
+      <Typography
+        component="h1"
+        sx={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          p: 0,
+          m: -1,
+          overflow: "hidden",
+          clip: "rect(0 0 0 0)",
+          whiteSpace: "nowrap",
+          border: 0
+        }}
+      >
+        Automazioni
+      </Typography>
+      <Stack
+        component="header"
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        sx={{
+          minHeight: 58,
+          px: { xs: 1, sm: 1.5 },
+          flexShrink: 0,
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          bgcolor: "background.paper"
+        }}
+      >
+        <Button
+          variant="text"
+          color="inherit"
+          startIcon={<HubOutlinedIcon />}
+          endIcon={<ArrowDropDownIcon />}
+          aria-haspopup="menu"
+          aria-expanded={Boolean(workflowMenuAnchor)}
+          onClick={(event) => setWorkflowMenuAnchor(event.currentTarget)}
+          sx={{ minWidth: 0, maxWidth: { xs: 190, sm: 320 }, justifyContent: "flex-start" }}
+        >
+          <Box component="span" sx={{ minWidth: 0, textAlign: "left" }}>
+            <Typography component="span" variant="caption" color="text.secondary" sx={{ display: "block", lineHeight: 1.1 }}>
+              Automazioni
+            </Typography>
+            <Typography component="span" variant="body2" fontWeight={800} noWrap sx={{ display: "block" }}>
+              {selectedWorkflow?.name ?? "Seleziona workflow"}
+            </Typography>
+          </Box>
+        </Button>
+        <Chip
+          size="small"
+          variant="outlined"
+          label={workflows.length}
+          sx={{ display: { xs: "none", sm: "flex" } }}
+        />
+        <Box sx={{ flexGrow: 1 }} />
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={requestCreateWorkflow}
+          sx={{ "& .MuiButton-startIcon": { mr: { xs: 0, sm: 0.75 } } }}
+        >
+          <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Nuovo</Box>
+        </Button>
         <Tooltip title="Aggiorna workflow">
           <span>
             <IconButton
@@ -150,25 +222,24 @@ export function AutomationPage({ projects }: AutomationPageProps) {
         </Tooltip>
       </Stack>
 
-      {workflowsQuery.error instanceof Error ? <Alert severity="error">{workflowsQuery.error.message}</Alert> : null}
-      {runsQuery.error instanceof Error ? <Alert severity="warning">{runsQuery.error.message}</Alert> : null}
-
       <Box
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "260px minmax(0, 1fr)" },
-          gap: 2,
-          alignItems: "start"
+          position: "relative",
+          flexGrow: 1,
+          minHeight: 0,
+          overflow: "hidden"
         }}
       >
-        <AutomationWorkflowList
-          workflows={workflows}
-          runs={runs}
-          selectedWorkflowId={selectedWorkflowId}
-          loading={workflowsQuery.isLoading}
-          onSelectWorkflow={requestWorkflowSelection}
-          onCreateWorkflow={requestCreateWorkflow}
-        />
+        {workflowsQuery.error instanceof Error ? (
+          <Alert severity="error" sx={{ position: "absolute", zIndex: 5, top: 12, left: 12, right: 12 }}>
+            {workflowsQuery.error.message}
+          </Alert>
+        ) : null}
+        {runsQuery.error instanceof Error ? (
+          <Alert severity="warning" sx={{ position: "absolute", zIndex: 5, top: 12, left: 12, right: 12 }}>
+            {runsQuery.error.message}
+          </Alert>
+        ) : null}
         {selectedWorkflow ? (
           <AutomationWorkflowEditor
             key={`${selectedWorkflow.id}:${selectedWorkflow.updatedAt}`}
@@ -179,18 +250,53 @@ export function AutomationPage({ projects }: AutomationPageProps) {
             onDirtyChange={setEditorDirty}
           />
         ) : workflowsQuery.isLoading ? (
-          <Paper variant="outlined" sx={{ minHeight: 520, display: "grid", placeItems: "center" }}>
+          <Paper square sx={{ height: "100%", display: "grid", placeItems: "center" }}>
             <CircularProgress />
           </Paper>
         ) : (
-          <Paper variant="outlined" sx={{ minHeight: 420, display: "grid", placeItems: "center", p: 3 }}>
+          <Paper square sx={{ height: "100%", display: "grid", placeItems: "center", p: 3 }}>
             <Stack alignItems="center" spacing={1} sx={{ textAlign: "center" }}>
               <HubOutlinedIcon color="primary" />
               <Typography variant="h3">Nessun workflow selezionato</Typography>
+              <Button variant="contained" startIcon={<AddIcon />} onClick={requestCreateWorkflow}>
+                Crea automazione
+              </Button>
             </Stack>
           </Paper>
         )}
       </Box>
+
+      <Popover
+        open={Boolean(workflowMenuAnchor)}
+        anchorEl={workflowMenuAnchor}
+        onClose={() => setWorkflowMenuAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        slotProps={{
+          paper: {
+            sx: {
+              mt: 0.75,
+              width: { xs: "calc(100vw - 24px)", sm: 340 },
+              maxWidth: 380,
+              maxHeight: "min(70dvh, 620px)",
+              overflow: "hidden"
+            }
+          }
+        }}
+      >
+        <AutomationWorkflowList
+          embedded
+          workflows={workflows}
+          runs={runs}
+          selectedWorkflowId={selectedWorkflowId}
+          loading={workflowsQuery.isLoading}
+          onSelectWorkflow={requestWorkflowSelection}
+          onCreateWorkflow={() => {
+            setWorkflowMenuAnchor(null);
+            requestCreateWorkflow();
+          }}
+        />
+      </Popover>
 
       <CreateAutomationDialog
         open={createDialogOpen}
@@ -229,7 +335,7 @@ export function AutomationPage({ projects }: AutomationPageProps) {
           </Button>
         </DialogActions>
       </Dialog>
-    </Stack>
+    </Box>
   );
 }
 

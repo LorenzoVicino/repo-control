@@ -1,5 +1,4 @@
 import AddIcon from "@mui/icons-material/Add";
-import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
@@ -18,15 +17,12 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Divider,
   IconButton,
   ListItemIcon,
   ListItemText,
   Menu,
   MenuItem,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Tooltip,
   Typography,
@@ -112,7 +108,7 @@ export function AutomationWorkflowEditor({
   const [executionMode, setExecutionMode] = React.useState<WorkflowRunMode | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
   const [editorError, setEditorError] = React.useState<string | null>(null);
-  const [editorTab, setEditorTab] = React.useState<"builder" | "runs">("builder");
+  const [runHistoryOpen, setRunHistoryOpen] = React.useState(false);
   const [savedDraftHash, setSavedDraftHash] = React.useState(
     () => JSON.stringify(toWorkflowDraft(workflow))
   );
@@ -307,17 +303,35 @@ export function AutomationWorkflowEditor({
     : firstValidationError?.message ?? "";
 
   return (
-    <Stack spacing={2} sx={{ minWidth: 0 }}>
-      <Box sx={{ overflow: "hidden", border: "1px solid", borderColor: "divider", borderRadius: 1, bgcolor: "background.paper" }}>
-        <Stack
-          direction={{ xs: "column", xl: "row" }}
-          spacing={2}
-          alignItems={{ xl: "center" }}
-          justifyContent="space-between"
-          sx={{ px: 2, py: 1.75 }}
-        >
-          <Box sx={{ minWidth: 0, flexGrow: 1, maxWidth: 720 }}>
-            <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center" sx={{ mb: 0.5 }}>
+    <Box
+      sx={{
+        position: "relative",
+        minWidth: 0,
+        height: "100%",
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        bgcolor: "background.default"
+      }}
+    >
+      <Stack
+        component="header"
+        direction={{ xs: "column", lg: "row" }}
+        spacing={1}
+        alignItems={{ lg: "center" }}
+        justifyContent="space-between"
+        sx={{
+          px: { xs: 1, sm: 1.5 },
+          py: 1,
+          flexShrink: 0,
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          bgcolor: "background.paper"
+        }}
+      >
+          <Box sx={{ minWidth: 0, flexGrow: 1, maxWidth: 680 }}>
+            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.25 }}>
               <Typography variant="overline" color="text.secondary">Workflow</Typography>
               <Chip
                 size="small"
@@ -328,32 +342,38 @@ export function AutomationWorkflowEditor({
               />
               {dirty ? <Chip size="small" color="info" variant="outlined" label="Modifiche da salvare" /> : null}
             </Stack>
-            <TextField
-              fullWidth
-              variant="standard"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              inputProps={{ "aria-label": "Nome workflow", maxLength: 120 }}
-              error={!name.trim()}
-              placeholder="Nome workflow"
-              sx={{
-                "& .MuiInputBase-input": {
-                  py: 0.25,
-                  fontSize: "1.08rem",
-                  lineHeight: 1.35,
-                  fontWeight: 800
-                }
-              }}
-            />
-            <TextField
-              fullWidth
-              variant="standard"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              inputProps={{ "aria-label": "Descrizione workflow", maxLength: 400 }}
-              placeholder="Descrivi cosa fa e quando usarla"
-              sx={{ mt: 0.4, "& .MuiInputBase-input": { py: 0.35, color: "text.secondary" } }}
-            />
+            <Stack direction="row" spacing={1} alignItems="center">
+              <TextField
+                fullWidth
+                variant="standard"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                inputProps={{ "aria-label": "Nome workflow", maxLength: 120 }}
+                error={!name.trim()}
+                placeholder="Nome workflow"
+                sx={{
+                  maxWidth: 300,
+                  "& .MuiInputBase-input": {
+                    py: 0.2,
+                    fontSize: "1rem",
+                    lineHeight: 1.3,
+                    fontWeight: 800
+                  }
+                }}
+              />
+              <TextField
+                fullWidth
+                variant="standard"
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                inputProps={{ "aria-label": "Descrizione workflow", maxLength: 400 }}
+                placeholder="Descrizione"
+                sx={{
+                  display: { xs: "none", sm: "block" },
+                  "& .MuiInputBase-input": { py: 0.2, color: "text.secondary" }
+                }}
+              />
+            </Stack>
           </Box>
           <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center">
             <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={(event) => setNodeMenuAnchor(event.currentTarget)}>
@@ -367,6 +387,14 @@ export function AutomationWorkflowEditor({
               onClick={() => saveMutation.mutate(draft)}
             >
               Salva
+            </Button>
+            <Button
+              size="small"
+              variant="text"
+              startIcon={<HistoryOutlinedIcon />}
+              onClick={() => setRunHistoryOpen(true)}
+            >
+              Esecuzioni ({runs.length})
             </Button>
             <Tooltip title={runDisabledReason} disableHoverListener={!runDisabledReason}>
               <span>
@@ -408,74 +436,10 @@ export function AutomationWorkflowEditor({
               </span>
             </Tooltip>
           </Stack>
-        </Stack>
-        <Divider />
-        <Tabs
-          value={editorTab}
-          onChange={(_, value: "builder" | "runs") => setEditorTab(value)}
-          aria-label="Sezioni workflow"
-          sx={{ px: 1.25, minHeight: 44 }}
-        >
-          <Tab value="builder" icon={<AccountTreeOutlinedIcon />} iconPosition="start" label="Editor" />
-          <Tab value="runs" icon={<HistoryOutlinedIcon />} iconPosition="start" label={`Esecuzioni (${runs.length})`} />
-        </Tabs>
-        <Divider />
+      </Stack>
 
-        {editorTab === "builder" ? (
-          <>
-            {editorError ? (
-              <Alert severity="error" role="alert" onClose={() => setEditorError(null)} sx={{ borderRadius: 0 }}>
-                {editorError}
-              </Alert>
-            ) : null}
-            {firstValidationError ? (
-              <Alert
-                severity="warning"
-                role="alert"
-                icon={<WarningAmberOutlinedIcon />}
-                action={
-                  firstValidationError.nodeId ? (
-                    <Button
-                      color="inherit"
-                      size="small"
-                      onClick={() => setSelectedNodeId(firstValidationError.nodeId ?? null)}
-                    >
-                      Configura
-                    </Button>
-                  ) : undefined
-                }
-                sx={{ borderRadius: 0 }}
-              >
-                <Typography variant="body2" fontWeight={750}>{firstValidationError.message}</Typography>
-                {validation.errors.length > 1 ? (
-                  <Typography variant="caption">
-                    Altri {validation.errors.length - 1} problemi da risolvere prima dell'esecuzione.
-                  </Typography>
-                ) : null}
-              </Alert>
-            ) : validation.warnings.length > 0 ? (
-              <Alert severity="info" variant="outlined" sx={{ m: 1.25 }}>
-                {validation.warnings[0]?.message}
-              </Alert>
-            ) : (
-              <Alert severity="success" variant="outlined" sx={{ m: 1.25 }}>
-                Il flusso è collegato e pronto per l'anteprima.
-              </Alert>
-            )}
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "minmax(0, 1fr)",
-                  lg: selectedWorkflowNode ? "minmax(0, 1fr) 300px" : "minmax(0, 1fr)"
-                },
-                minHeight: { xs: selectedWorkflowNode ? 720 : 520, lg: 620 },
-                height: { lg: "min(68dvh, 720px)" },
-                borderTop: "1px solid",
-                borderColor: "divider"
-              }}
-            >
-              <Box sx={{ minWidth: 0, minHeight: { xs: 500, lg: 0 }, height: { xs: 500, lg: "100%" }, bgcolor: "background.default" }}>
+      <Box sx={{ position: "relative", flexGrow: 1, minHeight: 0, overflow: "hidden" }}>
+              <Box sx={{ minWidth: 0, minHeight: 0, height: "100%", bgcolor: "background.default" }}>
                 <ReactFlow<AutomationFlowNode, Edge>
                   nodes={nodes}
                   edges={edges}
@@ -510,33 +474,66 @@ export function AutomationWorkflowEditor({
                     color={alpha(theme.palette.text.secondary, 0.22)}
                   />
                   <Controls showInteractive={false} position="bottom-left" />
+                  {editorError || firstValidationError || validation.warnings.length > 0 ? (
+                    <Panel position="top-left">
+                      <Alert
+                        severity={editorError ? "error" : firstValidationError ? "warning" : "info"}
+                        role={editorError || firstValidationError ? "alert" : undefined}
+                        onClose={editorError ? () => setEditorError(null) : undefined}
+                        action={
+                          !editorError && firstValidationError?.nodeId ? (
+                            <Button
+                              color="inherit"
+                              size="small"
+                              onClick={() => setSelectedNodeId(firstValidationError.nodeId ?? null)}
+                            >
+                              Configura
+                            </Button>
+                          ) : undefined
+                        }
+                        sx={{
+                          maxWidth: { xs: "calc(100vw - 92px)", sm: 520 },
+                          py: 0,
+                          bgcolor: "background.paper",
+                          boxShadow: 2,
+                          "& .MuiAlert-message": { py: 0.65 }
+                        }}
+                      >
+                        {editorError ?? firstValidationError?.message ?? validation.warnings[0]?.message}
+                      </Alert>
+                    </Panel>
+                  ) : null}
                   {!selectedWorkflowNode ? (
                     <Panel position="top-right">
                       <Chip
                         size="small"
                         variant="outlined"
                         label="Seleziona un nodo per configurarlo"
-                        sx={{ bgcolor: "background.paper" }}
+                        sx={{ display: { xs: "none", sm: "flex" }, bgcolor: "background.paper" }}
                       />
                     </Panel>
                   ) : null}
                 </ReactFlow>
               </Box>
               {selectedWorkflowNode ? (
-                <AutomationNodeInspector
-                  node={selectedWorkflowNode}
-                  projects={projects}
-                  onUpdateNode={updateNode}
-                  onDeleteNode={deleteNode}
-                />
+                <Box
+                  sx={{
+                    position: "absolute",
+                    zIndex: 4,
+                    inset: "0 0 0 auto",
+                    width: { xs: "min(88vw, 320px)", sm: 320 },
+                    boxShadow: (currentTheme) => `-12px 0 32px ${alpha(currentTheme.palette.common.black, 0.14)}`
+                  }}
+                >
+                  <AutomationNodeInspector
+                    node={selectedWorkflowNode}
+                    projects={projects}
+                    onClose={() => setSelectedNodeId(null)}
+                    onUpdateNode={updateNode}
+                    onDeleteNode={deleteNode}
+                  />
+                </Box>
               ) : null}
-            </Box>
-          </>
-        ) : (
-          <Box sx={{ p: 1.5, minHeight: 360, bgcolor: "background.default" }}>
-            <AutomationRunHistory runs={runs} onSelectRun={setRunToDisplay} />
-          </Box>
-        )}
       </Box>
 
       <Menu
@@ -583,8 +580,24 @@ export function AutomationWorkflowEditor({
         </DialogActions>
       </Dialog>
 
+      <Dialog open={runHistoryOpen} onClose={() => setRunHistoryOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle>Esecuzioni · {workflow.name}</DialogTitle>
+        <DialogContent dividers sx={{ p: 1.5 }}>
+          <AutomationRunHistory
+            runs={runs}
+            onSelectRun={(run) => {
+              setRunHistoryOpen(false);
+              setRunToDisplay(run);
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRunHistoryOpen(false)}>Chiudi</Button>
+        </DialogActions>
+      </Dialog>
+
       <AutomationRunDialog run={runToDisplay} onClose={() => setRunToDisplay(null)} />
-    </Stack>
+    </Box>
   );
 }
 
