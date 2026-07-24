@@ -7,7 +7,6 @@ import type { ProjectSummary } from "../../types/projects";
 import { buildDashboardSnapshot } from "./dashboardInsights";
 import { DashboardInsights } from "./DashboardInsights";
 import { DashboardMetrics } from "./DashboardMetrics";
-import { DashboardMotionBackdrop } from "./DashboardMotionBackdrop";
 import type { DashboardSection } from "./DashboardSidebar";
 import { DashboardQuickActions } from "./DashboardQuickActions";
 import { DashboardRecentActivity } from "./DashboardRecentActivity";
@@ -134,13 +133,10 @@ export const DashboardHome = React.memo(function DashboardHome({
     <Box
       sx={{
         position: "relative",
-        isolation: "isolate",
         minHeight: { xs: "auto", md: "calc(100dvh - 116px)" }
       }}
     >
-      <DashboardMotionBackdrop />
-
-      <Stack spacing={{ xs: 1.5, md: 2 }} sx={{ position: "relative", zIndex: 1 }}>
+      <Stack spacing={{ xs: 1.5, md: 2 }}>
         <Box
           sx={{
             display: "grid",

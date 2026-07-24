@@ -2,10 +2,10 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import {
   Alert,
+  alpha,
   Autocomplete,
   Box,
   Button,
-  Chip,
   Divider,
   FormControl,
   FormControlLabel,
@@ -63,6 +63,7 @@ export function AutomationNodeInspector({
   }
 
   const definition = getAutomationNodeDefinition(node.type);
+  const DefinitionIcon = definition.icon;
   const selectedProjectIds = getConfigStringArray(node, "projectIds");
   const selectedProjects = projects.filter((project) => selectedProjectIds.includes(project.id));
   const inputKey = getConfigString(node, "key", "");
@@ -73,18 +74,30 @@ export function AutomationNodeInspector({
   }
 
   return (
-    <InspectorShell title="Configurazione" onClose={onClose}>
+    <InspectorShell
+      title={definition.label}
+      subtitle={definition.group}
+      icon={
+        <Box
+          sx={{
+            width: 36,
+            height: 36,
+            display: "grid",
+            placeItems: "center",
+            flexShrink: 0,
+            border: "1px solid",
+            borderColor: alpha(definition.color, 0.3),
+            borderRadius: 1.25,
+            color: definition.color,
+            bgcolor: alpha(definition.color, 0.1)
+          }}
+        >
+          <DefinitionIcon sx={{ fontSize: 20 }} />
+        </Box>
+      }
+      onClose={onClose}
+    >
       <Stack spacing={2} sx={{ p: 1.5 }}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Chip
-            size="small"
-            label={definition.group}
-            sx={{ color: definition.color, borderColor: definition.color }}
-            variant="outlined"
-          />
-          <Typography variant="caption" color="text.secondary" noWrap>{definition.label}</Typography>
-        </Stack>
-
         <TextField
           size="small"
           label="Nome nodo"
@@ -276,10 +289,14 @@ export function AutomationNodeInspector({
 
 function InspectorShell({
   title,
+  subtitle,
+  icon,
   children,
   onClose
 }: {
   title: string;
+  subtitle?: string;
+  icon?: React.ReactNode;
   children: React.ReactNode;
   onClose?: () => void;
 }) {
@@ -301,7 +318,7 @@ function InspectorShell({
           position: "sticky",
           top: 0,
           zIndex: 1,
-          minHeight: 52,
+          minHeight: 62,
           px: 1.5,
           display: "flex",
           alignItems: "center",
@@ -311,7 +328,17 @@ function InspectorShell({
           bgcolor: "background.paper"
         }}
       >
-        <Typography variant="subtitle2" fontWeight={800}>{title}</Typography>
+        <Stack direction="row" spacing={1.1} alignItems="center" sx={{ minWidth: 0 }}>
+          {icon}
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle2" fontWeight={850} noWrap>{title}</Typography>
+            {subtitle ? (
+              <Typography variant="caption" color="text.secondary" component="div" noWrap>
+                {subtitle}
+              </Typography>
+            ) : null}
+          </Box>
+        </Stack>
         {onClose ? (
           <IconButton size="small" aria-label="Chiudi configurazione nodo" onClick={onClose}>
             <CloseRoundedIcon fontSize="small" />

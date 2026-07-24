@@ -32,7 +32,7 @@ import { FavoriteProjects, WorkspaceMap } from "./WorkspaceMap";
 import { ProjectWorkspaceTabs } from "../project/ProjectWorkspaceTabs";
 import { getProjectPanelId } from "../project/projectWorkspaceIds";
 import type { AppUpdateResult } from "../../types/app";
-import type { ColorMode, ViewMode } from "../../types/common";
+import type { ColorPalette, ViewMode } from "../../types/common";
 import type { DockerContainerGroup } from "../../types/docker";
 import type { ProjectsResponse } from "../../types/projects";
 import { commandErrorResult } from "../../utils/commandResult";
@@ -43,9 +43,14 @@ const APP_UPDATE_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const DOCKER_POLL_INTERVAL_MS = 30 * 1000;
 const MAX_WARM_PROJECT_PANELS = 4;
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "repo-control-sidebar-collapsed";
+const loadAppMotionBackdrop = () => import("./AppMotionBackdrop");
 const loadAutomationPage = () => import("../automation/AutomationPage");
 const loadProjectDetailPanel = () => import("../project/ProjectDetailPanel");
 const loadTaskEngineeringPage = () => import("../task/TaskEngineeringPage");
+const AppMotionBackdrop = React.lazy(async () => {
+  const module = await loadAppMotionBackdrop();
+  return { default: module.AppMotionBackdrop };
+});
 const AutomationPage = React.lazy(async () => {
   const module = await loadAutomationPage();
   return { default: module.AutomationPage };
@@ -70,13 +75,16 @@ const sectionReveal = keyframes`
 `;
 
 type ProjectsDashboardProps = {
-  colorMode: ColorMode;
-  onToggleColorMode: () => void;
+  colorPalette: ColorPalette;
+  onColorPaletteChange: (colorPalette: ColorPalette) => void;
 };
 
 function ignoreCommandResult(): void {}
 
-export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDashboardProps) {
+export function ProjectsDashboard({
+  colorPalette,
+  onColorPaletteChange
+}: ProjectsDashboardProps) {
   const queryClient = useQueryClient();
   const [isNavigating, startNavigationTransition] = React.useTransition();
   const [viewMode, setViewMode] = React.useState<ViewMode>("map");
@@ -407,6 +415,8 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
   return (
     <Box
       sx={{
+        position: "relative",
+        isolation: "isolate",
         minHeight: "100vh",
         height: isAutomationWorkspace ? "100dvh" : undefined,
         display: "flex",
@@ -415,11 +425,15 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
         bgcolor: "background.default"
       }}
     >
+      <React.Suspense fallback={null}>
+        <AppMotionBackdrop />
+      </React.Suspense>
+
       <DashboardSidebar
         activeSection={activeSection}
         collapsed={isSidebarCollapsed}
         mobileOpen={isMobileSidebarOpen}
-        colorMode={colorMode}
+        colorPalette={colorPalette}
         repositoryCount={projects.length}
         favoriteCount={favoriteProjectCount}
         dockerCount={dockerStatus?.groups.length ?? 0}
@@ -432,11 +446,13 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
         onPickWorkspace={() => {
           void handleFolderPick();
         }}
-        onToggleColorMode={onToggleColorMode}
+        onColorPaletteChange={onColorPaletteChange}
       />
 
       <Box
         sx={{
+          position: "relative",
+          zIndex: 1,
           minWidth: 0,
           flexGrow: 1,
           minHeight: "100vh",

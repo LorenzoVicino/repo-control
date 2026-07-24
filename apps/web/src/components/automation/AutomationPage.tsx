@@ -5,6 +5,7 @@ import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import {
   Alert,
+  alpha,
   Box,
   Button,
   Chip,
@@ -141,7 +142,7 @@ export function AutomationPage({ projects }: AutomationPageProps) {
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
-        bgcolor: "background.default"
+        bgcolor: "transparent"
       }}
     >
       <Typography
@@ -166,12 +167,13 @@ export function AutomationPage({ projects }: AutomationPageProps) {
         spacing={1}
         alignItems="center"
         sx={{
-          minHeight: 58,
-          px: { xs: 1, sm: 1.5 },
+          minHeight: 54,
+          px: { xs: 1, sm: 1.25 },
           flexShrink: 0,
           borderBottom: "1px solid",
           borderColor: "divider",
-          bgcolor: "background.paper"
+          bgcolor: (theme) => alpha(theme.palette.background.paper, 0.96),
+          backdropFilter: "blur(16px)"
         }}
       >
         <Button
@@ -182,11 +184,19 @@ export function AutomationPage({ projects }: AutomationPageProps) {
           aria-haspopup="menu"
           aria-expanded={Boolean(workflowMenuAnchor)}
           onClick={(event) => setWorkflowMenuAnchor(event.currentTarget)}
-          sx={{ minWidth: 0, maxWidth: { xs: 190, sm: 320 }, justifyContent: "flex-start" }}
+          sx={{
+            minWidth: 0,
+            maxWidth: { xs: 210, sm: 360 },
+            minHeight: 42,
+            px: 1,
+            justifyContent: "flex-start",
+            borderRadius: 1.5,
+            "&:hover": { bgcolor: "action.hover" }
+          }}
         >
           <Box component="span" sx={{ minWidth: 0, textAlign: "left" }}>
             <Typography component="span" variant="caption" color="text.secondary" sx={{ display: "block", lineHeight: 1.1 }}>
-              Automazioni
+              Workflow attivo
             </Typography>
             <Typography component="span" variant="body2" fontWeight={800} noWrap sx={{ display: "block" }}>
               {selectedWorkflow?.name ?? "Seleziona workflow"}
@@ -196,7 +206,7 @@ export function AutomationPage({ projects }: AutomationPageProps) {
         <Chip
           size="small"
           variant="outlined"
-          label={workflows.length}
+          label={`${workflows.length} workflow`}
           sx={{ display: { xs: "none", sm: "flex" } }}
         />
         <Box sx={{ flexGrow: 1 }} />

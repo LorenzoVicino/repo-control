@@ -15,50 +15,55 @@ export const AutomationNode = React.memo(function AutomationNode({
   const definition = getAutomationNodeDefinition(workflowNode.type);
   const Icon = definition.icon;
   const handleStyle = {
-    width: 10,
-    height: 10,
-    border: `2px solid ${theme.palette.background.paper}`,
-    background: definition.color
+    width: 12,
+    height: 12,
+    border: `3px solid ${theme.palette.background.paper}`,
+    background: definition.color,
+    boxShadow: `0 0 0 1px ${alpha(definition.color, 0.5)}`
   };
 
   return (
     <Paper
       variant="outlined"
       sx={{
-        width: 220,
-        minHeight: 88,
+        width: 238,
+        minHeight: 76,
         overflow: "visible",
-        borderRadius: 1,
+        borderRadius: 2,
         borderColor: selected ? definition.color : "divider",
         borderWidth: selected ? 2 : 1,
         bgcolor: "background.paper",
         boxShadow: selected
-          ? `0 0 0 3px ${alpha(definition.color, 0.13)}, 0 12px 26px ${alpha(theme.palette.common.black, 0.1)}`
-          : `0 7px 18px ${alpha(theme.palette.common.black, theme.palette.mode === "light" ? 0.06 : 0.24)}`,
-        transition: "border-color 140ms ease, box-shadow 140ms ease"
+          ? `0 0 0 4px ${alpha(definition.color, 0.12)}, 0 14px 32px ${alpha(theme.palette.common.black, 0.14)}`
+          : `0 8px 24px ${alpha(theme.palette.common.black, theme.palette.mode === "light" ? 0.08 : 0.28)}`,
+        transition: "border-color 150ms ease, box-shadow 150ms ease",
+        "&:hover": {
+          borderColor: selected ? definition.color : alpha(definition.color, 0.58)
+        }
       }}
     >
       {workflowNode.type !== "trigger.manual" ? (
         <Handle type="target" position={Position.Left} style={handleStyle} />
       ) : null}
-      <Box sx={{ height: 4, bgcolor: definition.color, borderRadius: "3px 3px 0 0" }} />
-      <Stack direction="row" spacing={1.1} alignItems="center" sx={{ px: 1.25, py: 1.15 }}>
+      <Stack direction="row" spacing={1.25} alignItems="center" sx={{ px: 1.35, py: 1.2 }}>
         <Box
           sx={{
-            width: 34,
-            height: 34,
+            width: 40,
+            height: 40,
             display: "grid",
             placeItems: "center",
             flexShrink: 0,
-            borderRadius: 1,
+            border: "1px solid",
+            borderColor: alpha(definition.color, 0.3),
+            borderRadius: 1.5,
             color: definition.color,
-            bgcolor: alpha(definition.color, 0.11)
+            bgcolor: alpha(definition.color, 0.1)
           }}
         >
-          <Icon sx={{ fontSize: 20 }} />
+          <Icon sx={{ fontSize: 21 }} />
         </Box>
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="body2" fontWeight={800} noWrap>
+          <Typography variant="body2" fontWeight={800} lineHeight={1.25} noWrap>
             {workflowNode.name}
           </Typography>
           <Typography
@@ -66,7 +71,7 @@ export const AutomationNode = React.memo(function AutomationNode({
             color="text.secondary"
             component="div"
             noWrap
-            sx={{ mt: 0.15, maxWidth: 152 }}
+            sx={{ mt: 0.35, maxWidth: 160 }}
           >
             {getAutomationNodeSummary(workflowNode)}
           </Typography>

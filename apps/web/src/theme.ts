@@ -1,37 +1,130 @@
 import { alpha, createTheme } from "@mui/material";
-import type { ColorMode } from "./types/common";
+import type { ColorMode, ColorPalette } from "./types/common";
 
-export const COLOR_MODE_STORAGE_KEY = "repo-control-color-mode";
+export const COLOR_PALETTE_STORAGE_KEY = "repo-control-color-palette";
+const LEGACY_COLOR_MODE_STORAGE_KEY = "repo-control-color-mode";
 
-const brand = {
-  blue: "#2563eb",
-  blueDark: "#1d4ed8",
-  cyan: "#0ea5e9",
-  navy: "#0b1730"
+type ThemePaletteTokens = {
+  mode: ColorMode;
+  background: string;
+  paper: string;
+  divider: string;
+  textPrimary: string;
+  textSecondary: string;
+  primary: {
+    main: string;
+    dark: string;
+    light: string;
+    contrastText: string;
+  };
+  secondary: {
+    main: string;
+    dark: string;
+    light: string;
+    contrastText: string;
+  };
+  disabledBackground: string;
+  outlineHover: string;
+  tableHead: string;
 };
 
-export function createAppTheme(colorMode: ColorMode) {
-  const isLight = colorMode === "light";
-  const background = isLight ? "#f5f8fc" : "#07101f";
-  const paper = isLight ? "#ffffff" : "#0d192b";
-  const divider = isLight ? "#dfe7f1" : "#20324a";
-  const textPrimary = isLight ? "#13213a" : "#eaf2ff";
-  const textSecondary = isLight ? "#607089" : "#94a8c4";
+const COLOR_PALETTE_TOKENS: Record<ColorPalette, ThemePaletteTokens> = {
+  white: {
+    mode: "light",
+    background: "#f6f7f9",
+    paper: "#ffffff",
+    divider: "#dde1e7",
+    textPrimary: "#111318",
+    textSecondary: "#606874",
+    primary: { main: "#18181b", dark: "#09090b", light: "#52525b", contrastText: "#ffffff" },
+    secondary: { main: "#64748b", dark: "#475569", light: "#94a3b8", contrastText: "#ffffff" },
+    disabledBackground: "#e9ecf0",
+    outlineHover: "#aeb6c2",
+    tableHead: "#f7f8fa"
+  },
+  black: {
+    mode: "dark",
+    background: "#050608",
+    paper: "#0d0f12",
+    divider: "#292d33",
+    textPrimary: "#fafafa",
+    textSecondary: "#a1a1aa",
+    primary: { main: "#f4f4f5", dark: "#d4d4d8", light: "#ffffff", contrastText: "#09090b" },
+    secondary: { main: "#a1a1aa", dark: "#71717a", light: "#d4d4d8", contrastText: "#09090b" },
+    disabledBackground: "#1c1f24",
+    outlineHover: "#525760",
+    tableHead: "#14171c"
+  },
+  red: {
+    mode: "dark",
+    background: "#17080c",
+    paper: "#230d13",
+    divider: "#4d1d29",
+    textPrimary: "#fff1f2",
+    textSecondary: "#e7a3b1",
+    primary: { main: "#f43f5e", dark: "#e11d48", light: "#fb7185", contrastText: "#ffffff" },
+    secondary: { main: "#fb7185", dark: "#f43f5e", light: "#fda4af", contrastText: "#3f0713" },
+    disabledBackground: "#3a1620",
+    outlineHover: "#7d3043",
+    tableHead: "#2d1119"
+  },
+  blue: {
+    mode: "dark",
+    background: "#07101f",
+    paper: "#0d192b",
+    divider: "#20324a",
+    textPrimary: "#eaf2ff",
+    textSecondary: "#94a8c4",
+    primary: { main: "#60a5fa", dark: "#3b82f6", light: "#93c5fd", contrastText: "#07101f" },
+    secondary: { main: "#38bdf8", dark: "#0ea5e9", light: "#7dd3fc", contrastText: "#07101f" },
+    disabledBackground: "#17243a",
+    outlineHover: "#38516f",
+    tableHead: "#101f34"
+  },
+  green: {
+    mode: "dark",
+    background: "#07150f",
+    paper: "#0d2117",
+    divider: "#1e4a34",
+    textPrimary: "#ecfdf5",
+    textSecondary: "#9ac7b1",
+    primary: { main: "#34d399", dark: "#10b981", light: "#6ee7b7", contrastText: "#042f20" },
+    secondary: { main: "#6ee7b7", dark: "#34d399", light: "#a7f3d0", contrastText: "#042f20" },
+    disabledBackground: "#173527",
+    outlineHover: "#39745a",
+    tableHead: "#102a1d"
+  }
+};
+
+export const COLOR_PALETTE_OPTIONS: ReadonlyArray<{
+  id: ColorPalette;
+  label: string;
+  color: string;
+  surface: string;
+}> = [
+  { id: "white", label: "Bianco", color: "#18181b", surface: "#ffffff" },
+  { id: "black", label: "Nero", color: "#f4f4f5", surface: "#050608" },
+  { id: "red", label: "Rosso", color: "#f43f5e", surface: "#17080c" },
+  { id: "blue", label: "Blu", color: "#60a5fa", surface: "#07101f" },
+  { id: "green", label: "Verde", color: "#34d399", surface: "#07150f" }
+];
+
+export function createAppTheme(colorPalette: ColorPalette) {
+  const tokens = COLOR_PALETTE_TOKENS[colorPalette];
+  const isLight = tokens.mode === "light";
+  const {
+    background,
+    paper,
+    divider,
+    textPrimary,
+    textSecondary
+  } = tokens;
 
   return createTheme({
     palette: {
-      mode: colorMode,
-      primary: {
-        main: isLight ? brand.blue : "#60a5fa",
-        dark: isLight ? brand.blueDark : "#3b82f6",
-        light: isLight ? "#60a5fa" : "#93c5fd",
-        contrastText: "#ffffff"
-      },
-      secondary: {
-        main: isLight ? brand.cyan : "#38bdf8",
-        dark: isLight ? "#0284c7" : "#0ea5e9",
-        contrastText: "#ffffff"
-      },
+      mode: tokens.mode,
+      primary: tokens.primary,
+      secondary: tokens.secondary,
       info: {
         main: isLight ? "#0284c7" : "#38bdf8"
       },
@@ -54,10 +147,10 @@ export function createAppTheme(colorMode: ColorMode) {
       },
       divider,
       action: {
-        hover: alpha(isLight ? brand.blue : "#93c5fd", isLight ? 0.055 : 0.09),
-        selected: alpha(isLight ? brand.blue : "#60a5fa", isLight ? 0.1 : 0.16),
-        focus: alpha(isLight ? brand.blue : "#60a5fa", 0.16),
-        disabledBackground: isLight ? "#e9eef5" : "#17243a"
+        hover: alpha(tokens.primary.main, isLight ? 0.055 : 0.09),
+        selected: alpha(tokens.primary.main, isLight ? 0.1 : 0.16),
+        focus: alpha(tokens.primary.main, 0.16),
+        disabledBackground: tokens.disabledBackground
       }
     },
     shape: {
@@ -131,7 +224,7 @@ export function createAppTheme(colorMode: ColorMode) {
             WebkitFontSmoothing: "antialiased"
           },
           "::selection": {
-            backgroundColor: alpha(brand.cyan, 0.24)
+            backgroundColor: alpha(tokens.secondary.main, 0.28)
           },
           "*": {
             scrollbarColor: `${alpha(textSecondary, 0.35)} transparent`
@@ -180,20 +273,20 @@ export function createAppTheme(colorMode: ColorMode) {
             paddingInline: 14,
             transition: "background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease",
             "&:focus-visible": {
-              outline: `3px solid ${alpha(isLight ? brand.blue : "#60a5fa", 0.24)}`,
+              outline: `3px solid ${alpha(tokens.primary.main, 0.26)}`,
               outlineOffset: 2
             }
           },
           containedPrimary: {
-            boxShadow: `0 1px 2px ${alpha(brand.navy, 0.16)}`,
+            boxShadow: `0 1px 2px ${alpha("#000000", isLight ? 0.16 : 0.32)}`,
             "&:hover": {
-              boxShadow: `0 4px 12px ${alpha(brand.blue, 0.22)}`
+              boxShadow: `0 4px 14px ${alpha(tokens.primary.main, 0.26)}`
             }
           },
           outlined: {
             borderColor: divider,
             "&:hover": {
-              borderColor: isLight ? "#b8c7da" : "#38516f"
+              borderColor: tokens.outlineHover
             }
           }
         }
@@ -206,7 +299,7 @@ export function createAppTheme(colorMode: ColorMode) {
             borderRadius: 6,
             transition: "background-color 160ms ease, color 160ms ease, transform 160ms ease",
             "&:focus-visible": {
-              outline: `3px solid ${alpha(isLight ? brand.blue : "#60a5fa", 0.24)}`,
+              outline: `3px solid ${alpha(tokens.primary.main, 0.26)}`,
               outlineOffset: 2
             }
           },
@@ -241,7 +334,7 @@ export function createAppTheme(colorMode: ColorMode) {
               borderColor: divider
             },
             "&:hover .MuiOutlinedInput-notchedOutline": {
-              borderColor: isLight ? "#b8c7da" : "#38516f"
+              borderColor: tokens.outlineHover
             }
           },
           inputSizeSmall: {
@@ -259,8 +352,8 @@ export function createAppTheme(colorMode: ColorMode) {
             borderColor: divider,
             color: textSecondary,
             "&.Mui-selected": {
-              color: isLight ? brand.blue : "#93c5fd",
-              backgroundColor: alpha(isLight ? brand.blue : "#60a5fa", isLight ? 0.1 : 0.15)
+              color: tokens.primary.light,
+              backgroundColor: alpha(tokens.primary.main, isLight ? 0.1 : 0.15)
             }
           }
         }
@@ -278,7 +371,7 @@ export function createAppTheme(colorMode: ColorMode) {
             fontWeight: 750,
             letterSpacing: "0.04em",
             textTransform: "uppercase",
-            backgroundColor: isLight ? "#f7f9fc" : "#101f34"
+            backgroundColor: tokens.tableHead
           }
         }
       },
@@ -305,7 +398,7 @@ export function createAppTheme(colorMode: ColorMode) {
           paper: {
             border: `1px solid ${divider}`,
             boxShadow: isLight
-              ? `0 24px 70px ${alpha(brand.navy, 0.2)}`
+              ? `0 24px 70px ${alpha("#111827", 0.2)}`
               : "0 24px 70px rgba(0, 0, 0, 0.55)"
           }
         }
@@ -322,12 +415,16 @@ export function createAppTheme(colorMode: ColorMode) {
   });
 }
 
-export function getInitialColorMode(): ColorMode {
-  const storedMode = window.localStorage.getItem(COLOR_MODE_STORAGE_KEY);
+export function getInitialColorPalette(): ColorPalette {
+  const storedPalette = window.localStorage.getItem(COLOR_PALETTE_STORAGE_KEY);
 
-  if (storedMode === "light" || storedMode === "dark") {
-    return storedMode;
+  if (COLOR_PALETTE_OPTIONS.some((option) => option.id === storedPalette)) {
+    return storedPalette as ColorPalette;
   }
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  const legacyMode = window.localStorage.getItem(LEGACY_COLOR_MODE_STORAGE_KEY);
+  if (legacyMode === "light") return "white";
+  if (legacyMode === "dark") return "black";
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "black" : "white";
 }
