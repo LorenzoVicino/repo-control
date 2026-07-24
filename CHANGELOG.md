@@ -6,6 +6,26 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.3.0] - 2026-07-24
+
+### Added
+
+- Add workflow readiness checks, actionable configuration feedback and protection against losing unsaved automation edits.
+- Distinguish successful runs from runs completed with skipped steps through a dedicated warning state.
+- Add a lazily loaded Motion-powered grid backdrop shared across every application section with reduced-motion support.
+- Replace the binary light/dark toggle with persistent White, Black, Red, Blue and Green application palettes.
+
+### Changed
+
+- Rework the automation workspace around a viewport-filling, scroll-free canvas with n8n-inspired Editor and Executions views, a searchable node library and an on-demand node inspector.
+- Simplify the shared animated backdrop to a single lightweight sweep without an anchored ambient glow.
+- Stop downstream workflow nodes after the first failed action while still collecting the result for every selected repository in the active step.
+
+### Fixed
+
+- Prevent disconnected canvas nodes from being executed outside the visible workflow chain.
+- Serialize local workflow and run-history mutations to avoid lost updates during concurrent operations.
+
 ## [0.2.1] - 2026-07-23
 
 ### Added

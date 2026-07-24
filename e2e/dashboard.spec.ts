@@ -62,6 +62,75 @@ test("loads live workspace data and opens a repository from the keyboard palette
   await expect(page.getByRole("heading", { name: workspaceRepositoryName })).toBeVisible();
 });
 
+test("keeps application background motion lightweight and respects reduced motion", async ({ page }) => {
+  await page.goto("/");
+
+  const backdrop = page.locator("[data-app-motion-backdrop]");
+  await expect(backdrop).toBeAttached();
+  await expect(backdrop.locator("[data-app-motion-layer]")).toHaveCount(1);
+
+  await expect.poll(async () =>
+    backdrop.evaluate((element) => element.getAnimations({ subtree: true }).length)
+  ).toBeGreaterThan(0);
+  expect(
+    await backdrop.evaluate((element) => element.getAnimations({ subtree: true }).length)
+  ).toBeLessThanOrEqual(2);
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect.poll(async () =>
+    backdrop.evaluate((element) => element.getAnimations({ subtree: true }).length)
+  ).toBe(0);
+  expect(
+    await backdrop.locator("[data-app-motion-layer]").evaluateAll((layers) =>
+      layers.every((layer) => getComputedStyle(layer).willChange === "auto")
+    )
+  ).toBe(true);
+});
+
+test("shares one motion backdrop across every dashboard section", async ({ page }) => {
+  test.slow();
+  await page.goto("/");
+
+  const backdrop = page.locator("[data-app-motion-backdrop]");
+
+  for (const section of ["tasks", "docker", "favorites", "repositories", "overview", "automations"]) {
+    const navigationButton = page.locator(`[data-dashboard-section="${section}"]`).first();
+    await navigationButton.click();
+    await expect(navigationButton).toHaveAttribute("aria-current", "page");
+    await expect(backdrop).toHaveCount(1);
+  }
+});
+
+test("switches and persists all five dashboard color palettes", async ({ page }) => {
+  await page.goto("/");
+
+  const palettePicker = page.getByRole("button", {
+    name: /Seleziona palette colori/
+  });
+  const palettes = [
+    ["Bianco", "white"],
+    ["Nero", "black"],
+    ["Rosso", "red"],
+    ["Blu", "blue"],
+    ["Verde", "green"]
+  ] as const;
+  const renderedBackgrounds: string[] = [];
+
+  for (const [label, value] of palettes) {
+    await palettePicker.click();
+    await page.getByRole("menuitemradio", { name: label, exact: true }).click();
+    await expect(palettePicker).toHaveAttribute("aria-label", `Seleziona palette colori. Attiva: ${label}`);
+    expect(
+      await page.evaluate(() => window.localStorage.getItem("repo-control-color-palette"))
+    ).toBe(value);
+    renderedBackgrounds.push(
+      await page.evaluate(() => getComputedStyle(document.body).backgroundColor)
+    );
+  }
+
+  expect(new Set(renderedBackgrounds).size).toBe(palettes.length);
+});
+
 test("navigates between lazy dashboard sections without browser errors", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
@@ -71,13 +140,35 @@ test("navigates between lazy dashboard sections without browser errors", async (
 
   await page.getByRole("button", { name: "Automazioni", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Automazioni", exact: true })).toBeVisible();
-  await expect(page.getByText("Visual workflows")).toBeVisible();
+  await expect(page.getByLabel("Canvas automazione")).toBeVisible();
 
   await page.getByRole("button", { name: /Repository/ }).first().click();
   await expect(page.getByRole("heading", { name: "Repository", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: `Apri ${workspaceRepositoryName}` })).toBeVisible();
 
   expect(browserErrors).toEqual([]);
+});
+
+test("uses focused automation editor views and a searchable node library", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Automazioni", exact: true }).click();
+
+  await expect(page.getByLabel("Canvas automazione")).toBeVisible();
+  await page.getByRole("button", { name: "Aggiungi passaggio", exact: true }).click();
+
+  const nodeLibrary = page.getByRole("complementary", { name: "Libreria nodi" });
+  await expect(nodeLibrary).toBeVisible();
+  await nodeLibrary.getByRole("textbox", { name: "Cerca nella libreria nodi" }).fill("Docker");
+  await expect(nodeLibrary.getByText("Compose up", { exact: true })).toBeVisible();
+  await nodeLibrary.getByRole("button", { name: "Chiudi libreria nodi" }).click();
+
+  await page.getByRole("tab", { name: /Esecuzioni/ }).click();
+  await expect(page.getByRole("region", { name: "Esecuzioni workflow" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cronologia" })).toBeVisible();
+
+  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(
+    await page.evaluate(() => window.innerHeight)
+  );
 });
 
 test("collects workflow text inputs and resolves them safely in a dry run", async ({ page, request }) => {
@@ -146,6 +237,7 @@ test("collects workflow text inputs and resolves them safely in a dry run", asyn
   try {
     await page.goto("/");
     await page.getByRole("button", { name: "Automazioni", exact: true }).click();
+    await page.locator('button[aria-haspopup="menu"]').filter({ hasText: "Workflow attivo" }).click();
     await page.getByText(workflowName, { exact: true }).click();
     await page.getByRole("button", { name: "Anteprima", exact: true }).click();
 
@@ -166,7 +258,7 @@ test("collects workflow text inputs and resolves them safely in a dry run", asyn
     const resultDialog = page.getByRole("dialog");
     await expect(resultDialog).toContainText(workflowName);
     await expect(resultDialog).toContainText("Anteprima");
-    await resultDialog.getByRole("button", { name: /Echo message/ }).click();
+    await resultDialog.getByRole("button", { name: /Echo message/ }).first().click();
     await expect(resultDialog).toContainText('echo "${REPO_CONTROL_INPUT_MESSAGE}"');
     await expect(resultDialog).not.toContainText("release candidate");
   } finally {

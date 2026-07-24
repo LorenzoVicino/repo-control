@@ -5,7 +5,7 @@ import { createAppTheme } from "../theme";
 
 export function renderWithTheme(element: ReactElement) {
   return render(
-    <ThemeProvider theme={createAppTheme("light")}>
+    <ThemeProvider theme={createAppTheme("white")}>
       <CssBaseline />
       {element}
     </ThemeProvider>

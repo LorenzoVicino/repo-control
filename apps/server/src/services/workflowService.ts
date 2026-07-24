@@ -10,15 +10,14 @@ import {
 } from "./workflow/input.js";
 import { normalizeWorkflowDefinition } from "./workflow/schema.js";
 import {
+  mutateWorkflowFile,
   readWorkflowFile,
   readWorkflowRunsFile,
-  rememberWorkflowRun,
-  writeWorkflowFile
+  rememberWorkflowRun
 } from "./workflow/store.js";
 import type {
   WorkflowDefinition,
   WorkflowDraft,
-  WorkflowEdge,
   WorkflowExecutionContext,
   WorkflowListResponse,
   WorkflowNode,
@@ -30,6 +29,7 @@ import type {
   WorkflowRunSummary,
   WorkflowStepStatus
 } from "./workflow/types.js";
+import { getExecutableWorkflowNodes } from "./workflow/validation.js";
 import { getBoolean, getString, getStringArray } from "./workflow/value.js";
 
 type ProjectAction = {
@@ -46,62 +46,60 @@ export async function readWorkflows(): Promise<WorkflowListResponse> {
 }
 
 export async function createWorkflow(draft: WorkflowDraft): Promise<WorkflowDefinition> {
-  const workflowFile = await readWorkflowFile();
-  const now = new Date().toISOString();
-  const workflow = normalizeWorkflowDefinition({
-    id: randomUUID(),
-    name: draft.name,
-    description: draft.description,
-    active: draft.active,
-    nodes: draft.nodes,
-    edges: draft.edges,
-    createdAt: now,
-    updatedAt: now
-  });
+  return mutateWorkflowFile((workflowFile) => {
+    const now = new Date().toISOString();
+    const workflow = normalizeWorkflowDefinition({
+      id: randomUUID(),
+      name: draft.name,
+      description: draft.description,
+      active: draft.active,
+      nodes: draft.nodes,
+      edges: draft.edges,
+      createdAt: now,
+      updatedAt: now
+    });
 
-  workflowFile.workflows.push(workflow);
-  await writeWorkflowFile(workflowFile);
-  return workflow;
+    workflowFile.workflows.push(workflow);
+    return workflow;
+  });
 }
 
 export async function updateWorkflow(id: string, draft: WorkflowDraft): Promise<WorkflowDefinition | null> {
-  const workflowFile = await readWorkflowFile();
-  const existingWorkflow = workflowFile.workflows.find((workflow) => workflow.id === id);
+  return mutateWorkflowFile((workflowFile) => {
+    const existingWorkflow = workflowFile.workflows.find((workflow) => workflow.id === id);
 
-  if (!existingWorkflow) {
-    return null;
-  }
+    if (!existingWorkflow) {
+      return null;
+    }
 
-  const workflow = normalizeWorkflowDefinition({
-    ...existingWorkflow,
-    name: draft.name,
-    description: draft.description,
-    active: draft.active,
-    nodes: draft.nodes,
-    edges: draft.edges,
-    updatedAt: new Date().toISOString()
+    const workflow = normalizeWorkflowDefinition({
+      ...existingWorkflow,
+      name: draft.name,
+      description: draft.description,
+      active: draft.active,
+      nodes: draft.nodes,
+      edges: draft.edges,
+      updatedAt: new Date().toISOString()
+    });
+
+    workflowFile.workflows = workflowFile.workflows.map((currentWorkflow) =>
+      currentWorkflow.id === id ? workflow : currentWorkflow
+    );
+    return workflow;
   });
-
-  workflowFile.workflows = workflowFile.workflows.map((currentWorkflow) =>
-    currentWorkflow.id === id ? workflow : currentWorkflow
-  );
-  await writeWorkflowFile(workflowFile);
-  return workflow;
 }
 
 export async function deleteWorkflow(id: string): Promise<boolean> {
-  const workflowFile = await readWorkflowFile();
-  const nextWorkflows = workflowFile.workflows.filter((workflow) => workflow.id !== id);
+  return mutateWorkflowFile((workflowFile) => {
+    const nextWorkflows = workflowFile.workflows.filter((workflow) => workflow.id !== id);
 
-  if (nextWorkflows.length === workflowFile.workflows.length) {
-    return false;
-  }
+    if (nextWorkflows.length === workflowFile.workflows.length) {
+      return false;
+    }
 
-  await writeWorkflowFile({
-    version: 1,
-    workflows: nextWorkflows
+    workflowFile.workflows = nextWorkflows;
+    return true;
   });
-  return true;
 }
 
 export async function readWorkflowRuns(workflowId?: string): Promise<WorkflowRunsResponse> {
@@ -125,6 +123,7 @@ export async function executeWorkflow(
     return null;
   }
 
+  const orderedNodes = getExecutableWorkflowNodes(workflow);
   const resolvedInputs = resolveWorkflowInputs(workflow.nodes, inputs);
   const terminalCommands = new Map(
     workflow.nodes
@@ -141,11 +140,16 @@ export async function executeWorkflow(
   const startedAt = new Date().toISOString();
   const startedAtMs = Date.now();
   const projects = await scanProjects(context.getActiveRootPath());
-  const orderedNodes = orderWorkflowNodes(workflow);
   let selectedProjects = projects;
   const steps: WorkflowRunStep[] = [];
+  let previousNodeFailed = false;
 
   for (const node of orderedNodes) {
+    if (previousNodeFailed) {
+      steps.push(createStep(node, "skipped", null, null, "Skipped because a previous step failed"));
+      continue;
+    }
+
     switch (node.type) {
       case "trigger.manual":
         steps.push(createStep(node, "success", null, null, "Manual trigger ready"));
@@ -172,16 +176,19 @@ export async function executeWorkflow(
       case "output.summary":
         steps.push(createStep(node, "success", null, null, `${selectedProjects.length} repositories in current selection`));
         break;
-      default:
-        steps.push(...await executeProjectNode(
+      default: {
+        const nodeSteps = await executeProjectNode(
           node,
           selectedProjects,
           mode,
           context,
           terminalCommands,
           resolvedInputs.environment
-        ));
+        );
+        steps.push(...nodeSteps);
+        previousNodeFailed = mode === "run" && nodeSteps.some((step) => step.status === "failed");
         break;
+      }
     }
   }
 
@@ -192,7 +199,7 @@ export async function executeWorkflow(
     workflowId: workflow.id,
     workflowName: workflow.name,
     mode,
-    status: summary.failed > 0 ? "failed" : "success",
+    status: summary.failed > 0 ? "failed" : summary.skipped > 0 ? "warning" : "success",
     startedAt,
     completedAt,
     durationMs: Date.now() - startedAtMs,
@@ -202,39 +209,6 @@ export async function executeWorkflow(
 
   await rememberWorkflowRun(run);
   return run;
-}
-
-function orderWorkflowNodes(workflow: WorkflowDefinition): WorkflowNode[] {
-  const nodesById = new Map(workflow.nodes.map((node) => [node.id, node]));
-  const outgoingEdges = new Map<string, WorkflowEdge>();
-
-  for (const edge of workflow.edges) {
-    if (!outgoingEdges.has(edge.source)) {
-      outgoingEdges.set(edge.source, edge);
-    }
-  }
-
-  const triggerNode = workflow.nodes.find((node) => node.type === "trigger.manual") ?? workflow.nodes[0];
-
-  if (!triggerNode) {
-    return [];
-  }
-
-  const orderedNodes: WorkflowNode[] = [];
-  const visitedNodeIds = new Set<string>();
-  let currentNode: WorkflowNode | undefined = triggerNode;
-
-  while (currentNode && !visitedNodeIds.has(currentNode.id)) {
-    orderedNodes.push(currentNode);
-    visitedNodeIds.add(currentNode.id);
-    currentNode = nodesById.get(outgoingEdges.get(currentNode.id)?.target ?? "");
-  }
-
-  const remainingNodes = workflow.nodes
-    .filter((node) => !visitedNodeIds.has(node.id))
-    .sort((left, right) => left.position.x - right.position.x || left.position.y - right.position.y);
-
-  return [...orderedNodes, ...remainingNodes];
 }
 
 async function selectProjects(projects: ProjectSummary[], node: WorkflowNode): Promise<ProjectSummary[]> {

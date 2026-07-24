@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { getConfigDirectory } from "../../preferences.js";
@@ -9,6 +10,8 @@ import type {
 } from "./types.js";
 
 const MAX_WORKFLOW_RUNS = 100;
+let workflowMutationQueue: Promise<void> = Promise.resolve();
+let workflowRunMutationQueue: Promise<void> = Promise.resolve();
 
 export async function readWorkflowFile(): Promise<WorkflowFile> {
   const content = await fs.readFile(getWorkflowPath(), "utf8").catch(() => null);
@@ -40,6 +43,23 @@ export async function writeWorkflowFile(workflowFile: WorkflowFile): Promise<voi
   await writeJsonFile(workflowPath, normalizedFile);
 }
 
+export function mutateWorkflowFile<T>(
+  mutate: (workflowFile: WorkflowFile) => T | Promise<T>
+): Promise<T> {
+  const operation = workflowMutationQueue.then(async () => {
+    const workflowFile = await readWorkflowFile();
+    const result = await mutate(workflowFile);
+    await writeWorkflowFile(workflowFile);
+    return result;
+  });
+
+  workflowMutationQueue = operation.then(
+    () => undefined,
+    () => undefined
+  );
+  return operation;
+}
+
 export async function readWorkflowRunsFile(): Promise<WorkflowRunsFile> {
   const content = await fs.readFile(getWorkflowRunsPath(), "utf8").catch(() => null);
 
@@ -69,18 +89,31 @@ export async function writeWorkflowRunsFile(workflowRunsFile: WorkflowRunsFile):
   await writeJsonFile(getWorkflowRunsPath(), normalizedFile);
 }
 
-export async function rememberWorkflowRun(run: WorkflowRun): Promise<void> {
-  const runsFile = await readWorkflowRunsFile();
-  await writeWorkflowRunsFile({
-    version: 1,
-    runs: [run, ...runsFile.runs].slice(0, MAX_WORKFLOW_RUNS)
+export function rememberWorkflowRun(run: WorkflowRun): Promise<void> {
+  const operation = workflowRunMutationQueue.then(async () => {
+    const runsFile = await readWorkflowRunsFile();
+    await writeWorkflowRunsFile({
+      version: 1,
+      runs: [run, ...runsFile.runs].slice(0, MAX_WORKFLOW_RUNS)
+    });
   });
+
+  workflowRunMutationQueue = operation.then(
+    () => undefined,
+    () => undefined
+  );
+  return operation;
 }
 
 async function writeJsonFile(filePath: string, value: unknown): Promise<void> {
+  const temporaryPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
   await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(`${filePath}.tmp`, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-  await fs.rename(`${filePath}.tmp`, filePath);
+  try {
+    await fs.writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+    await fs.rename(temporaryPath, filePath);
+  } finally {
+    await fs.unlink(temporaryPath).catch(() => undefined);
+  }
 }
 
 function getWorkflowPath(): string {

@@ -1,13 +1,15 @@
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import {
   Alert,
+  alpha,
   Autocomplete,
   Box,
   Button,
-  Chip,
   Divider,
   FormControl,
   FormControlLabel,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -29,6 +31,7 @@ import { WORKFLOW_INPUT_KEY_PATTERN } from "./workflowInputs";
 type AutomationNodeInspectorProps = {
   node: WorkflowNode | null;
   projects: ProjectSummary[];
+  onClose: () => void;
   onUpdateNode: (node: WorkflowNode) => void;
   onDeleteNode: (nodeId: string) => void;
 };
@@ -36,12 +39,13 @@ type AutomationNodeInspectorProps = {
 export function AutomationNodeInspector({
   node,
   projects,
+  onClose,
   onUpdateNode,
   onDeleteNode
 }: AutomationNodeInspectorProps) {
   if (!node) {
     return (
-      <InspectorShell title="Configurazione">
+      <InspectorShell title="Configurazione" onClose={onClose}>
         <Box
           sx={{
             minHeight: 150,
@@ -59,6 +63,7 @@ export function AutomationNodeInspector({
   }
 
   const definition = getAutomationNodeDefinition(node.type);
+  const DefinitionIcon = definition.icon;
   const selectedProjectIds = getConfigStringArray(node, "projectIds");
   const selectedProjects = projects.filter((project) => selectedProjectIds.includes(project.id));
   const inputKey = getConfigString(node, "key", "");
@@ -69,18 +74,30 @@ export function AutomationNodeInspector({
   }
 
   return (
-    <InspectorShell title="Configurazione">
+    <InspectorShell
+      title={definition.label}
+      subtitle={definition.group}
+      icon={
+        <Box
+          sx={{
+            width: 36,
+            height: 36,
+            display: "grid",
+            placeItems: "center",
+            flexShrink: 0,
+            border: "1px solid",
+            borderColor: alpha(definition.color, 0.3),
+            borderRadius: 1.25,
+            color: definition.color,
+            bgcolor: alpha(definition.color, 0.1)
+          }}
+        >
+          <DefinitionIcon sx={{ fontSize: 20 }} />
+        </Box>
+      }
+      onClose={onClose}
+    >
       <Stack spacing={2} sx={{ p: 1.5 }}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Chip
-            size="small"
-            label={definition.group}
-            sx={{ color: definition.color, borderColor: definition.color }}
-            variant="outlined"
-          />
-          <Typography variant="caption" color="text.secondary" noWrap>{definition.label}</Typography>
-        </Stack>
-
         <TextField
           size="small"
           label="Nome nodo"
@@ -270,7 +287,19 @@ export function AutomationNodeInspector({
   );
 }
 
-function InspectorShell({ title, children }: { title: string; children: React.ReactNode }) {
+function InspectorShell({
+  title,
+  subtitle,
+  icon,
+  children,
+  onClose
+}: {
+  title: string;
+  subtitle?: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  onClose?: () => void;
+}) {
   return (
     <Box
       component="aside"
@@ -284,8 +313,37 @@ function InspectorShell({ title, children }: { title: string; children: React.Re
         bgcolor: "background.paper"
       }}
     >
-      <Box sx={{ position: "sticky", top: 0, zIndex: 1, px: 1.5, py: 1.25, bgcolor: "background.paper" }}>
-        <Typography variant="subtitle2" fontWeight={800}>{title}</Typography>
+      <Box
+        sx={{
+          position: "sticky",
+          top: 0,
+          zIndex: 1,
+          minHeight: 62,
+          px: 1.5,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          bgcolor: "background.paper"
+        }}
+      >
+        <Stack direction="row" spacing={1.1} alignItems="center" sx={{ minWidth: 0 }}>
+          {icon}
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle2" fontWeight={850} noWrap>{title}</Typography>
+            {subtitle ? (
+              <Typography variant="caption" color="text.secondary" component="div" noWrap>
+                {subtitle}
+              </Typography>
+            ) : null}
+          </Box>
+        </Stack>
+        {onClose ? (
+          <IconButton size="small" aria-label="Chiudi configurazione nodo" onClick={onClose}>
+            <CloseRoundedIcon fontSize="small" />
+          </IconButton>
+        ) : null}
       </Box>
       {children}
     </Box>

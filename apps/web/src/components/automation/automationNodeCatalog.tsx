@@ -14,7 +14,7 @@ import type { SvgIconProps } from "@mui/material";
 import React from "react";
 import type { WorkflowNode, WorkflowNodeType } from "../../types/workflows";
 
-export type AutomationNodeGroup = "Avvio" | "Input" | "Repository" | "Git" | "Docker" | "Output";
+export type AutomationNodeGroup = "Avvio" | "Input" | "Repository" | "Git" | "Docker" | "Comandi" | "Output";
 
 export type AutomationNodeDefinition = {
   type: WorkflowNodeType;
@@ -138,7 +138,7 @@ export const AUTOMATION_NODE_DEFINITIONS: AutomationNodeDefinition[] = [
     type: "terminal.command",
     label: "Comando terminale",
     description: "Esegue un comando in ogni repository",
-    group: "Output",
+    group: "Comandi",
     color: "#d97706",
     icon: TerminalOutlinedIcon,
     defaultConfig: { command: "" }
@@ -160,6 +160,7 @@ export const AUTOMATION_NODE_GROUPS: AutomationNodeGroup[] = [
   "Repository",
   "Git",
   "Docker",
+  "Comandi",
   "Output"
 ];
 

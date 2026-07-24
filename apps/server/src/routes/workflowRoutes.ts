@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { CommandRunner, ShellCommandRunner } from "../lib/commandRunner.js";
 import type { ProjectResolver } from "../lib/projectResolver.js";
 import { WorkflowInputValidationError } from "../services/workflow/input.js";
+import { WorkflowDefinitionValidationError } from "../services/workflow/validation.js";
 import type { WorkflowRunMode } from "../services/workflow/types.js";
 import {
   createWorkflow,
@@ -128,7 +129,10 @@ async function executeWorkflowRequest(
   try {
     run = await executeWorkflow(workflowId, mode, context, parsedBody.data.inputs);
   } catch (error) {
-    if (error instanceof WorkflowInputValidationError) {
+    if (
+      error instanceof WorkflowInputValidationError
+      || error instanceof WorkflowDefinitionValidationError
+    ) {
       return reply.code(400).send({ ok: false, message: error.message });
     }
 

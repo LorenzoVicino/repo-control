@@ -1,8 +1,30 @@
 import AddIcon from "@mui/icons-material/Add";
-import { Box, Button, Chip, CircularProgress, Divider, List, ListItemButton, ListItemText, Paper, Stack, Typography } from "@mui/material";
+import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
+import {
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Divider,
+  InputAdornment,
+  List,
+  ListItemButton,
+  ListItemText,
+  Paper,
+  Stack,
+  TextField,
+  Typography
+} from "@mui/material";
+import React from "react";
 import type { WorkflowDefinition, WorkflowRun } from "../../types/workflows";
+import {
+  getWorkflowRunStatusColor,
+  getWorkflowRunStatusLabel
+} from "./workflowRunStatus";
+import { validateWorkflow } from "./workflowValidation";
 
 type AutomationWorkflowListProps = {
+  embedded?: boolean;
   workflows: WorkflowDefinition[];
   runs: WorkflowRun[];
   selectedWorkflowId: string | null;
@@ -12,6 +34,7 @@ type AutomationWorkflowListProps = {
 };
 
 export function AutomationWorkflowList({
+  embedded = false,
   workflows,
   runs,
   selectedWorkflowId,
@@ -19,24 +42,69 @@ export function AutomationWorkflowList({
   onSelectWorkflow,
   onCreateWorkflow
 }: AutomationWorkflowListProps) {
+  const [query, setQuery] = React.useState("");
+  const visibleWorkflows = workflows.filter((workflow) => {
+    const searchableText = `${workflow.name} ${workflow.description}`.toLocaleLowerCase("it");
+    return searchableText.includes(query.trim().toLocaleLowerCase("it"));
+  });
+
   return (
-    <Paper variant="outlined" sx={{ overflow: "hidden", position: { xl: "sticky" }, top: { xl: 92 } }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1.5, py: 1.25 }}>
+    <Paper
+      variant={embedded ? undefined : "outlined"}
+      square={embedded}
+      sx={{
+        overflow: "hidden",
+        position: embedded ? "static" : { lg: "sticky" },
+        top: embedded ? undefined : { lg: 92 }
+      }}
+    >
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1.5, py: 1.4 }}>
         <Box>
-          <Typography variant="subtitle2" fontWeight={800}>Workflow</Typography>
-          <Typography variant="caption" color="text.secondary">{workflows.length} automazioni</Typography>
+          <Typography variant="subtitle2" fontWeight={800}>I tuoi workflow</Typography>
+          <Typography variant="caption" color="text.secondary">{workflows.length} totali</Typography>
         </Box>
         <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={onCreateWorkflow}>Nuovo</Button>
       </Stack>
       <Divider />
+      {workflows.length > 0 ? (
+        <Box sx={{ p: 1 }}>
+          <TextField
+            fullWidth
+            size="small"
+            value={query}
+            placeholder="Cerca workflow"
+            onChange={(event) => setQuery(event.target.value)}
+            inputProps={{ "aria-label": "Cerca workflow" }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchOutlinedIcon fontSize="small" />
+                </InputAdornment>
+              )
+            }}
+          />
+        </Box>
+      ) : null}
       {loading ? (
         <Box sx={{ minHeight: 180, display: "grid", placeItems: "center" }}><CircularProgress size={24} /></Box>
       ) : workflows.length === 0 ? (
-        <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>Nessun workflow</Typography>
+        <Stack spacing={0.5} sx={{ p: 2 }}>
+          <Typography variant="body2" fontWeight={750}>Nessun workflow</Typography>
+          <Typography variant="caption" color="text.secondary">Parti da un template e personalizza il flusso.</Typography>
+        </Stack>
+      ) : visibleWorkflows.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>Nessun risultato per “{query}”.</Typography>
       ) : (
-        <List disablePadding sx={{ maxHeight: { xl: "calc(100dvh - 240px)" }, overflowY: "auto" }}>
-          {workflows.map((workflow) => {
+        <List
+          disablePadding
+          sx={{
+            maxHeight: embedded ? "calc(min(70dvh, 620px) - 132px)" : { lg: "calc(100dvh - 240px)" },
+            overflowY: "auto"
+          }}
+        >
+          {visibleWorkflows.map((workflow) => {
             const lastRun = runs.find((run) => run.workflowId === workflow.id);
+            const validation = validateWorkflow(workflow.nodes, workflow.edges);
 
             return (
               <ListItemButton
@@ -55,8 +123,8 @@ export function AutomationWorkflowList({
                           component="span"
                           size="small"
                           variant="outlined"
-                          color={lastRun.status === "success" ? "success" : "error"}
-                          label={lastRun.status === "success" ? "Riuscita" : "Fallita"}
+                          color={getWorkflowRunStatusColor(lastRun.status)}
+                          label={getWorkflowRunStatusLabel(lastRun.status)}
                         />
                       ) : null}
                     </Stack>
@@ -65,7 +133,7 @@ export function AutomationWorkflowList({
                   secondaryTypographyProps={{ component: "div" }}
                 />
                 <Box
-                  aria-label={workflow.active ? "Workflow attivo" : "Workflow inattivo"}
+                  aria-label={validation.isRunnable ? "Workflow pronto" : "Workflow da completare"}
                   sx={{
                     width: 8,
                     height: 8,
@@ -73,7 +141,7 @@ export function AutomationWorkflowList({
                     ml: 0.75,
                     flexShrink: 0,
                     borderRadius: "50%",
-                    bgcolor: workflow.active ? "success.main" : "action.disabled"
+                    bgcolor: validation.isRunnable ? "success.main" : "warning.main"
                   }}
                 />
               </ListItemButton>

@@ -12,7 +12,7 @@ export function WorkspaceToolbarPicker({ root, error, isPicking, onPick }: Works
   const displayPath = root || "Seleziona workspace";
 
   return (
-    <Tooltip title={error ?? `${displayPath} · Ctrl+O`}>
+    <Tooltip title={error ?? `${displayPath} · Ctrl+O`} disableInteractive>
       <Stack
         direction="row"
         spacing={0.75}

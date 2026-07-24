@@ -32,7 +32,7 @@ import { FavoriteProjects, WorkspaceMap } from "./WorkspaceMap";
 import { ProjectWorkspaceTabs } from "../project/ProjectWorkspaceTabs";
 import { getProjectPanelId } from "../project/projectWorkspaceIds";
 import type { AppUpdateResult } from "../../types/app";
-import type { ColorMode, ViewMode } from "../../types/common";
+import type { ColorPalette, ViewMode } from "../../types/common";
 import type { DockerContainerGroup } from "../../types/docker";
 import type { ProjectsResponse } from "../../types/projects";
 import { commandErrorResult } from "../../utils/commandResult";
@@ -43,9 +43,14 @@ const APP_UPDATE_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const DOCKER_POLL_INTERVAL_MS = 30 * 1000;
 const MAX_WARM_PROJECT_PANELS = 4;
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "repo-control-sidebar-collapsed";
+const loadAppMotionBackdrop = () => import("./AppMotionBackdrop");
 const loadAutomationPage = () => import("../automation/AutomationPage");
 const loadProjectDetailPanel = () => import("../project/ProjectDetailPanel");
 const loadTaskEngineeringPage = () => import("../task/TaskEngineeringPage");
+const AppMotionBackdrop = React.lazy(async () => {
+  const module = await loadAppMotionBackdrop();
+  return { default: module.AppMotionBackdrop };
+});
 const AutomationPage = React.lazy(async () => {
   const module = await loadAutomationPage();
   return { default: module.AutomationPage };
@@ -70,13 +75,16 @@ const sectionReveal = keyframes`
 `;
 
 type ProjectsDashboardProps = {
-  colorMode: ColorMode;
-  onToggleColorMode: () => void;
+  colorPalette: ColorPalette;
+  onColorPaletteChange: (colorPalette: ColorPalette) => void;
 };
 
 function ignoreCommandResult(): void {}
 
-export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDashboardProps) {
+export function ProjectsDashboard({
+  colorPalette,
+  onColorPaletteChange
+}: ProjectsDashboardProps) {
   const queryClient = useQueryClient();
   const [isNavigating, startNavigationTransition] = React.useTransition();
   const [viewMode, setViewMode] = React.useState<ViewMode>("map");
@@ -402,13 +410,30 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
     }
   }
 
+  const isAutomationWorkspace = !activeProject && activeSection === "automations";
+
   return (
-    <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "flex-start", bgcolor: "background.default" }}>
+    <Box
+      sx={{
+        position: "relative",
+        isolation: "isolate",
+        minHeight: "100vh",
+        height: isAutomationWorkspace ? "100dvh" : undefined,
+        display: "flex",
+        alignItems: isAutomationWorkspace ? "stretch" : "flex-start",
+        overflow: isAutomationWorkspace ? "hidden" : "visible",
+        bgcolor: "background.default"
+      }}
+    >
+      <React.Suspense fallback={null}>
+        <AppMotionBackdrop />
+      </React.Suspense>
+
       <DashboardSidebar
         activeSection={activeSection}
         collapsed={isSidebarCollapsed}
         mobileOpen={isMobileSidebarOpen}
-        colorMode={colorMode}
+        colorPalette={colorPalette}
         repositoryCount={projects.length}
         favoriteCount={favoriteProjectCount}
         dockerCount={dockerStatus?.groups.length ?? 0}
@@ -421,10 +446,22 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
         onPickWorkspace={() => {
           void handleFolderPick();
         }}
-        onToggleColorMode={onToggleColorMode}
+        onColorPaletteChange={onColorPaletteChange}
       />
 
-      <Box sx={{ minWidth: 0, flexGrow: 1, minHeight: "100vh" }}>
+      <Box
+        sx={{
+          position: "relative",
+          zIndex: 1,
+          minWidth: 0,
+          flexGrow: 1,
+          minHeight: "100vh",
+          height: isAutomationWorkspace ? "100dvh" : undefined,
+          display: isAutomationWorkspace ? "flex" : "block",
+          flexDirection: isAutomationWorkspace ? "column" : undefined,
+          overflow: isAutomationWorkspace ? "hidden" : "visible"
+        }}
+      >
       <DashboardAppBar
         activeSection={activeSection}
         activeProjectName={activeProject?.name ?? null}
@@ -455,12 +492,18 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
         aria-busy={isNavigating}
         maxWidth={false}
         sx={{
-          maxWidth: 1680,
-          px: { xs: 1.5, sm: 2.5, lg: 3 },
-          py: activeProject ? { xs: 1.5, md: 2 } : { xs: 2, md: 3 }
+          maxWidth: isAutomationWorkspace ? "none" : 1680,
+          px: isAutomationWorkspace ? 0 : { xs: 1.5, sm: 2.5, lg: 3 },
+          py: isAutomationWorkspace ? 0 : activeProject ? { xs: 1.5, md: 2 } : { xs: 2, md: 3 },
+          flexGrow: isAutomationWorkspace ? 1 : undefined,
+          minHeight: isAutomationWorkspace ? 0 : undefined,
+          overflow: isAutomationWorkspace ? "hidden" : "visible"
         }}
       >
-        <Stack spacing={{ xs: 2.5, md: 3 }}>
+        <Stack
+          spacing={{ xs: 2.5, md: 3 }}
+          sx={{ height: isAutomationWorkspace ? "100%" : undefined, minHeight: 0 }}
+        >
           {activeProject ? (
             <ViewEntrance>
               <Box
@@ -520,9 +563,9 @@ export function ProjectsDashboard({ colorMode, onToggleColorMode }: ProjectsDash
           ) : null}
 
           {!activeProject && activeSection === "automations" ? (
-            <ViewEntrance>
+            <ViewEntrance fill>
               <React.Suspense
-                fallback={<SectionLoading label="Caricamento automazioni" />}
+                fallback={<SectionLoading label="Caricamento automazioni" fill />}
               >
                 <AutomationPage projects={projects} />
               </React.Suspense>
@@ -665,20 +708,23 @@ function ProjectDetailLoading() {
 type SectionLoadingProps = {
   label: string;
   minHeight?: number;
+  fill?: boolean;
 };
 
-function SectionLoading({ label, minHeight = 420 }: SectionLoadingProps) {
+function SectionLoading({ label, minHeight = 420, fill = false }: SectionLoadingProps) {
   return (
-    <Box sx={{ minHeight, display: "grid", placeItems: "center" }}>
+    <Box sx={{ minHeight: fill ? 0 : minHeight, height: fill ? "100%" : undefined, display: "grid", placeItems: "center" }}>
       <CircularProgress aria-label={label} />
     </Box>
   );
 }
 
-function ViewEntrance({ children }: React.PropsWithChildren) {
+function ViewEntrance({ children, fill = false }: React.PropsWithChildren<{ fill?: boolean }>) {
   return (
     <Box
       sx={{
+        height: fill ? "100%" : undefined,
+        minHeight: 0,
         animation: `${sectionReveal} 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both`,
         "@media (prefers-reduced-motion: reduce)": { animation: "none" }
       }}

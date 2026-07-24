@@ -30,6 +30,7 @@ type AutomationExecutionDialogProps = {
   workflowName: string;
   mode: WorkflowRunMode;
   nodes: WorkflowNode[];
+  willSaveChanges: boolean;
   loading: boolean;
   error: string | null;
   onClose: () => void;
@@ -40,6 +41,7 @@ export function AutomationExecutionDialog({
   workflowName,
   mode,
   nodes,
+  willSaveChanges,
   loading,
   error,
   onClose,
@@ -103,6 +105,11 @@ export function AutomationExecutionDialog({
 
             {configurationError ? <Alert severity="error">{configurationError}</Alert> : null}
             {error ? <Alert severity="error">{error}</Alert> : null}
+            {willSaveChanges ? (
+              <Alert severity="info" variant="outlined">
+                Le modifiche correnti verranno salvate prima di generare questa esecuzione.
+              </Alert>
+            ) : null}
 
             {definitions.length > 0 ? (
               <>

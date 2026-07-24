@@ -1,11 +1,12 @@
 import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
-import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
+import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
+import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import StarBorderOutlinedIcon from "@mui/icons-material/StarBorderOutlined";
 import StorageOutlinedIcon from "@mui/icons-material/StorageOutlined";
 import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
@@ -18,13 +19,16 @@ import {
   Divider,
   Drawer,
   IconButton,
+  Menu,
+  MenuItem,
   Stack,
   Tooltip,
   Typography
 } from "@mui/material";
 import React from "react";
 import { APP_VERSION } from "../../config";
-import type { ColorMode } from "../../types/common";
+import { COLOR_PALETTE_OPTIONS } from "../../theme";
+import type { ColorPalette } from "../../types/common";
 import { WorkspaceToolbarPicker } from "./WorkspaceToolbarPicker";
 
 export type DashboardSection = "overview" | "tasks" | "automations" | "docker" | "favorites" | "repositories";
@@ -50,7 +54,7 @@ type DashboardSidebarProps = {
   activeSection: DashboardSection;
   collapsed: boolean;
   mobileOpen: boolean;
-  colorMode: ColorMode;
+  colorPalette: ColorPalette;
   repositoryCount: number;
   favoriteCount: number;
   dockerCount: number;
@@ -61,7 +65,7 @@ type DashboardSidebarProps = {
   onToggleCollapsed: () => void;
   onCloseMobile: () => void;
   onPickWorkspace: () => void;
-  onToggleColorMode: () => void;
+  onColorPaletteChange: (colorPalette: ColorPalette) => void;
 };
 
 export function DashboardSidebar(props: DashboardSidebarProps) {
@@ -119,7 +123,7 @@ type SidebarContentProps = DashboardSidebarProps & {
 function SidebarContent({
   activeSection,
   collapsed,
-  colorMode,
+  colorPalette,
   repositoryCount,
   favoriteCount,
   dockerCount,
@@ -130,9 +134,12 @@ function SidebarContent({
   onToggleCollapsed,
   onCloseMobile,
   onPickWorkspace,
-  onToggleColorMode,
+  onColorPaletteChange,
   isMobile
 }: SidebarContentProps) {
+  const [paletteMenuAnchor, setPaletteMenuAnchor] = React.useState<HTMLElement | null>(null);
+  const activePalette = COLOR_PALETTE_OPTIONS.find((option) => option.id === colorPalette)
+    ?? COLOR_PALETTE_OPTIONS[0];
   const counts: Record<DashboardSection, number | null> = {
     overview: null,
     tasks: null,
@@ -208,6 +215,7 @@ function SidebarContent({
             return (
               <Tooltip key={item.id} title={collapsed ? item.label : ""} placement="right">
                 <ButtonBase
+                  data-dashboard-section={item.id}
                   onClick={() => {
                     onNavigate(item.id);
                     if (isMobile) {
@@ -286,7 +294,11 @@ function SidebarContent({
 
       <Box sx={{ p: 1, flexShrink: 0 }}>
         {collapsed ? (
-          <Tooltip title={`${workspaceRoot || "Seleziona workspace"} · Ctrl+O`} placement="right">
+          <Tooltip
+            title={`${workspaceRoot || "Seleziona workspace"} · Ctrl+O`}
+            placement="right"
+            disableInteractive
+          >
             <span>
               <IconButton
                 onClick={onPickWorkspace}
@@ -312,10 +324,12 @@ function SidebarContent({
       <Divider />
 
       <Box sx={{ p: 1, flexShrink: 0 }}>
-        <Tooltip title={collapsed ? (colorMode === "light" ? "Tema scuro" : "Tema chiaro") : ""} placement="right">
+        <Tooltip title={collapsed ? `Palette: ${activePalette.label}` : ""} placement="right">
           <ButtonBase
-            onClick={onToggleColorMode}
-            aria-label={colorMode === "light" ? "Passa al tema scuro" : "Passa al tema chiaro"}
+            onClick={(event) => setPaletteMenuAnchor(event.currentTarget)}
+            aria-label={`Seleziona palette colori. Attiva: ${activePalette.label}`}
+            aria-haspopup="menu"
+            aria-expanded={Boolean(paletteMenuAnchor)}
             sx={{
               width: "100%",
               minHeight: 40,
@@ -326,10 +340,10 @@ function SidebarContent({
               "&:hover": { bgcolor: "action.hover", color: "text.primary" }
             }}
           >
-            {colorMode === "light" ? <DarkModeOutlinedIcon fontSize="small" /> : <LightModeOutlinedIcon fontSize="small" />}
+            <PaletteOutlinedIcon fontSize="small" />
             {collapsed ? null : (
               <Typography variant="body2" sx={{ ml: 1.25, fontWeight: 600 }}>
-                {colorMode === "light" ? "Tema scuro" : "Tema chiaro"}
+                {activePalette.label}
               </Typography>
             )}
             {collapsed ? null : (
@@ -337,8 +351,74 @@ function SidebarContent({
                 v{APP_VERSION}
               </Typography>
             )}
+            {collapsed ? null : (
+              <KeyboardArrowDownRoundedIcon
+                fontSize="small"
+                sx={{
+                  ml: 0.5,
+                  transform: paletteMenuAnchor ? "rotate(180deg)" : "none",
+                  transition: "transform 160ms ease"
+                }}
+              />
+            )}
           </ButtonBase>
         </Tooltip>
+        <Menu
+          anchorEl={paletteMenuAnchor}
+          open={Boolean(paletteMenuAnchor)}
+          onClose={() => setPaletteMenuAnchor(null)}
+          anchorOrigin={{ vertical: "top", horizontal: collapsed ? "right" : "left" }}
+          transformOrigin={{ vertical: "bottom", horizontal: "left" }}
+          slotProps={{
+            list: {
+              "aria-label": "Palette colori",
+              sx: { p: 0.75, minWidth: 196 }
+            },
+            paper: {
+              sx: {
+                mb: 0.75,
+                border: "1px solid",
+                borderColor: "divider"
+              }
+            }
+          }}
+        >
+          {COLOR_PALETTE_OPTIONS.map((option) => {
+            const isSelected = option.id === colorPalette;
+
+            return (
+              <MenuItem
+                key={option.id}
+                role="menuitemradio"
+                aria-checked={isSelected}
+                selected={isSelected}
+                onClick={() => {
+                  onColorPaletteChange(option.id);
+                  setPaletteMenuAnchor(null);
+                }}
+                sx={{ minHeight: 42, borderRadius: 0.75, gap: 1.25 }}
+              >
+                <Box
+                  aria-hidden="true"
+                  sx={{
+                    width: 22,
+                    height: 22,
+                    flexShrink: 0,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: "50%",
+                    background: `linear-gradient(135deg, ${option.surface} 0 50%, ${option.color} 50% 100%)`,
+                    boxShadow: (theme) => `0 0 0 2px ${theme.palette.background.paper}`
+                  }}
+                />
+                <Typography variant="body2" fontWeight={isSelected ? 750 : 600} sx={{ flexGrow: 1 }}>
+                  {option.label}
+                </Typography>
+                {isSelected ? <CheckRoundedIcon color="primary" fontSize="small" /> : null}
+              </MenuItem>
+            );
+          })}
+        </Menu>
       </Box>
     </Stack>
   );
