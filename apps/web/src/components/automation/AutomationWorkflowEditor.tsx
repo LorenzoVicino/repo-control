@@ -27,7 +27,7 @@ import {
   Typography,
   useTheme
 } from "@mui/material";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addEdge,
   Background,
@@ -43,7 +43,7 @@ import {
   type OnBeforeDelete
 } from "@xyflow/react";
 import React from "react";
-import { deleteWorkflow, executeWorkflow, updateWorkflow } from "../../api/workflows";
+import { cancelWorkflowRun, deleteWorkflow, executeWorkflow, fetchWorkflowRun, updateWorkflow } from "../../api/workflows";
 import type {
   WorkflowDefinition,
   WorkflowDraft,
@@ -76,6 +76,9 @@ import {
   getUniqueWorkflowInputKey,
 } from "./workflowInputs";
 import { validateWorkflow } from "./workflowValidation";
+import { isActiveWorkflowRunStatus } from "./workflowRunStatus";
+
+const ACTIVE_RUN_POLL_INTERVAL_MS = 1_500;
 
 const NODE_TYPES = { automation: AutomationNode };
 
@@ -104,6 +107,7 @@ export function AutomationWorkflowEditor({
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
   const [nodeMenuAnchor, setNodeMenuAnchor] = React.useState<HTMLElement | null>(null);
   const [runToDisplay, setRunToDisplay] = React.useState<WorkflowRun | null>(null);
+  const [activeRunId, setActiveRunId] = React.useState<string | null>(null);
   const [executionMode, setExecutionMode] = React.useState<WorkflowRunMode | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
   const [editorError, setEditorError] = React.useState<string | null>(null);
@@ -158,7 +162,7 @@ export function AutomationWorkflowEditor({
     onSuccess: async (run) => {
       setEditorError(null);
       setExecutionMode(null);
-      setRunToDisplay(run);
+      openRun(run);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["workflows"] }),
         queryClient.invalidateQueries({ queryKey: ["workflow-runs"] })
@@ -174,7 +178,52 @@ export function AutomationWorkflowEditor({
     },
     onError: (error) => setEditorError(getErrorMessage(error))
   });
+  const cancelMutation = useMutation({
+    mutationFn: (runId: string) => cancelWorkflowRun(runId),
+    onError: (error) => setEditorError(getErrorMessage(error))
+  });
   const busy = saveMutation.isPending || runMutation.isPending || deleteMutation.isPending;
+
+  // A run just started ("run" mode) is only ever a pending/running placeholder - its
+  // up-to-date state comes from polling, not from the mutation result.
+  const activeRunQuery = useQuery({
+    queryKey: ["workflow-run", activeRunId],
+    queryFn: () => fetchWorkflowRun(activeRunId as string),
+    enabled: Boolean(activeRunId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status && isActiveWorkflowRunStatus(status) ? ACTIVE_RUN_POLL_INTERVAL_MS : false;
+    },
+    refetchIntervalInBackground: false
+  });
+  const displayedRun = activeRunId ? activeRunQuery.data ?? null : runToDisplay;
+  const previousActiveRunStatus = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    const status = activeRunId ? activeRunQuery.data?.status ?? null : null;
+
+    if (status && !isActiveWorkflowRunStatus(status) && previousActiveRunStatus.current !== status) {
+      void queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      void queryClient.invalidateQueries({ queryKey: ["workflow-runs"] });
+    }
+
+    previousActiveRunStatus.current = status;
+  }, [activeRunId, activeRunQuery.data?.status, queryClient]);
+
+  function openRun(run: WorkflowRun) {
+    if (isActiveWorkflowRunStatus(run.status)) {
+      setRunToDisplay(null);
+      setActiveRunId(run.id);
+    } else {
+      setActiveRunId(null);
+      setRunToDisplay(run);
+    }
+  }
+
+  function closeRunDialog() {
+    setActiveRunId(null);
+    setRunToDisplay(null);
+  }
 
   const isValidConnection = React.useCallback(
     (connection: Edge | Connection) => isLinearConnectionValid(connection, edges),
@@ -680,7 +729,7 @@ export function AutomationWorkflowEditor({
             </Stack>
             <AutomationRunHistory
               runs={runs}
-              onSelectRun={(run) => setRunToDisplay(run)}
+              onSelectRun={openRun}
             />
           </Box>
         </Box>
@@ -739,7 +788,12 @@ export function AutomationWorkflowEditor({
         </DialogActions>
       </Dialog>
 
-      <AutomationRunDialog run={runToDisplay} onClose={() => setRunToDisplay(null)} />
+      <AutomationRunDialog
+        run={displayedRun}
+        onClose={closeRunDialog}
+        onCancel={activeRunId ? () => cancelMutation.mutate(activeRunId) : undefined}
+        cancelling={cancelMutation.isPending}
+      />
     </Box>
   );
 }

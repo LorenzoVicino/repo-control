@@ -58,3 +58,15 @@ export function fetchWorkflowRuns(workflowId?: string): Promise<WorkflowRunsResp
   const endpoint = workflowId ? `/api/workflows/${workflowId}/runs` : "/api/workflow-runs";
   return requestJson(endpoint, "Unable to load workflow runs");
 }
+
+export function fetchWorkflowRun(runId: string): Promise<WorkflowRun> {
+  return requestJson(`/api/workflow-runs/${runId}`, "Unable to load run status");
+}
+
+export function cancelWorkflowRun(runId: string): Promise<{ ok: boolean }> {
+  return requestJson(
+    `/api/workflow-runs/${runId}/cancel`,
+    "Unable to cancel run",
+    { method: "POST" }
+  );
+}

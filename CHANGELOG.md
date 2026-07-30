@@ -6,6 +6,29 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.4.0] - 2026-07-30
+
+### Added
+
+- Add cancellable background workflow runs with live pending, running and interrupted states.
+- Add run polling and cancellation APIs, plus live progress and cancellation controls in the automation workspace.
+- Add startup recovery for workflow runs interrupted by an application restart.
+
+### Changed
+
+- Return accepted workflow runs immediately and persist step results as background execution progresses.
+- Prevent the same workflow from starting more than one active run at a time.
+- Remove the duplicate version label from the palette control in the sidebar.
+
+### Fixed
+
+- Terminate complete command process groups on cancellation or timeout, including commands that leave background descendants running.
+- Preserve incomplete workflow timestamps and status details while normalizing persisted run history.
+
+### Removed
+
+- Remove the superseded task-engineering workspace design draft.
+
 ## [0.3.0] - 2026-07-24
 
 ### Added

@@ -4,10 +4,47 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
 import { createServer } from "./server.js";
 
 const execFileAsync = promisify(execFile);
+const TERMINAL_RUN_STATUSES = new Set(["success", "warning", "failed", "cancelled", "interrupted"]);
+
+type TestWorkflowRunStep = {
+  nodeId: string;
+  status: string;
+  message: string;
+  stdout: string;
+  command: string | null;
+};
+
+type TestWorkflowRun = {
+  id: string;
+  mode: string;
+  status: string;
+  steps: TestWorkflowRunStep[];
+};
+
+async function waitForTerminalRun(
+  app: Awaited<ReturnType<typeof createServer>>["app"],
+  runId: string
+): Promise<TestWorkflowRun> {
+  const deadline = Date.now() + 15_000;
+
+  while (Date.now() < deadline) {
+    const response = await app.inject({ method: "GET", url: `/api/workflow-runs/${runId}` });
+    const run = response.json() as TestWorkflowRun;
+
+    if (TERMINAL_RUN_STATUSES.has(run.status)) {
+      return run;
+    }
+
+    await delay(25);
+  }
+
+  throw new Error(`Run ${runId} did not reach a terminal status in time`);
+}
 
 test("boots the API and serves safe workspace endpoints", async (context) => {
   const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "repo-control-server-test-"));
@@ -162,14 +199,14 @@ test("boots the API and serves safe workspace endpoints", async (context) => {
     url: `/api/workflows/${inputWorkflowId}/run`,
     payload: { inputs: { message: shellSensitiveValue } }
   });
-  assert.equal(inputRunResponse.statusCode, 200);
-  const commandStep = inputRunResponse.json().steps.find(
-    (step: { nodeId: string }) => step.nodeId === "input-command"
-  );
-  assert.equal(commandStep.status, "success");
-  assert.equal(commandStep.stdout.trim(), shellSensitiveValue);
-  assert.match(commandStep.command, /REPO_CONTROL_INPUT_MESSAGE/);
-  assert.equal(commandStep.command.includes(shellSensitiveValue), false);
+  assert.equal(inputRunResponse.statusCode, 202);
+  assert.equal(["pending", "running"].includes(inputRunResponse.json().status), true);
+  const completedInputRun = await waitForTerminalRun(app, inputRunResponse.json().id);
+  const commandStep = completedInputRun.steps.find((step) => step.nodeId === "input-command");
+  assert.equal(commandStep?.status, "success");
+  assert.equal(commandStep?.stdout.trim(), shellSensitiveValue);
+  assert.match(commandStep?.command ?? "", /REPO_CONTROL_INPUT_MESSAGE/);
+  assert.equal(commandStep?.command?.includes(shellSensitiveValue), false);
 
   const disconnectedWorkflowResponse = await app.inject({
     method: "POST",
@@ -262,14 +299,15 @@ test("boots the API and serves safe workspace endpoints", async (context) => {
     url: `/api/workflows/${failFastWorkflowResponse.json().id}/run`,
     payload: { inputs: {} }
   });
-  assert.equal(failFastRunResponse.statusCode, 200);
-  assert.equal(failFastRunResponse.json().status, "failed");
+  assert.equal(failFastRunResponse.statusCode, 202);
+  const completedFailFastRun = await waitForTerminalRun(app, failFastRunResponse.json().id);
+  assert.equal(completedFailFastRun.status, "failed");
   assert.equal(
-    failFastRunResponse.json().steps.find((step: { nodeId: string }) => step.nodeId === "must-not-run").status,
+    completedFailFastRun.steps.find((step) => step.nodeId === "must-not-run")?.status,
     "skipped"
   );
   assert.equal(
-    failFastRunResponse.json().steps.find((step: { nodeId: string }) => step.nodeId === "must-not-run").message,
+    completedFailFastRun.steps.find((step) => step.nodeId === "must-not-run")?.message,
     "Skipped because a previous step failed"
   );
 
@@ -314,8 +352,89 @@ test("boots the API and serves safe workspace endpoints", async (context) => {
     url: `/api/workflows/${warningWorkflowResponse.json().id}/run`,
     payload: { inputs: {} }
   });
-  assert.equal(warningRunResponse.statusCode, 200);
-  assert.equal(warningRunResponse.json().status, "warning");
+  assert.equal(warningRunResponse.statusCode, 202);
+  const completedWarningRun = await waitForTerminalRun(app, warningRunResponse.json().id);
+  assert.equal(completedWarningRun.status, "warning");
+
+  const [firstConcurrentRunResponse, secondConcurrentRunResponse] = await Promise.all([
+    app.inject({
+      method: "POST",
+      url: `/api/workflows/${warningWorkflowResponse.json().id}/run`,
+      payload: { inputs: {} }
+    }),
+    app.inject({
+      method: "POST",
+      url: `/api/workflows/${warningWorkflowResponse.json().id}/run`,
+      payload: { inputs: {} }
+    })
+  ]);
+  const concurrentStatusCodes = [firstConcurrentRunResponse.statusCode, secondConcurrentRunResponse.statusCode].sort();
+  assert.deepEqual(concurrentStatusCodes, [202, 409]);
+  const acceptedConcurrentRun = firstConcurrentRunResponse.statusCode === 202
+    ? firstConcurrentRunResponse
+    : secondConcurrentRunResponse;
+  await waitForTerminalRun(app, acceptedConcurrentRun.json().id);
+
+  const cancellableWorkflowResponse = await app.inject({
+    method: "POST",
+    url: "/api/workflows",
+    payload: {
+      name: "Cancellable workflow",
+      description: "",
+      active: true,
+      nodes: [
+        {
+          id: "cancel-trigger",
+          type: "trigger.manual",
+          name: "Start",
+          position: { x: 0, y: 0 },
+          config: {}
+        },
+        {
+          id: "cancel-repositories",
+          type: "repository.select",
+          name: "Repositories",
+          position: { x: 200, y: 0 },
+          config: { mode: "all", projectIds: [] }
+        },
+        {
+          id: "cancel-command",
+          type: "terminal.command",
+          name: "Slow command",
+          position: { x: 400, y: 0 },
+          config: { command: "sleep 5" }
+        }
+      ],
+      edges: [
+        { id: "cancel-1", source: "cancel-trigger", target: "cancel-repositories" },
+        { id: "cancel-2", source: "cancel-repositories", target: "cancel-command" }
+      ]
+    }
+  });
+  const cancellableRunResponse = await app.inject({
+    method: "POST",
+    url: `/api/workflows/${cancellableWorkflowResponse.json().id}/run`,
+    payload: { inputs: {} }
+  });
+  assert.equal(cancellableRunResponse.statusCode, 202);
+  const cancellableRunId = cancellableRunResponse.json().id;
+  const cancelResponse = await app.inject({
+    method: "POST",
+    url: `/api/workflow-runs/${cancellableRunId}/cancel`
+  });
+  assert.equal(cancelResponse.statusCode, 200);
+  assert.equal(cancelResponse.json().ok, true);
+  const cancelledRun = await waitForTerminalRun(app, cancellableRunId);
+  assert.equal(cancelledRun.status, "cancelled");
+
+  const cancelMissingRunResponse = await app.inject({
+    method: "POST",
+    url: "/api/workflow-runs/missing-run/cancel"
+  });
+  assert.equal(cancelMissingRunResponse.statusCode, 404);
+
+  const missingRunResponse = await app.inject({ method: "GET", url: "/api/workflow-runs/missing-run" });
+  assert.equal(missingRunResponse.statusCode, 404);
 
   const concurrentWorkflowPayload = (name: string) => ({
     name,

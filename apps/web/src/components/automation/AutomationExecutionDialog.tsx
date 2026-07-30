@@ -86,7 +86,7 @@ export function AutomationExecutionDialog({
   return (
     <Dialog
       open
-      onClose={loading ? undefined : onClose}
+      onClose={onClose}
       fullWidth
       maxWidth="sm"
       aria-labelledby="automation-execution-title"

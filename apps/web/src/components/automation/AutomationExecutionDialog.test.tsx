@@ -38,6 +38,27 @@ describe("AutomationExecutionDialog", () => {
       channel: "stable"
     });
   });
+
+  it("stays closable while a request is in flight (does not freeze while loading)", () => {
+    const onClose = vi.fn();
+
+    renderWithTheme(
+      <AutomationExecutionDialog
+        workflowName="Release workflow"
+        mode="run"
+        nodes={[]}
+        willSaveChanges={false}
+        loading
+        error={null}
+        onClose={onClose}
+        onSubmit={vi.fn()}
+      />
+    );
+
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
+
+    expect(onClose).toHaveBeenCalled();
+  });
 });
 
 function createInputNode(

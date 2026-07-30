@@ -26,7 +26,6 @@ import {
   Typography
 } from "@mui/material";
 import React from "react";
-import { APP_VERSION } from "../../config";
 import { COLOR_PALETTE_OPTIONS } from "../../theme";
 import type { ColorPalette } from "../../types/common";
 import { WorkspaceToolbarPicker } from "./WorkspaceToolbarPicker";
@@ -347,15 +346,10 @@ function SidebarContent({
               </Typography>
             )}
             {collapsed ? null : (
-              <Typography variant="caption" color="text.disabled" sx={{ ml: "auto" }}>
-                v{APP_VERSION}
-              </Typography>
-            )}
-            {collapsed ? null : (
               <KeyboardArrowDownRoundedIcon
                 fontSize="small"
                 sx={{
-                  ml: 0.5,
+                  ml: "auto",
                   transform: paletteMenuAnchor ? "rotate(180deg)" : "none",
                   transition: "transform 160ms ease"
                 }}

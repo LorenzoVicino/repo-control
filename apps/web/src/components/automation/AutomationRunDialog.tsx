@@ -1,3 +1,4 @@
+import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import SkipNextOutlinedIcon from "@mui/icons-material/SkipNextOutlined";
@@ -9,6 +10,7 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -21,15 +23,20 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type { WorkflowRun, WorkflowRunStep } from "../../types/workflows";
 import {
   getWorkflowRunStatusColor,
-  getWorkflowRunStatusLabel
+  getWorkflowRunStatusLabel,
+  isActiveWorkflowRunStatus
 } from "./workflowRunStatus";
 
 type AutomationRunDialogProps = {
   run: WorkflowRun | null;
   onClose: () => void;
+  onCancel?: () => void;
+  cancelling?: boolean;
 };
 
-export function AutomationRunDialog({ run, onClose }: AutomationRunDialogProps) {
+export function AutomationRunDialog({ run, onClose, onCancel, cancelling = false }: AutomationRunDialogProps) {
+  const isActive = Boolean(run && isActiveWorkflowRunStatus(run.status));
+
   return (
     <Dialog open={Boolean(run)} onClose={onClose} fullWidth maxWidth="md">
       {run ? (
@@ -40,6 +47,7 @@ export function AutomationRunDialog({ run, onClose }: AutomationRunDialogProps) 
               <Chip size="small" variant="outlined" label={run.mode === "dry-run" ? "Anteprima" : "Esecuzione"} />
               <Chip
                 size="small"
+                icon={isActive ? <CircularProgress size={12} color="inherit" /> : undefined}
                 color={getWorkflowRunStatusColor(run.status)}
                 label={getWorkflowRunStatusLabel(run.status)}
               />
@@ -53,6 +61,15 @@ export function AutomationRunDialog({ run, onClose }: AutomationRunDialogProps) 
             ) : run.status === "warning" ? (
               <Alert severity="warning" sx={{ mb: 2 }}>
                 L'esecuzione è terminata, ma uno o più comandi sono stati saltati.
+              </Alert>
+            ) : run.status === "cancelled" || run.status === "interrupted" ? (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                {run.statusMessage ?? "L'esecuzione non è terminata regolarmente."}
+              </Alert>
+            ) : isActive ? (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                L'esecuzione è in corso in background: puoi chiudere questa finestra, il progresso continua e resta
+                visibile nello storico.
               </Alert>
             ) : null}
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 2 }}>
@@ -89,6 +106,16 @@ export function AutomationRunDialog({ run, onClose }: AutomationRunDialogProps) 
             ))}
           </DialogContent>
           <DialogActions>
+            {isActive && onCancel ? (
+              <Button
+                color="error"
+                onClick={onCancel}
+                disabled={cancelling}
+                startIcon={cancelling ? <CircularProgress size={16} color="inherit" /> : <CancelOutlinedIcon />}
+              >
+                Annulla esecuzione
+              </Button>
+            ) : null}
             <Button onClick={onClose}>Chiudi</Button>
           </DialogActions>
         </>
@@ -100,12 +127,14 @@ export function AutomationRunDialog({ run, onClose }: AutomationRunDialogProps) 
 function StepStatusIcon({ step }: { step: WorkflowRunStep }) {
   if (step.status === "failed") return <ErrorOutlineIcon color="error" fontSize="small" />;
   if (step.status === "skipped") return <SkipNextOutlinedIcon color="warning" fontSize="small" />;
+  if (step.status === "cancelled") return <CancelOutlinedIcon color="disabled" fontSize="small" />;
   return <CheckCircleOutlineIcon color="success" fontSize="small" />;
 }
 
 function stepStatusLabel(step: WorkflowRunStep): string {
   if (step.status === "failed") return "Fallito";
   if (step.status === "skipped") return "Saltato";
+  if (step.status === "cancelled") return "Annullato";
   return "Riuscito";
 }
 
