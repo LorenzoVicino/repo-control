@@ -7,9 +7,9 @@ import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
+import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import StarBorderOutlinedIcon from "@mui/icons-material/StarBorderOutlined";
 import StorageOutlinedIcon from "@mui/icons-material/StorageOutlined";
-import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
 import {
   alpha,
   Box,
@@ -30,7 +30,14 @@ import { COLOR_PALETTE_OPTIONS } from "../../theme";
 import type { ColorPalette } from "../../types/common";
 import { WorkspaceToolbarPicker } from "./WorkspaceToolbarPicker";
 
-export type DashboardSection = "overview" | "tasks" | "automations" | "docker" | "favorites" | "repositories";
+export type DashboardSection =
+  | "overview"
+  | "tasks"
+  | "agents"
+  | "automations"
+  | "docker"
+  | "favorites"
+  | "repositories";
 
 const DESKTOP_SIDEBAR_WIDTH = 248;
 const COLLAPSED_SIDEBAR_WIDTH = 76;
@@ -42,7 +49,7 @@ const NAV_ITEMS: Array<{
   icon: React.ReactElement;
 }> = [
   { id: "overview", label: "Dashboard", icon: <DashboardOutlinedIcon /> },
-  { id: "tasks", label: "Task engineering", icon: <TaskAltOutlinedIcon /> },
+  { id: "agents", label: "Agent sessions", icon: <SmartToyOutlinedIcon /> },
   { id: "automations", label: "Automazioni", icon: <HubOutlinedIcon /> },
   { id: "docker", label: "Docker", icon: <StorageOutlinedIcon /> },
   { id: "favorites", label: "Preferiti", icon: <StarBorderOutlinedIcon /> },
@@ -142,6 +149,7 @@ function SidebarContent({
   const counts: Record<DashboardSection, number | null> = {
     overview: null,
     tasks: null,
+    agents: null,
     automations: null,
     repositories: repositoryCount,
     favorites: favoriteCount,

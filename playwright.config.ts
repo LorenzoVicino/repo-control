@@ -1,7 +1,10 @@
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
-const webBaseUrl = "http://127.0.0.1:5173";
+const apiPort = process.env.E2E_API_PORT ?? "3747";
+const webPort = process.env.E2E_WEB_PORT ?? "5173";
+const apiBaseUrl = `http://127.0.0.1:${apiPort}`;
+const webBaseUrl = `http://127.0.0.1:${webPort}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -19,7 +22,7 @@ export default defineConfig({
   webServer: [
     {
       command: "node --import tsx apps/server/src/index.ts",
-      url: "http://127.0.0.1:3747/api/health",
+      url: `${apiBaseUrl}/api/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       stdout: "pipe",
@@ -27,19 +30,23 @@ export default defineConfig({
       env: {
         ...process.env,
         HOST: "127.0.0.1",
-        PORT: "3747",
+        PORT: apiPort,
         LOG_LEVEL: "error",
         REPO_CONTROL_ROOT: process.cwd(),
         REPO_CONTROL_CONFIG_DIR: path.join(process.cwd(), ".repo-control", "e2e")
       }
     },
     {
-      command: "npm run dev:web",
+      command: `npm run dev:web -- --port ${webPort}`,
       url: webBaseUrl,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       stdout: "pipe",
-      stderr: "pipe"
+      stderr: "pipe",
+      env: {
+        ...process.env,
+        REPO_CONTROL_API_URL: apiBaseUrl
+      }
     }
   ],
   projects: [

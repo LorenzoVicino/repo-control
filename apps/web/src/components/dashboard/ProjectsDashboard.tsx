@@ -44,12 +44,17 @@ const DOCKER_POLL_INTERVAL_MS = 30 * 1000;
 const MAX_WARM_PROJECT_PANELS = 4;
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "repo-control-sidebar-collapsed";
 const loadAppMotionBackdrop = () => import("./AppMotionBackdrop");
+const loadAgentSessionsPage = () => import("../agents/AgentSessionsPage");
 const loadAutomationPage = () => import("../automation/AutomationPage");
 const loadProjectDetailPanel = () => import("../project/ProjectDetailPanel");
 const loadTaskEngineeringPage = () => import("../task/TaskEngineeringPage");
 const AppMotionBackdrop = React.lazy(async () => {
   const module = await loadAppMotionBackdrop();
   return { default: module.AppMotionBackdrop };
+});
+const AgentSessionsPage = React.lazy(async () => {
+  const module = await loadAgentSessionsPage();
+  return { default: module.AgentSessionsPage };
 });
 const AutomationPage = React.lazy(async () => {
   const module = await loadAutomationPage();
@@ -272,6 +277,7 @@ export function ProjectsDashboard({
 
   const navigateToSection = React.useCallback((section: DashboardSection) => {
     if (section === "tasks") void loadTaskEngineeringPage();
+    if (section === "agents") void loadAgentSessionsPage();
     if (section === "automations") void loadAutomationPage();
 
     startNavigationTransition(() => {
@@ -558,6 +564,14 @@ export function ProjectsDashboard({
             <ViewEntrance>
               <React.Suspense fallback={<SectionLoading label="Caricamento task engineering" />}>
                 <TaskEngineeringPage projects={projects} />
+              </React.Suspense>
+            </ViewEntrance>
+          ) : null}
+
+          {!activeProject && activeSection === "agents" ? (
+            <ViewEntrance>
+              <React.Suspense fallback={<SectionLoading label="Rilevamento sessioni agent" />}>
+                <AgentSessionsPage />
               </React.Suspense>
             </ViewEntrance>
           ) : null}

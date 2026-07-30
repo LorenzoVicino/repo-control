@@ -6,6 +6,7 @@ import { runProjectCommand, runShellCommand } from "./lib/commandRunner.js";
 import { createProjectResolver } from "./lib/projectResolver.js";
 import type { ProjectResolver } from "./lib/projectResolver.js";
 import { registerAppRoutes } from "./routes/appRoutes.js";
+import { registerAgentSessionRoutes } from "./routes/agentSessionRoutes.js";
 import { registerBrainRoutes } from "./routes/brainRoutes.js";
 import { registerClaudeRoutes } from "./routes/claudeRoutes.js";
 import { registerDockerRoutes } from "./routes/dockerRoutes.js";
@@ -72,6 +73,7 @@ export async function createServer(): Promise<{
   await reconcileStaleWorkflowRuns();
 
   await registerAppRoutes(app, context);
+  await registerAgentSessionRoutes(app, context);
   await registerDockerRoutes(app, context);
   await registerGitRoutes(app, context);
   await registerTerminalRoutes(app, context);
