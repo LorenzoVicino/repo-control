@@ -93,7 +93,7 @@ test("shares one motion backdrop across every dashboard section", async ({ page 
 
   const backdrop = page.locator("[data-app-motion-backdrop]");
 
-  for (const section of ["tasks", "docker", "favorites", "repositories", "overview", "automations"]) {
+  for (const section of ["docker", "favorites", "repositories", "overview", "automations"]) {
     const navigationButton = page.locator(`[data-dashboard-section="${section}"]`).first();
     await navigationButton.click();
     await expect(navigationButton).toHaveAttribute("aria-current", "page");
@@ -147,6 +147,86 @@ test("navigates between lazy dashboard sections without browser errors", async (
   await expect(page.getByRole("button", { name: `Apri ${workspaceRepositoryName}` })).toBeVisible();
 
   expect(browserErrors).toEqual([]);
+});
+
+test("detects local coding agents and opens the unified session history", async ({ page }, testInfo) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  const sessionsResponsePromise = page.waitForResponse((response) =>
+    response.url().endsWith("/api/agent-sessions") && response.request().method() === "GET"
+  );
+
+  await page.goto("/");
+  await page.locator('[data-dashboard-section="agents"]').first().click();
+
+  const sessionsResponse = await sessionsResponsePromise;
+  const sessionsPayload = await sessionsResponse.json();
+  expect(sessionsResponse.status()).toBe(200);
+  await expect(page.getByRole("heading", { name: "Agent sessions", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Agent rilevati")).toContainText("Claude Code");
+  await expect(page.getByLabel("Agent rilevati")).toContainText("Codex");
+  await expect(page.getByLabel("Agent rilevati")).toContainText("Gemini CLI");
+  await expect(page.getByText("Più recenti prima")).toBeVisible();
+
+  const firstSession = sessionsPayload.sessions[0] as { title: string } | undefined;
+
+  if (firstSession) {
+    const searchResponsePromise = page.waitForResponse((response) =>
+      response.url().includes("/api/agent-sessions?search=") && response.request().method() === "GET"
+    );
+    const sessionSearch = page.getByRole("textbox", {
+      name: "Cerca nei titoli e nel contenuto delle chat"
+    });
+    await sessionSearch.fill(firstSession.title);
+
+    const searchResponse = await searchResponsePromise;
+    const searchPayload = await searchResponse.json();
+    expect(searchResponse.status()).toBe(200);
+    expect(searchPayload.sessions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ title: firstSession.title })
+    ]));
+    await expect(page.getByText("Nel titolo").first()).toBeVisible();
+
+    await sessionSearch.fill("");
+    await expect(page.getByText("Nel titolo")).toHaveCount(0);
+  }
+
+  for (const label of ["Claude Code", "Codex", "Gemini CLI"]) {
+    const providerFilter = page.getByRole("button", { name: new RegExp(`Filtra per ${label}`) });
+    await providerFilter.click();
+    await expect(providerFilter).toHaveAttribute("aria-pressed", "true");
+    await providerFilter.click();
+    await expect(providerFilter).toHaveAttribute("aria-pressed", "false");
+  }
+
+  const providerWithSessions = sessionsPayload.agents.find(
+    (agent: { sessionCount: number }) => agent.sessionCount > 0
+  );
+
+  if (providerWithSessions) {
+    await page.getByRole("button", {
+      name: new RegExp(`Filtra per ${providerWithSessions.label}`)
+    }).click();
+    const sessionRows = page.getByRole("list", { name: "Sessioni agent" }).getByRole("listitem");
+    await expect(sessionRows.first()).toBeVisible();
+    await expect(sessionRows).toHaveCount(providerWithSessions.sessionCount);
+    expect(
+      await sessionRows.evaluateAll((rows, providerLabel) =>
+        rows.every((row) => row.textContent?.includes(providerLabel as string)),
+      providerWithSessions.label)
+    ).toBe(true);
+  }
+
+  await expect(page.locator(".vite-error-overlay")).toHaveCount(0);
+  expect(await page.evaluate(() => document.body.innerText.trim().length)).toBeGreaterThan(0);
+  expect(browserErrors).toEqual([]);
+  await testInfo.attach("agent-sessions", {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: "image/png"
+  });
+  if (process.env.E2E_AGENT_SCREENSHOT_PATH) {
+    await page.screenshot({ path: process.env.E2E_AGENT_SCREENSHOT_PATH, fullPage: true });
+  }
 });
 
 test("uses focused automation editor views and a searchable node library", async ({ page }) => {

@@ -31,6 +31,7 @@ import type { DashboardSection } from "./DashboardSidebar";
 const SECTION_LABELS: Record<DashboardSection, string> = {
   overview: "Dashboard",
   tasks: "Task engineering",
+  agents: "Agent sessions",
   automations: "Automazioni",
   docker: "Docker runtime",
   favorites: "Preferiti",

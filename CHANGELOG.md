@@ -6,6 +6,23 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.5.0] - 2026-07-30
+
+### Added
+
+- Add a unified local history for Codex, Claude Code and Gemini CLI sessions linked to workspace repositories.
+- Add provider filters, recent-first ordering, detected conversation titles and one-click session resume.
+- Add private local search across conversation titles and full chat content with highlighted matching snippets.
+
+### Changed
+
+- Open resumed agent sessions in Windows Terminal first when repo-control runs in WSL.
+- Hide Task engineering from the sidebar while its future redesign is pending.
+
+### Fixed
+
+- Deduplicate Claude sub-agent transcripts from the main session list.
+
 ## [0.4.0] - 2026-07-30
 
 ### Added
