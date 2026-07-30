@@ -11,6 +11,7 @@ import {
   getNumber,
   getString,
   getStringArray,
+  getStringOrEmpty,
   isRecord
 } from "./value.js";
 
@@ -104,6 +105,59 @@ test("normalizes persisted workflow runs and rejects unusable records", () => {
   );
 });
 
+test("normalizes new pending/running run statuses and preserves an empty completedAt", () => {
+  const pendingRun = normalizeWorkflowRun({
+    id: "run-pending",
+    workflowId: "workflow-1",
+    workflowName: "Workflow",
+    status: "pending",
+    completedAt: "",
+    steps: [{ id: "step-1", nodeType: "git.fetch", status: "cancelled" }]
+  });
+
+  assert.ok(pendingRun);
+  assert.equal(pendingRun.status, "pending");
+  assert.equal(pendingRun.completedAt, "");
+  assert.equal(pendingRun.statusMessage, null);
+  assert.equal(pendingRun.steps[0]?.status, "cancelled");
+
+  const interruptedRun = normalizeWorkflowRun({
+    workflowId: "workflow-1",
+    workflowName: "Workflow",
+    status: "interrupted",
+    statusMessage: "Interrupted because the server restarted before the run finished."
+  });
+
+  assert.equal(interruptedRun?.status, "interrupted");
+  assert.equal(
+    interruptedRun?.statusMessage,
+    "Interrupted because the server restarted before the run finished."
+  );
+});
+
+test("falls back to safe defaults for unknown run/step statuses (forward compatibility)", () => {
+  const run = normalizeWorkflowRun({
+    workflowId: "workflow-1",
+    workflowName: "Workflow",
+    status: "some-future-status",
+    steps: [{ id: "step-1", nodeType: "git.fetch", status: "some-future-status" }]
+  });
+
+  assert.equal(run?.status, "success");
+  assert.equal(run?.steps[0]?.status, "success");
+});
+
+test("re-reading an already-persisted, non-empty completedAt is left untouched", () => {
+  const run = normalizeWorkflowRun({
+    workflowId: "workflow-1",
+    workflowName: "Workflow",
+    status: "success",
+    completedAt: "2026-01-01T00:00:00.000Z"
+  });
+
+  assert.equal(run?.completedAt, "2026-01-01T00:00:00.000Z");
+});
+
 test("provides a connected default workflow", () => {
   const workflows = getDefaultWorkflows();
 
@@ -143,4 +197,7 @@ test("workflow value helpers reject values of the wrong shape", () => {
   assert.equal(getNumber(Number.POSITIVE_INFINITY, 4), 4);
   assert.equal(isRecord({ value: true }), true);
   assert.equal(isRecord([]), false);
+  assert.equal(getStringOrEmpty(""), "");
+  assert.equal(getStringOrEmpty(undefined), "");
+  assert.equal(getStringOrEmpty("value"), "value");
 });

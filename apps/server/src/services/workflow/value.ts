@@ -2,6 +2,13 @@ export function getString(value: unknown, fallback: string): string {
   return typeof value === "string" ? value.trim() || fallback : fallback;
 }
 
+// Unlike getString, an explicit empty string is preserved rather than replaced by the
+// fallback — needed for fields (e.g. a pending run's completedAt) where "" is a
+// meaningful, distinct value from "missing".
+export function getStringOrEmpty(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
 export function getNullableString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }

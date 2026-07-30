@@ -10,10 +10,13 @@ import {
 } from "./workflow/input.js";
 import { normalizeWorkflowDefinition } from "./workflow/schema.js";
 import {
+  insertWorkflowRun,
   mutateWorkflowFile,
   readWorkflowFile,
+  readWorkflowRun,
   readWorkflowRunsFile,
-  rememberWorkflowRun
+  reconcileStaleWorkflowRuns as reconcileStaleWorkflowRunsInStore,
+  updateWorkflowRun
 } from "./workflow/store.js";
 import type {
   WorkflowDefinition,
@@ -36,6 +39,18 @@ type ProjectAction = {
   command: string;
   run: () => Promise<CommandResult>;
 };
+
+export class WorkflowRunConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WorkflowRunConflictError";
+  }
+}
+
+// In-memory only: lost on restart, which is exactly why reconcileStaleWorkflowRuns()
+// exists (a run that was "active" before a restart can never be resumed or cancelled).
+const activeRuns = new Map<string, { workflowId: string; abortController: AbortController }>();
+const activeWorkflowIds = new Set<string>();
 
 export async function readWorkflows(): Promise<WorkflowListResponse> {
   const workflowFile = await readWorkflowFile();
@@ -110,12 +125,33 @@ export async function readWorkflowRuns(workflowId?: string): Promise<WorkflowRun
   };
 }
 
-export async function executeWorkflow(
-  workflowId: string,
-  mode: WorkflowRunMode,
-  context: WorkflowExecutionContext,
-  inputs: WorkflowRunInputs = {}
-): Promise<WorkflowRun | null> {
+export const getWorkflowRun = readWorkflowRun;
+
+// Called once at server boot, before routes start serving traffic.
+export const reconcileStaleWorkflowRuns = reconcileStaleWorkflowRunsInStore;
+
+export function cancelWorkflowRun(runId: string): "cancelled" | "not-active" {
+  const active = activeRuns.get(runId);
+
+  if (!active) {
+    return "not-active";
+  }
+
+  active.abortController.abort();
+  return "cancelled";
+}
+
+type PreparedWorkflowRun = {
+  workflow: WorkflowDefinition;
+  orderedNodes: WorkflowNode[];
+  resolvedInputs: ReturnType<typeof resolveWorkflowInputs>;
+  terminalCommands: Map<string, string>;
+};
+
+// Parsing/validation only - no I/O, no process spawning. Safe to run synchronously
+// before responding to the HTTP request; throws WorkflowInputValidationError /
+// WorkflowDefinitionValidationError, which routes map to 400.
+async function prepareWorkflowRun(workflowId: string, inputs: WorkflowRunInputs): Promise<PreparedWorkflowRun | null> {
   const workflowFile = await readWorkflowFile();
   const workflow = workflowFile.workflows.find((currentWorkflow) => currentWorkflow.id === workflowId);
 
@@ -137,22 +173,185 @@ export async function executeWorkflow(
         )
       ])
   );
+
+  return { workflow, orderedNodes, resolvedInputs, terminalCommands };
+}
+
+function buildRun(workflow: WorkflowDefinition, mode: WorkflowRunMode, status: WorkflowRun["status"]): WorkflowRun {
   const startedAt = new Date().toISOString();
+
+  return {
+    id: randomUUID(),
+    workflowId: workflow.id,
+    workflowName: workflow.name,
+    mode,
+    status,
+    startedAt,
+    completedAt: "",
+    durationMs: 0,
+    steps: [],
+    summary: summarizeRun(0, []),
+    statusMessage: null
+  };
+}
+
+// Dry runs never spawn a process (they only preview the command that would run), so they
+// cannot hang - there's no benefit to making them async, and keeping them synchronous
+// means the UI gets the full preview back in one round trip, as today.
+export async function executeDryRun(
+  workflowId: string,
+  context: WorkflowExecutionContext,
+  inputs: WorkflowRunInputs = {}
+): Promise<WorkflowRun | null> {
+  const prepared = await prepareWorkflowRun(workflowId, inputs);
+
+  if (!prepared) {
+    return null;
+  }
+
+  const run = buildRun(prepared.workflow, "dry-run", "running");
   const startedAtMs = Date.now();
+  const { steps, selectedProjects } = await runWorkflowNodes(prepared, "dry-run", context, new AbortController().signal);
+
+  run.completedAt = new Date().toISOString();
+  run.durationMs = Date.now() - startedAtMs;
+  run.steps = steps;
+  run.summary = summarizeRun(selectedProjects, steps);
+  run.status = run.summary.failed > 0 ? "failed" : run.summary.skipped > 0 ? "warning" : "success";
+
+  await insertWorkflowRun(run);
+  return run;
+}
+
+// Persists a "pending" record and returns immediately; execution continues in the
+// background and updates the same record as it progresses.
+export async function startWorkflowRun(
+  workflowId: string,
+  context: WorkflowExecutionContext,
+  inputs: WorkflowRunInputs = {}
+): Promise<WorkflowRun | null> {
+  // Reserved synchronously, before any `await`, so two concurrent calls for the same
+  // workflow can't both pass this check (a check-then-set split across an await point
+  // would race: both callers could observe "not active" before either sets the flag).
+  if (activeWorkflowIds.has(workflowId)) {
+    throw new WorkflowRunConflictError(`Workflow "${workflowId}" already has a run in progress`);
+  }
+  activeWorkflowIds.add(workflowId);
+
+  try {
+    const prepared = await prepareWorkflowRun(workflowId, inputs);
+
+    if (!prepared) {
+      activeWorkflowIds.delete(workflowId);
+      return null;
+    }
+
+    const run = buildRun(prepared.workflow, "run", "pending");
+    await insertWorkflowRun(run);
+
+    const abortController = new AbortController();
+    activeRuns.set(run.id, { workflowId, abortController });
+
+    void runWorkflowInBackground(run, prepared, context, abortController.signal).finally(() => {
+      activeRuns.delete(run.id);
+      activeWorkflowIds.delete(workflowId);
+    });
+
+    return run;
+  } catch (error) {
+    // Preparation/validation failed before any background execution started - release
+    // the reservation immediately instead of waiting for a background finally() that
+    // will never run.
+    activeWorkflowIds.delete(workflowId);
+    throw error;
+  }
+}
+
+async function runWorkflowInBackground(
+  run: WorkflowRun,
+  prepared: PreparedWorkflowRun,
+  context: WorkflowExecutionContext,
+  signal: AbortSignal
+): Promise<void> {
+  const startedAtMs = Date.now();
+
+  try {
+    await updateWorkflowRun(run.id, (current) => ({ ...current, status: "running" }));
+
+    const { steps, selectedProjects } = await runWorkflowNodes(
+      prepared,
+      "run",
+      context,
+      signal,
+      async (step) => {
+        await updateWorkflowRun(run.id, (current) => ({ ...current, steps: [...current.steps, step] }));
+      }
+    );
+
+    const summary = summarizeRun(selectedProjects, steps);
+    const status = signal.aborted
+      ? "cancelled"
+      : summary.failed > 0
+        ? "failed"
+        : summary.skipped > 0
+          ? "warning"
+          : "success";
+
+    await updateWorkflowRun(run.id, (current) => ({
+      ...current,
+      status,
+      statusMessage: status === "cancelled" ? "Cancelled by user" : null,
+      completedAt: new Date().toISOString(),
+      durationMs: Date.now() - startedAtMs,
+      summary
+    }));
+  } catch (error) {
+    // Last-resort safety net: never leave a record stuck at pending/running because of an
+    // unexpected error in the loop above.
+    await updateWorkflowRun(run.id, (current) => ({
+      ...current,
+      status: "failed",
+      statusMessage: error instanceof Error ? error.message : "Unexpected error while running the workflow",
+      completedAt: new Date().toISOString(),
+      durationMs: Date.now() - startedAtMs
+    }));
+  }
+}
+
+async function runWorkflowNodes(
+  prepared: PreparedWorkflowRun,
+  mode: WorkflowRunMode,
+  context: WorkflowExecutionContext,
+  signal: AbortSignal,
+  onStep?: (step: WorkflowRunStep) => Promise<void>
+): Promise<{ steps: WorkflowRunStep[]; selectedProjects: number }> {
+  const { orderedNodes, resolvedInputs, terminalCommands } = prepared;
   const projects = await scanProjects(context.getActiveRootPath());
   let selectedProjects = projects;
   const steps: WorkflowRunStep[] = [];
   let previousNodeFailed = false;
 
+  const pushStep = async (step: WorkflowRunStep) => {
+    steps.push(step);
+    if (onStep) {
+      await onStep(step);
+    }
+  };
+
   for (const node of orderedNodes) {
+    if (mode === "run" && signal.aborted) {
+      await pushStep(createStep(node, "cancelled", null, null, "Cancelled by user"));
+      continue;
+    }
+
     if (previousNodeFailed) {
-      steps.push(createStep(node, "skipped", null, null, "Skipped because a previous step failed"));
+      await pushStep(createStep(node, "skipped", null, null, "Skipped because a previous step failed"));
       continue;
     }
 
     switch (node.type) {
       case "trigger.manual":
-        steps.push(createStep(node, "success", null, null, "Manual trigger ready"));
+        await pushStep(createStep(node, "success", null, null, "Manual trigger ready"));
         break;
       case "input.text": {
         const definition = resolvedInputs.definitions.find((input) => input.nodeId === node.id);
@@ -160,21 +359,25 @@ export async function executeWorkflow(
         const message = value
           ? `Input "${definition?.label ?? node.name}" received`
           : `Optional input "${definition?.label ?? node.name}" left empty`;
-        steps.push(createStep(node, "success", null, null, message));
+        await pushStep(createStep(node, "success", null, null, message));
         break;
       }
       case "repository.select":
         selectedProjects = await selectProjects(projects, node);
-        steps.push(createStep(node, "success", null, null, `${selectedProjects.length} repository selected`));
+        await pushStep(createStep(node, "success", null, null, `${selectedProjects.length} repository selected`));
         break;
       case "repository.filter": {
         const beforeCount = selectedProjects.length;
         selectedProjects = filterProjects(selectedProjects, node);
-        steps.push(createStep(node, "success", null, null, `${selectedProjects.length} of ${beforeCount} repositories matched`));
+        await pushStep(
+          createStep(node, "success", null, null, `${selectedProjects.length} of ${beforeCount} repositories matched`)
+        );
         break;
       }
       case "output.summary":
-        steps.push(createStep(node, "success", null, null, `${selectedProjects.length} repositories in current selection`));
+        await pushStep(
+          createStep(node, "success", null, null, `${selectedProjects.length} repositories in current selection`)
+        );
         break;
       default: {
         const nodeSteps = await executeProjectNode(
@@ -183,32 +386,19 @@ export async function executeWorkflow(
           mode,
           context,
           terminalCommands,
-          resolvedInputs.environment
+          resolvedInputs.environment,
+          signal
         );
-        steps.push(...nodeSteps);
+        for (const step of nodeSteps) {
+          await pushStep(step);
+        }
         previousNodeFailed = mode === "run" && nodeSteps.some((step) => step.status === "failed");
         break;
       }
     }
   }
 
-  const completedAt = new Date().toISOString();
-  const summary = summarizeRun(selectedProjects.length, steps);
-  const run: WorkflowRun = {
-    id: randomUUID(),
-    workflowId: workflow.id,
-    workflowName: workflow.name,
-    mode,
-    status: summary.failed > 0 ? "failed" : summary.skipped > 0 ? "warning" : "success",
-    startedAt,
-    completedAt,
-    durationMs: Date.now() - startedAtMs,
-    steps,
-    summary
-  };
-
-  await rememberWorkflowRun(run);
-  return run;
+  return { steps, selectedProjects: selectedProjects.length };
 }
 
 async function selectProjects(projects: ProjectSummary[], node: WorkflowNode): Promise<ProjectSummary[]> {
@@ -272,7 +462,8 @@ async function executeProjectNode(
   mode: WorkflowRunMode,
   context: WorkflowExecutionContext,
   terminalCommands: Map<string, string>,
-  inputEnvironment: NodeJS.ProcessEnv
+  inputEnvironment: NodeJS.ProcessEnv,
+  signal: AbortSignal
 ): Promise<WorkflowRunStep[]> {
   if (projects.length === 0) {
     return [createStep(node, "skipped", null, null, "No repositories selected")];
@@ -281,7 +472,12 @@ async function executeProjectNode(
   const steps: WorkflowRunStep[] = [];
 
   for (const project of projects) {
-    const action = getProjectAction(node, project, context, terminalCommands, inputEnvironment);
+    if (mode === "run" && signal.aborted) {
+      steps.push(createStep(node, "cancelled", project, null, "Cancelled by user"));
+      continue;
+    }
+
+    const action = getProjectAction(node, project, context, terminalCommands, inputEnvironment, signal);
 
     if (!action) {
       steps.push(createStep(node, "skipped", project, null, getSkipMessage(node, project)));
@@ -294,21 +490,24 @@ async function executeProjectNode(
     }
 
     const startedAt = Date.now();
+    const startedAtIso = new Date().toISOString();
     const result = await action.run();
+    const status: WorkflowStepStatus = signal.aborted ? "cancelled" : result.ok ? "success" : "failed";
 
     steps.push({
       id: randomUUID(),
       nodeId: node.id,
       nodeName: node.name,
       nodeType: node.type,
-      status: result.ok ? "success" : "failed",
+      status,
       projectId: project.id,
       projectName: project.name,
       command: result.command,
-      message: result.ok ? "Command completed" : "Command failed",
+      message: status === "cancelled" ? "Cancelled by user" : result.ok ? "Command completed" : "Command failed",
       stdout: result.stdout,
       stderr: result.stderr,
-      durationMs: Date.now() - startedAt
+      durationMs: Date.now() - startedAt,
+      startedAt: startedAtIso
     });
   }
 
@@ -320,13 +519,15 @@ function getProjectAction(
   project: ProjectSummary,
   context: WorkflowExecutionContext,
   terminalCommands: Map<string, string>,
-  inputEnvironment: NodeJS.ProcessEnv
+  inputEnvironment: NodeJS.ProcessEnv,
+  signal: AbortSignal
 ): ProjectAction | null {
   switch (node.type) {
     case "git.fetch":
       return {
         command: "git fetch --all --prune",
-        run: () => context.runProjectCommand(project.path, "git", ["fetch", "--all", "--prune"])
+        run: () =>
+          context.runProjectCommand(project.path, "git", ["fetch", "--all", "--prune"], undefined, { signal })
       };
     case "git.pull":
       if (getBoolean(node.config.requireClean, true) && !project.isClean) {
@@ -335,7 +536,8 @@ function getProjectAction(
 
       return {
         command: "git pull --ff-only",
-        run: () => context.runProjectCommand(project.path, "git", ["pull", "--ff-only"], 1000 * 60 * 5)
+        run: () =>
+          context.runProjectCommand(project.path, "git", ["pull", "--ff-only"], 1000 * 60 * 5, { signal })
       };
     case "git.pullDevelop":
       if (getBoolean(node.config.requireClean, true) && !project.isClean) {
@@ -344,12 +546,13 @@ function getProjectAction(
 
       return {
         command: "git pull origin develop",
-        run: () => context.runProjectCommand(project.path, "git", ["pull", "origin", "develop"], 1000 * 60 * 5)
+        run: () =>
+          context.runProjectCommand(project.path, "git", ["pull", "origin", "develop"], 1000 * 60 * 5, { signal })
       };
     case "git.push":
       return {
         command: "git push",
-        run: () => context.runProjectCommand(project.path, "git", ["push"], 1000 * 60 * 5)
+        run: () => context.runProjectCommand(project.path, "git", ["push"], 1000 * 60 * 5, { signal })
       };
     case "docker.up":
       if (!project.hasDockerCompose) {
@@ -358,7 +561,8 @@ function getProjectAction(
 
       return {
         command: "docker compose up -d",
-        run: () => context.runProjectCommand(project.path, "docker", ["compose", "up", "-d"], 1000 * 60 * 10)
+        run: () =>
+          context.runProjectCommand(project.path, "docker", ["compose", "up", "-d"], 1000 * 60 * 10, { signal })
       };
     case "docker.rebuild":
       if (!project.hasDockerCompose) {
@@ -368,7 +572,9 @@ function getProjectAction(
       return {
         command: "docker compose up -d --build",
         run: () =>
-          context.runProjectCommand(project.path, "docker", ["compose", "up", "-d", "--build"], 1000 * 60 * 10)
+          context.runProjectCommand(project.path, "docker", ["compose", "up", "-d", "--build"], 1000 * 60 * 10, {
+            signal
+          })
       };
     case "docker.stop":
       if (!project.hasDockerCompose) {
@@ -377,7 +583,8 @@ function getProjectAction(
 
       return {
         command: "docker compose stop",
-        run: () => context.runProjectCommand(project.path, "docker", ["compose", "stop"], 1000 * 60 * 5)
+        run: () =>
+          context.runProjectCommand(project.path, "docker", ["compose", "stop"], 1000 * 60 * 5, { signal })
       };
     case "terminal.command": {
       const command = terminalCommands.get(node.id) ?? "";
@@ -388,12 +595,8 @@ function getProjectAction(
 
       return {
         command,
-        run: () => context.runShellCommand(
-          project.path,
-          command,
-          1000 * 60 * 10,
-          { env: inputEnvironment }
-        )
+        run: () =>
+          context.runShellCommand(project.path, command, 1000 * 60 * 10, { env: inputEnvironment, signal })
       };
     }
     default:

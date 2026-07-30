@@ -1,11 +1,13 @@
+import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
-import { Box, ButtonBase, Chip, Divider, Stack, Typography } from "@mui/material";
+import { Box, ButtonBase, Chip, CircularProgress, Divider, Stack, Typography } from "@mui/material";
 import type { WorkflowRun } from "../../types/workflows";
 import {
   getWorkflowRunStatusColor,
-  getWorkflowRunStatusLabel
+  getWorkflowRunStatusLabel,
+  isActiveWorkflowRunStatus
 } from "./workflowRunStatus";
 
 type AutomationRunHistoryProps = {
@@ -52,7 +54,9 @@ export function AutomationRunHistory({ runs, onSelectRun }: AutomationRunHistory
             >
               <RunStatusIcon run={run} />
               <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2" fontWeight={700} noWrap>{formatRunDate(run.completedAt)}</Typography>
+                <Typography variant="body2" fontWeight={700} noWrap>
+                  {isActiveWorkflowRunStatus(run.status) ? "In corso…" : formatRunDate(run.completedAt)}
+                </Typography>
                 <Typography variant="caption" color="text.secondary" component="div" noWrap>
                   {run.summary.selectedProjects} repository · {run.summary.commands} comandi
                 </Typography>
@@ -76,8 +80,12 @@ export function AutomationRunHistory({ runs, onSelectRun }: AutomationRunHistory
 }
 
 function RunStatusIcon({ run }: { run: WorkflowRun }) {
+  if (isActiveWorkflowRunStatus(run.status)) return <CircularProgress size={16} />;
   if (run.status === "failed") return <ErrorOutlineIcon color="error" fontSize="small" />;
   if (run.status === "warning") return <WarningAmberOutlinedIcon color="warning" fontSize="small" />;
+  if (run.status === "cancelled" || run.status === "interrupted") {
+    return <CancelOutlinedIcon color="disabled" fontSize="small" />;
+  }
   return <CheckCircleOutlineIcon color="success" fontSize="small" />;
 }
 

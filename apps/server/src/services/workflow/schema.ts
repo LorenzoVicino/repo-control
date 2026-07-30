@@ -5,15 +5,42 @@ import type {
   WorkflowNode,
   WorkflowNodeType,
   WorkflowRun,
+  WorkflowRunStatus,
   WorkflowRunStep,
-  WorkflowRunSummary
+  WorkflowRunSummary,
+  WorkflowStepStatus
 } from "./types.js";
 import {
   getNullableString,
   getNumber,
   getString,
+  getStringOrEmpty,
   isRecord
 } from "./value.js";
+
+const RUN_STATUSES: WorkflowRunStatus[] = [
+  "pending",
+  "running",
+  "success",
+  "warning",
+  "failed",
+  "cancelled",
+  "interrupted"
+];
+
+const STEP_STATUSES: WorkflowStepStatus[] = ["success", "failed", "skipped", "cancelled"];
+
+function normalizeRunStatus(value: unknown): WorkflowRunStatus {
+  return typeof value === "string" && RUN_STATUSES.includes(value as WorkflowRunStatus)
+    ? (value as WorkflowRunStatus)
+    : "success";
+}
+
+function normalizeStepStatus(value: unknown): WorkflowStepStatus {
+  return typeof value === "string" && STEP_STATUSES.includes(value as WorkflowStepStatus)
+    ? (value as WorkflowStepStatus)
+    : "success";
+}
 
 export function normalizeWorkflowDefinition(value: unknown): WorkflowDefinition {
   const raw = isRecord(value) ? value : {};
@@ -52,9 +79,10 @@ export function normalizeWorkflowRun(value: unknown): WorkflowRun | null {
     workflowId,
     workflowName,
     mode: value.mode === "dry-run" ? "dry-run" : "run",
-    status: value.status === "failed" ? "failed" : value.status === "warning" ? "warning" : "success",
+    status: normalizeRunStatus(value.status),
     startedAt: getString(value.startedAt, new Date().toISOString()),
-    completedAt: getString(value.completedAt, new Date().toISOString()),
+    // "" means pending/running — must not be re-stamped with "now" on every read.
+    completedAt: getStringOrEmpty(value.completedAt),
     durationMs: getNumber(value.durationMs, 0),
     steps,
     summary: isRecord(value.summary)
@@ -65,7 +93,8 @@ export function normalizeWorkflowRun(value: unknown): WorkflowRun | null {
           skipped: getNumber(value.summary.skipped, 0),
           commands: getNumber(value.summary.commands, 0)
         }
-      : summarizeSteps(0, steps)
+      : summarizeSteps(0, steps),
+    statusMessage: getNullableString(value.statusMessage)
   };
 }
 
@@ -132,14 +161,15 @@ function normalizeWorkflowRunStep(value: unknown): WorkflowRunStep | null {
     nodeId: getString(value.nodeId, ""),
     nodeName: getString(value.nodeName, ""),
     nodeType: normalizeNodeType(value.nodeType),
-    status: value.status === "failed" ? "failed" : value.status === "skipped" ? "skipped" : "success",
+    status: normalizeStepStatus(value.status),
     projectId: getNullableString(value.projectId),
     projectName: getNullableString(value.projectName),
     command: getNullableString(value.command),
     message: getString(value.message, ""),
     stdout: getString(value.stdout, ""),
     stderr: getString(value.stderr, ""),
-    durationMs: getNumber(value.durationMs, 0)
+    durationMs: getNumber(value.durationMs, 0),
+    startedAt: getNullableString(value.startedAt) ?? undefined
   };
 }
 

@@ -12,6 +12,7 @@ import { registerDockerRoutes } from "./routes/dockerRoutes.js";
 import { registerGitRoutes } from "./routes/gitRoutes.js";
 import { registerTerminalRoutes } from "./routes/terminalRoutes.js";
 import { registerWorkflowRoutes } from "./routes/workflowRoutes.js";
+import { reconcileStaleWorkflowRuns } from "./services/workflowService.js";
 
 const STARTUP_BANNER_CONTENT_WIDTH = 76;
 
@@ -64,6 +65,11 @@ export async function createServer(): Promise<{
     runShellCommand,
     scheduleServerRestart
   };
+
+  // A "pending"/"running" run left over from a previous process (crash, restart, kill)
+  // can never be resumed or cancelled - its in-memory AbortController is gone. Mark it
+  // "interrupted" before serving any workflow traffic.
+  await reconcileStaleWorkflowRuns();
 
   await registerAppRoutes(app, context);
   await registerDockerRoutes(app, context);

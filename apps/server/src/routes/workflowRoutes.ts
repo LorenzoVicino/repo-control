@@ -4,14 +4,17 @@ import type { CommandRunner, ShellCommandRunner } from "../lib/commandRunner.js"
 import type { ProjectResolver } from "../lib/projectResolver.js";
 import { WorkflowInputValidationError } from "../services/workflow/input.js";
 import { WorkflowDefinitionValidationError } from "../services/workflow/validation.js";
-import type { WorkflowRunMode } from "../services/workflow/types.js";
 import {
+  cancelWorkflowRun,
   createWorkflow,
   deleteWorkflow,
-  executeWorkflow,
+  executeDryRun,
+  getWorkflowRun,
   readWorkflowRuns,
   readWorkflows,
-  updateWorkflow
+  startWorkflowRun,
+  updateWorkflow,
+  WorkflowRunConflictError
 } from "../services/workflowService.js";
 
 type WorkflowRoutesContext = Pick<ProjectResolver, "getActiveRootPath"> & {
@@ -48,6 +51,7 @@ const workflowInputsSchema = z.record(z.string().max(4000)).superRefine((inputs,
 const workflowExecutionBodySchema = z.object({
   inputs: workflowInputsSchema.default({})
 });
+const workflowRunParamsSchema = z.object({ runId: z.string().trim().min(1).max(160) });
 
 export async function registerWorkflowRoutes(app: FastifyInstance, context: WorkflowRoutesContext): Promise<void> {
   app.get("/api/workflows", async () => readWorkflows());
@@ -91,12 +95,56 @@ export async function registerWorkflowRoutes(app: FastifyInstance, context: Work
 
   app.post("/api/workflows/:id/dry-run", async (request, reply) => {
     const params = workflowParamsSchema.parse(request.params);
-    return executeWorkflowRequest(params.id, "dry-run", request.body, context, reply);
+    const parsedBody = workflowExecutionBodySchema.safeParse(request.body ?? {});
+
+    if (!parsedBody.success) {
+      return reply.code(400).send({
+        ok: false,
+        message: parsedBody.error.issues[0]?.message ?? "Invalid workflow inputs"
+      });
+    }
+
+    try {
+      const run = await executeDryRun(params.id, context, parsedBody.data.inputs);
+
+      if (!run) {
+        return reply.code(404).send({ ok: false, message: "Workflow not found" });
+      }
+
+      return run;
+    } catch (error) {
+      return sendWorkflowValidationError(error, reply);
+    }
   });
 
   app.post("/api/workflows/:id/run", async (request, reply) => {
     const params = workflowParamsSchema.parse(request.params);
-    return executeWorkflowRequest(params.id, "run", request.body, context, reply);
+    const parsedBody = workflowExecutionBodySchema.safeParse(request.body ?? {});
+
+    if (!parsedBody.success) {
+      return reply.code(400).send({
+        ok: false,
+        message: parsedBody.error.issues[0]?.message ?? "Invalid workflow inputs"
+      });
+    }
+
+    try {
+      const run = await startWorkflowRun(params.id, context, parsedBody.data.inputs);
+
+      if (!run) {
+        return reply.code(404).send({ ok: false, message: "Workflow not found" });
+      }
+
+      // The run has only just started (status "pending"/"running"); the client polls
+      // GET /api/workflow-runs/:runId for progress instead of waiting on this request.
+      return reply.code(202).send(run);
+    } catch (error) {
+      if (error instanceof WorkflowRunConflictError) {
+        return reply.code(409).send({ ok: false, message: error.message });
+      }
+
+      return sendWorkflowValidationError(error, reply);
+    }
   });
 
   app.get("/api/workflows/:id/runs", async (request) => {
@@ -106,45 +154,34 @@ export async function registerWorkflowRoutes(app: FastifyInstance, context: Work
   });
 
   app.get("/api/workflow-runs", async () => readWorkflowRuns());
-}
 
-async function executeWorkflowRequest(
-  workflowId: string,
-  mode: WorkflowRunMode,
-  body: unknown,
-  context: WorkflowRoutesContext,
-  reply: FastifyReply
-) {
-  const parsedBody = workflowExecutionBodySchema.safeParse(body ?? {});
+  app.get("/api/workflow-runs/:runId", async (request, reply) => {
+    const params = workflowRunParamsSchema.parse(request.params);
+    const run = await getWorkflowRun(params.runId);
 
-  if (!parsedBody.success) {
-    return reply.code(400).send({
-      ok: false,
-      message: parsedBody.error.issues[0]?.message ?? "Invalid workflow inputs"
-    });
-  }
-
-  let run;
-
-  try {
-    run = await executeWorkflow(workflowId, mode, context, parsedBody.data.inputs);
-  } catch (error) {
-    if (
-      error instanceof WorkflowInputValidationError
-      || error instanceof WorkflowDefinitionValidationError
-    ) {
-      return reply.code(400).send({ ok: false, message: error.message });
+    if (!run) {
+      return reply.code(404).send({ ok: false, message: "Run not found" });
     }
 
-    throw error;
+    return run;
+  });
+
+  app.post("/api/workflow-runs/:runId/cancel", async (request, reply) => {
+    const params = workflowRunParamsSchema.parse(request.params);
+    const run = await getWorkflowRun(params.runId);
+
+    if (!run) {
+      return reply.code(404).send({ ok: false, message: "Run not found" });
+    }
+
+    return { ok: cancelWorkflowRun(params.runId) === "cancelled" };
+  });
+}
+
+function sendWorkflowValidationError(error: unknown, reply: FastifyReply): FastifyReply {
+  if (error instanceof WorkflowInputValidationError || error instanceof WorkflowDefinitionValidationError) {
+    return reply.code(400).send({ ok: false, message: error.message });
   }
 
-  if (!run) {
-    return reply.code(404).send({
-      ok: false,
-      message: "Workflow not found"
-    });
-  }
-
-  return run;
+  throw error;
 }

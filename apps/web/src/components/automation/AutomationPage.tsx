@@ -29,6 +29,9 @@ import type { WorkflowDraft } from "../../types/workflows";
 import { AutomationWorkflowEditor } from "./AutomationWorkflowEditor";
 import { AutomationWorkflowList } from "./AutomationWorkflowList";
 import { CreateAutomationDialog } from "./CreateAutomationDialog";
+import { isActiveWorkflowRunStatus } from "./workflowRunStatus";
+
+const ACTIVE_RUNS_POLL_INTERVAL_MS = 3_000;
 
 type AutomationPageProps = {
   projects: ProjectSummary[];
@@ -44,7 +47,15 @@ export function AutomationPage({ projects }: AutomationPageProps) {
   const [createAfterDiscard, setCreateAfterDiscard] = React.useState(false);
   const [workflowMenuAnchor, setWorkflowMenuAnchor] = React.useState<HTMLElement | null>(null);
   const workflowsQuery = useQuery({ queryKey: ["workflows"], queryFn: fetchWorkflows });
-  const runsQuery = useQuery({ queryKey: ["workflow-runs"], queryFn: () => fetchWorkflowRuns() });
+  const runsQuery = useQuery({
+    queryKey: ["workflow-runs"],
+    queryFn: () => fetchWorkflowRuns(),
+    refetchInterval: (query) => {
+      const hasActiveRun = query.state.data?.runs.some((run) => isActiveWorkflowRunStatus(run.status));
+      return hasActiveRun ? ACTIVE_RUNS_POLL_INTERVAL_MS : false;
+    },
+    refetchIntervalInBackground: false
+  });
   const workflows = React.useMemo(
     () => workflowsQuery.data?.workflows ?? [],
     [workflowsQuery.data?.workflows]

@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { getTerminalCommand, shouldUseShellForCommand } from "../runtime.js";
 
 export type CommandResult = {
@@ -27,6 +27,7 @@ export type CommandRunnerOptions = {
 
 export type ShellCommandRunnerOptions = {
   env?: NodeJS.ProcessEnv;
+  signal?: AbortSignal;
 };
 
 export type ShellCommandRunner = (
@@ -36,6 +37,20 @@ export type ShellCommandRunner = (
   options?: ShellCommandRunnerOptions
 ) => Promise<CommandResult>;
 
+const OUTPUT_MAX_LENGTH = 30_000;
+
+// A timed-out or aborted process is asked to terminate (SIGTERM), then forcibly killed
+// (SIGKILL) if it hasn't exited after this grace period.
+const KILL_ESCALATION_GRACE_MS = 3_000;
+// Node only fires 'close' once stdio pipes are drained, which never happens if a
+// backgrounded grandchild keeps the inherited stdout/stderr open. 'exit' fires reliably
+// as soon as the direct child is gone, so we settle from it if 'close' doesn't follow
+// shortly after.
+const EXIT_TO_CLOSE_GRACE_MS = 500;
+// Safety net: settle regardless of any further process-tree activity once we've already
+// escalated to SIGKILL.
+const FORCE_SETTLE_AFTER_KILL_MS = 2_000;
+
 export function runProjectCommand(
   cwd: string,
   command: string,
@@ -43,78 +58,14 @@ export function runProjectCommand(
   timeoutMs = 1000 * 60 * 3,
   options: CommandRunnerOptions = {}
 ): Promise<CommandResult> {
-  const startedAt = Date.now();
   const displayCommand = options.displayCommand ?? [command, ...args].join(" ");
-
-  return new Promise((resolve) => {
-    const child = spawn(command, args, {
-      cwd,
-      shell: options.shell ?? shouldUseShellForCommand(command)
-    });
-
-    let stdout = "";
-    let stderr = "";
-    let didTimeout = false;
-    let didAbort = false;
-
-    const abortCommand = () => {
-      didAbort = true;
-      child.kill("SIGTERM");
-    };
-
-    if (options.signal?.aborted) {
-      abortCommand();
-    } else {
-      options.signal?.addEventListener("abort", abortCommand, { once: true });
-    }
-
-    const timeout = setTimeout(() => {
-      didTimeout = true;
-      child.kill("SIGTERM");
-    }, timeoutMs);
-
-    child.stdout.on("data", (chunk: Buffer) => {
-      stdout = appendOutput(stdout, chunk.toString("utf8"));
-    });
-
-    child.stderr.on("data", (chunk: Buffer) => {
-      stderr = appendOutput(stderr, chunk.toString("utf8"));
-    });
-
-    child.on("error", (error) => {
-      clearTimeout(timeout);
-      options.signal?.removeEventListener("abort", abortCommand);
-      resolve({
-        ok: false,
-        command: displayCommand,
-        exitCode: null,
-        stdout,
-        stderr: appendOutput(stderr, error.message),
-        output: [stdout, stderr, error.message].filter(Boolean).join("\n"),
-        durationMs: Date.now() - startedAt
-      });
-    });
-
-    child.on("close", (exitCode) => {
-      clearTimeout(timeout);
-      options.signal?.removeEventListener("abort", abortCommand);
-      const stopMessage = didTimeout
-        ? `Command timed out after ${timeoutMs}ms`
-        : didAbort
-          ? "Command cancelled"
-          : "";
-
-      resolve({
-        ok: exitCode === 0 && !didTimeout && !didAbort,
-        command: displayCommand,
-        exitCode,
-        stdout,
-        stderr: appendOutput(stderr, stopMessage),
-        output: [stdout, stderr, stopMessage].filter(Boolean).join("\n"),
-        durationMs: Date.now() - startedAt
-      });
-    });
+  const child = spawn(command, args, {
+    cwd,
+    shell: options.shell ?? shouldUseShellForCommand(command),
+    detached: process.platform !== "win32"
   });
+
+  return runManagedCommand(child, displayCommand, timeoutMs, options.signal);
 }
 
 export function runShellCommand(
@@ -123,71 +74,147 @@ export function runShellCommand(
   timeoutMs: number,
   options: ShellCommandRunnerOptions = {}
 ): Promise<CommandResult> {
-  const startedAt = Date.now();
   const terminalCommand = getTerminalCommand(commandLine);
+  const child = spawn(terminalCommand.command, terminalCommand.args, {
+    cwd,
+    shell: terminalCommand.shell ?? shouldUseShellForCommand(terminalCommand.command),
+    detached: process.platform !== "win32",
+    env: {
+      ...process.env,
+      ...options.env,
+      FORCE_COLOR: "1",
+      TERM: process.env.TERM ?? "xterm-256color"
+    }
+  });
+
+  return runManagedCommand(child, terminalCommand.displayCommand ?? commandLine, timeoutMs, options.signal);
+}
+
+function runManagedCommand(
+  child: ChildProcess,
+  displayCommand: string,
+  timeoutMs: number,
+  signal?: AbortSignal
+): Promise<CommandResult> {
+  const startedAt = Date.now();
 
   return new Promise((resolve) => {
-    const child = spawn(terminalCommand.command, terminalCommand.args, {
-      cwd,
-      shell: terminalCommand.shell ?? shouldUseShellForCommand(terminalCommand.command),
-      env: {
-        ...process.env,
-        ...options.env,
-        FORCE_COLOR: "1",
-        TERM: process.env.TERM ?? "xterm-256color"
-      }
-    });
-
     let stdout = "";
     let stderr = "";
-    let didTimeout = false;
+    let settled = false;
+    let stopReason: "timeout" | "abort" | null = null;
+    let latestExitCode: number | null = null;
 
-    const timeout = setTimeout(() => {
-      didTimeout = true;
-      child.kill("SIGTERM");
-    }, timeoutMs);
+    let escalationTimer: NodeJS.Timeout | undefined;
+    let forceSettleTimer: NodeJS.Timeout | undefined;
+    let exitGraceTimer: NodeJS.Timeout | undefined;
 
-    child.stdout.on("data", (chunk: Buffer) => {
+    const clearAllTimers = (): void => {
+      clearTimeout(timeoutTimer);
+      clearTimeout(escalationTimer);
+      clearTimeout(forceSettleTimer);
+      clearTimeout(exitGraceTimer);
+    };
+
+    const onAbort = (): void => beginKillEscalation("abort");
+
+    function settle(exitCode: number | null): void {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearAllTimers();
+      signal?.removeEventListener("abort", onAbort);
+
+      const stopMessage =
+        stopReason === "timeout"
+          ? `Command timed out after ${timeoutMs}ms`
+          : stopReason === "abort"
+            ? "Command cancelled"
+            : "";
+
+      resolve({
+        ok: exitCode === 0 && stopReason === null,
+        command: displayCommand,
+        exitCode,
+        stdout,
+        stderr: appendOutput(stderr, stopMessage),
+        output: [stdout, stderr, stopMessage].filter(Boolean).join("\n"),
+        durationMs: Date.now() - startedAt
+      });
+    }
+
+    function killTree(signalToSend: NodeJS.Signals): void {
+      if (!child.pid) {
+        return;
+      }
+
+      if (process.platform === "win32") {
+        spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore" });
+        return;
+      }
+
+      try {
+        // Negative pid targets the whole detached process group, not just the direct child.
+        process.kill(-child.pid, signalToSend);
+      } catch {
+        try {
+          child.kill(signalToSend);
+        } catch {
+          // Process already gone.
+        }
+      }
+    }
+
+    function beginKillEscalation(reason: "timeout" | "abort"): void {
+      if (stopReason) {
+        return;
+      }
+      stopReason = reason;
+      killTree("SIGTERM");
+      escalationTimer = setTimeout(() => {
+        killTree("SIGKILL");
+        child.stdout?.destroy();
+        child.stderr?.destroy();
+        forceSettleTimer = setTimeout(() => settle(latestExitCode), FORCE_SETTLE_AFTER_KILL_MS);
+      }, KILL_ESCALATION_GRACE_MS);
+    }
+
+    if (signal?.aborted) {
+      onAbort();
+    } else {
+      signal?.addEventListener("abort", onAbort, { once: true });
+    }
+
+    const timeoutTimer = setTimeout(() => beginKillEscalation("timeout"), timeoutMs);
+
+    child.stdout?.on("data", (chunk: Buffer) => {
       stdout = appendOutput(stdout, chunk.toString("utf8"));
     });
 
-    child.stderr.on("data", (chunk: Buffer) => {
+    child.stderr?.on("data", (chunk: Buffer) => {
       stderr = appendOutput(stderr, chunk.toString("utf8"));
     });
 
     child.on("error", (error) => {
-      clearTimeout(timeout);
-      resolve({
-        ok: false,
-        command: terminalCommand.displayCommand ?? commandLine,
-        exitCode: null,
-        stdout,
-        stderr: appendOutput(stderr, error.message),
-        output: [stdout, stderr, error.message].filter(Boolean).join("\n"),
-        durationMs: Date.now() - startedAt
-      });
+      stderr = appendOutput(stderr, error.message);
+      settle(null);
+    });
+
+    child.on("exit", (exitCode) => {
+      latestExitCode = exitCode;
+      exitGraceTimer = setTimeout(() => settle(exitCode), EXIT_TO_CLOSE_GRACE_MS);
     });
 
     child.on("close", (exitCode) => {
-      clearTimeout(timeout);
-      const timeoutMessage = didTimeout ? `Command timed out after ${timeoutMs}ms` : "";
-
-      resolve({
-        ok: exitCode === 0 && !didTimeout,
-        command: terminalCommand.displayCommand ?? commandLine,
-        exitCode,
-        stdout,
-        stderr: appendOutput(stderr, timeoutMessage),
-        output: [stdout, stderr, timeoutMessage].filter(Boolean).join("\n"),
-        durationMs: Date.now() - startedAt
-      });
+      clearTimeout(exitGraceTimer);
+      settle(exitCode);
     });
   });
 }
 
 function appendOutput(current: string, next: string): string {
-  const maxLength = 30_000;
   const combined = current + next;
 
-  return combined.length > maxLength ? combined.slice(combined.length - maxLength) : combined;
+  return combined.length > OUTPUT_MAX_LENGTH ? combined.slice(combined.length - OUTPUT_MAX_LENGTH) : combined;
 }

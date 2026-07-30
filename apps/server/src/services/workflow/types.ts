@@ -47,8 +47,15 @@ export type WorkflowDefinition = {
 
 export type WorkflowRunMode = "run" | "dry-run";
 export type WorkflowRunInputs = Record<string, string>;
-export type WorkflowRunStatus = "success" | "warning" | "failed";
-export type WorkflowStepStatus = "success" | "failed" | "skipped";
+export type WorkflowRunStatus =
+  | "pending"
+  | "running"
+  | "success"
+  | "warning"
+  | "failed"
+  | "cancelled"
+  | "interrupted";
+export type WorkflowStepStatus = "success" | "failed" | "skipped" | "cancelled";
 
 export type WorkflowRunStep = {
   id: string;
@@ -63,6 +70,7 @@ export type WorkflowRunStep = {
   stdout: string;
   stderr: string;
   durationMs: number;
+  startedAt?: string;
 };
 
 export type WorkflowRunSummary = {
@@ -80,10 +88,12 @@ export type WorkflowRun = {
   mode: WorkflowRunMode;
   status: WorkflowRunStatus;
   startedAt: string;
+  // Empty while the run is pending/running; set once the run reaches a terminal status.
   completedAt: string;
   durationMs: number;
   steps: WorkflowRunStep[];
   summary: WorkflowRunSummary;
+  statusMessage: string | null;
 };
 
 export type WorkflowListResponse = {
