@@ -37,6 +37,28 @@ test("uses Windows Terminal before Linux terminals when running in WSL", async (
   });
 });
 
+test("builds native candidates for Windows and macOS", async () => {
+  const resumeSpec = {
+    command: "codex",
+    args: ["resume", "session-id"],
+    displayCommand: "codex resume session-id"
+  };
+  const windowsCandidates = await getTerminalCandidates(
+    "C:\\workspace\\product",
+    resumeSpec,
+    { platform: "win32", wsl: false, env: {} }
+  );
+  const macCandidates = await getTerminalCandidates(
+    "/workspace/product",
+    resumeSpec,
+    { platform: "darwin", wsl: false, env: {} }
+  );
+
+  assert.equal(windowsCandidates[0]?.command, "wt.exe");
+  assert.equal(windowsCandidates[1]?.command, "powershell.exe");
+  assert.equal(macCandidates[0]?.command, "osascript");
+});
+
 test("opens the validated resume command with the configured native terminal", async (context) => {
   const previousTerminal = process.env.REPO_CONTROL_TERMINAL;
   const calls: Array<{ command: string; args: readonly string[]; cwd: string | undefined }> = [];
