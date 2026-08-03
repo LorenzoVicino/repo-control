@@ -211,6 +211,7 @@ export function TerminalPanel({ projectId, projectName, projectPath, onResult, o
           <span>
             <IconButton
               size="small"
+              aria-label="Clear terminal"
               onClick={(event) => {
                 event.stopPropagation();
                 setEntries([]);
@@ -285,6 +286,7 @@ export function TerminalPanel({ projectId, projectName, projectPath, onResult, o
           <span>
             <IconButton
               size="small"
+              aria-label="Run command"
               onClick={(event) => {
                 event.stopPropagation();
                 void runCommand();

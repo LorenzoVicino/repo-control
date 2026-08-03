@@ -22,6 +22,9 @@ describe("DashboardHome", () => {
     );
 
     expect(screen.getByText(/We can only see a short distance ahead/)).toBeVisible();
+    expect(screen.queryByText("Container attivi")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Docker: Controlla i servizi" }))
+      .not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Mostra un'altra citazione" }));
     expect(screen.getByText(/Analytical Engine/)).toBeVisible();
     expect(fetchMock).not.toHaveBeenCalled();

@@ -223,13 +223,13 @@ export function TaskPlanReview({
               <CardHeader title="Requisiti e criteri di accettazione" subheader="Comportamenti osservabili e condizioni verificabili." />
               <CardContent sx={{ pt: 0 }}>
                 <TextField
-                  aria-label="Requisiti e criteri di accettazione"
                   value={draft.requirements}
                   onChange={(event) => updateDraft({ requirements: event.target.value })}
                   multiline
                   minRows={10}
                   maxRows={18}
                   fullWidth
+                  inputProps={{ "aria-label": "Requisiti e criteri di accettazione" }}
                 />
               </CardContent>
             </Card>
@@ -238,13 +238,13 @@ export function TaskPlanReview({
               <CardHeader title="Approccio tecnico" subheader="Aree impattate, rischi e assunzioni emersi dall’analisi." />
               <CardContent sx={{ pt: 0 }}>
                 <TextField
-                  aria-label="Approccio tecnico"
                   value={draft.design}
                   onChange={(event) => updateDraft({ design: event.target.value })}
                   multiline
                   minRows={10}
                   maxRows={18}
                   fullWidth
+                  inputProps={{ "aria-label": "Approccio tecnico" }}
                 />
               </CardContent>
             </Card>
@@ -253,13 +253,13 @@ export function TaskPlanReview({
               <CardHeader title="Passi di implementazione" subheader="Sequenza operativa che verrà consegnata all’agente." />
               <CardContent sx={{ pt: 0 }}>
                 <TextField
-                  aria-label="Passi di implementazione"
                   value={draft.breakdown}
                   onChange={(event) => updateDraft({ breakdown: event.target.value })}
                   multiline
                   minRows={10}
                   maxRows={18}
                   fullWidth
+                  inputProps={{ "aria-label": "Passi di implementazione" }}
                 />
               </CardContent>
             </Card>
@@ -268,7 +268,6 @@ export function TaskPlanReview({
               <CardHeader title="Verifiche" subheader="Un comando sicuro per riga. Verranno eseguiti dopo l’implementazione." />
               <CardContent sx={{ pt: 0 }}>
                 <TextField
-                  aria-label="Comandi di verifica"
                   value={draft.checks.join("\n")}
                   onChange={(event) => updateDraft({
                     checks: event.target.value.split("\n").map((command) => command.trim()).filter(Boolean)
@@ -277,7 +276,10 @@ export function TaskPlanReview({
                   minRows={4}
                   maxRows={8}
                   fullWidth
-                  inputProps={{ style: { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" } }}
+                  inputProps={{
+                    "aria-label": "Comandi di verifica",
+                    style: { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }
+                  }}
                 />
               </CardContent>
             </Card>
@@ -305,12 +307,12 @@ export function TaskPlanReview({
                 Per esempio: “riduci lo scope”, “mantieni questa API” o “aggiungi un test di regressione”.
               </Typography>
               <TextField
-                aria-label="Feedback per Claude"
                 value={feedback}
                 onChange={(event) => onFeedbackChange(event.target.value)}
                 multiline
                 minRows={3}
                 fullWidth
+                inputProps={{ "aria-label": "Feedback per Claude" }}
                 sx={{ mt: 1.5 }}
               />
               <Button

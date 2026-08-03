@@ -92,8 +92,10 @@ test("shares one motion backdrop across every dashboard section", async ({ page 
   await page.goto("/");
 
   const backdrop = page.locator("[data-app-motion-backdrop]");
+  await expect(page.locator('[data-dashboard-section="docker"]')).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Docker: Controlla i servizi" })).toHaveCount(0);
 
-  for (const section of ["docker", "favorites", "repositories", "overview", "automations"]) {
+  for (const section of ["favorites", "repositories", "overview", "automations"]) {
     const navigationButton = page.locator(`[data-dashboard-section="${section}"]`).first();
     await navigationButton.click();
     await expect(navigationButton).toHaveAttribute("aria-current", "page");

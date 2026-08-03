@@ -165,7 +165,10 @@ export const DashboardHome = React.memo(function DashboardHome({
             </Typography>
           </Box>
 
-          <DashboardQuickActions onNavigate={onNavigate} />
+          <DashboardQuickActions
+            dockerAvailable={snapshot.dockerAvailable}
+            onNavigate={onNavigate}
+          />
         </Box>
 
         <DashboardMetrics snapshot={snapshot} />

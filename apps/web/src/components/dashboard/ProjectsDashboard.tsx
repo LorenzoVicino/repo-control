@@ -40,7 +40,7 @@ import { filterProjects, isProject } from "../../utils/projects";
 
 const LEGACY_FAVORITE_PROJECTS_STORAGE_KEY = "repo-control-favorite-projects";
 const APP_UPDATE_POLL_INTERVAL_MS = 5 * 60 * 1000;
-const DOCKER_POLL_INTERVAL_MS = 30 * 1000;
+const DOCKER_POLL_INTERVAL_MS = 60 * 1000;
 const MAX_WARM_PROJECT_PANELS = 4;
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "repo-control-sidebar-collapsed";
 const loadAppMotionBackdrop = () => import("./AppMotionBackdrop");
@@ -126,7 +126,7 @@ export function ProjectsDashboard({
     queryFn: fetchDockerContainers,
     staleTime: DOCKER_POLL_INTERVAL_MS - 5 * 1000,
     refetchInterval: DOCKER_POLL_INTERVAL_MS,
-    refetchIntervalInBackground: false
+    refetchIntervalInBackground: true
   });
   const { data: preferences } = useQuery({
     queryKey: ["preferences"],
@@ -167,10 +167,17 @@ export function ProjectsDashboard({
     [activeProjectId, openProjects]
   );
   const workspaceRoot = data?.root ?? "";
+  const dockerAvailable = dockerStatus?.ok === true;
 
   React.useEffect(() => {
     window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(isSidebarCollapsed));
   }, [isSidebarCollapsed]);
+
+  React.useEffect(() => {
+    if (!dockerAvailable && activeSection === "docker") {
+      setActiveSection("overview");
+    }
+  }, [activeSection, dockerAvailable]);
 
   React.useEffect(() => {
     if (typeof window.requestIdleCallback === "function") {
@@ -276,6 +283,10 @@ export function ProjectsDashboard({
   }, [handleFolderPick]);
 
   const navigateToSection = React.useCallback((section: DashboardSection) => {
+    if (section === "docker" && !dockerAvailable) {
+      return;
+    }
+
     if (section === "tasks") void loadTaskEngineeringPage();
     if (section === "agents") void loadAgentSessionsPage();
     if (section === "automations") void loadAutomationPage();
@@ -286,7 +297,7 @@ export function ProjectsDashboard({
       setIsMobileSidebarOpen(false);
     });
     window.scrollTo({ top: 0, behavior: "instant" });
-  }, []);
+  }, [dockerAvailable]);
 
   const openProject = React.useCallback((projectId: string) => {
     void loadProjectDetailPanel();
@@ -443,6 +454,7 @@ export function ProjectsDashboard({
         repositoryCount={projects.length}
         favoriteCount={favoriteProjectCount}
         dockerCount={dockerStatus?.groups.length ?? 0}
+        dockerAvailable={dockerAvailable}
         workspaceRoot={workspaceRoot}
         rootError={rootError}
         isPickingRoot={isPickingRoot}
@@ -586,7 +598,7 @@ export function ProjectsDashboard({
             </ViewEntrance>
           ) : null}
 
-          {!activeProject && activeSection === "docker" ? (
+          {!activeProject && activeSection === "docker" && dockerAvailable ? (
             <ViewEntrance>
               <ControlCenter
                 dockerStatus={dockerStatus}

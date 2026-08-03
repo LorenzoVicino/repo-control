@@ -132,7 +132,7 @@ export async function runClaudeMessage(
     ok,
     sessionId: nextSessionId,
     response,
-    error: ok ? null : ((parsedOutput.error ?? result.stderr) || result.output || "Claude Code command failed"),
+    error: ok ? null : ((parsedOutput.error ?? result.stderr.trim()) || result.output || "Claude Code command failed"),
     commandResult
   };
 }
@@ -437,14 +437,6 @@ function extractClaudeMessageText(message: unknown): string {
     return "";
   }
 
-  if (typeof message.content !== "undefined") {
-    return extractClaudeMessageText(message.content);
-  }
-
-  if (typeof message.text === "string") {
-    return normalizeText(message.text);
-  }
-
   const type = firstString(message.type);
   const name = firstString(message.name);
 
@@ -454,6 +446,14 @@ function extractClaudeMessageText(message: unknown): string {
 
   if (type === "tool_result") {
     return `[tool result] ${extractClaudeMessageText(message.content)}`;
+  }
+
+  if (typeof message.content !== "undefined") {
+    return extractClaudeMessageText(message.content);
+  }
+
+  if (typeof message.text === "string") {
+    return normalizeText(message.text);
   }
 
   return "";

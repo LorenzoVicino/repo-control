@@ -18,23 +18,25 @@ test("uses Windows Terminal before Linux terminals when running in WSL", async (
     {
       platform: "linux",
       wsl: true,
-      env: { WSL_DISTRO_NAME: "Ubuntu" }
+      env: { WSL_DISTRO_NAME: "Ubuntu" },
+      windowsTerminalCommands: ["/mnt/c/Users/test/AppData/Local/Microsoft/WindowsApps/wt.exe"]
     }
   );
 
-  assert.deepEqual(candidates[0], {
-    command: "wt.exe",
+  assert.deepEqual(candidates, [{
+    command: "/mnt/c/Users/test/AppData/Local/Microsoft/WindowsApps/wt.exe",
     args: [
+      "-p",
+      "Ubuntu",
       "wsl.exe",
       "-d",
       "Ubuntu",
-      "--cd",
-      "/home/user/workspace/product",
-      "codex",
-      "resume",
-      "session-id"
+      "--exec",
+      "bash",
+      "-lic",
+      "cd '/home/user/workspace/product' && exec 'codex' 'resume' 'session-id'"
     ]
-  });
+  }]);
 });
 
 test("builds native candidates for Windows and macOS", async () => {
@@ -56,6 +58,12 @@ test("builds native candidates for Windows and macOS", async () => {
 
   assert.equal(windowsCandidates[0]?.command, "wt.exe");
   assert.equal(windowsCandidates[1]?.command, "powershell.exe");
+  assert.deepEqual(windowsCandidates[0]?.args.slice(0, 4), [
+    "-p",
+    "Windows PowerShell",
+    "-d",
+    "C:\\workspace\\product"
+  ]);
   assert.equal(macCandidates[0]?.command, "osascript");
 });
 

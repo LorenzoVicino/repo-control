@@ -2,12 +2,12 @@ import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import StarBorderRoundedIcon from "@mui/icons-material/StarBorderRounded";
 import StorageOutlinedIcon from "@mui/icons-material/StorageOutlined";
-import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
 import { alpha, Box, ButtonBase, Typography } from "@mui/material";
 import type { ReactNode } from "react";
 import type { DashboardSection } from "./DashboardSidebar";
 
 type DashboardQuickActionsProps = {
+  dockerAvailable: boolean;
   onNavigate: (section: DashboardSection) => void;
 };
 
@@ -22,13 +22,6 @@ type QuickAction = {
 };
 
 const QUICK_ACTIONS: QuickAction[] = [
-  {
-    title: "Task engineering",
-    description: "Crea e avvia un task",
-    target: "tasks",
-    tone: "primary",
-    icon: <TaskAltOutlinedIcon />
-  },
   {
     title: "Repository",
     description: "Apri Git e terminale",
@@ -52,20 +45,27 @@ const QUICK_ACTIONS: QuickAction[] = [
   }
 ];
 
-export function DashboardQuickActions({ onNavigate }: DashboardQuickActionsProps) {
+export function DashboardQuickActions({ dockerAvailable, onNavigate }: DashboardQuickActionsProps) {
+  const visibleActions = dockerAvailable
+    ? QUICK_ACTIONS
+    : QUICK_ACTIONS.filter((action) => action.target !== "docker");
+
   return (
     <Box
       component="ul"
       sx={{
         display: "grid",
-        gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
+        gridTemplateColumns: {
+          xs: "minmax(0, 1fr)",
+          sm: "repeat(auto-fit, minmax(170px, 1fr))"
+        },
         gap: 1,
         m: 0,
         p: 0,
         listStyle: "none"
       }}
     >
-      {QUICK_ACTIONS.map((action) => (
+      {visibleActions.map((action) => (
         <Box component="li" key={action.title} sx={{ minWidth: 0 }}>
           <ButtonBase
             onClick={() => onNavigate(action.target)}
