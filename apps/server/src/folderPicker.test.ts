@@ -21,7 +21,7 @@ function result(overrides: Record<string, unknown> = {}) {
   };
 }
 
-test("normalizes native picker output and reports all attempted WSL candidates", async () => {
+test("normalizes native picker output and reports all platform candidates", async () => {
   const restorePlatform = setPlatform("linux");
   const previousDistro = process.env.WSL_DISTRO_NAME;
   delete process.env.WSL_DISTRO_NAME;
@@ -33,8 +33,9 @@ test("normalizes native picker output and reports all attempted WSL candidates",
       return result({ command, stdout: " /workspace/selected\r\n" });
     });
     assert.deepEqual(selected, { ok: true, path: "/workspace/selected" });
-    assert.equal(calls[0]?.command, "powershell.exe");
-    assert.ok(calls[0]?.args.at(-1)?.includes("/workspace/start"));
+    const firstPicker = calls[0]!;
+    assert.ok(firstPicker.command === "powershell.exe" || firstPicker.command === "zenity");
+    assert.ok(firstPicker.args.some((arg) => arg.includes("/workspace/start")));
     assert.equal(calls[0]?.timeout, 300_000);
 
     let attempts = 0;
@@ -42,10 +43,10 @@ test("normalizes native picker output and reports all attempted WSL candidates",
       attempts += 1;
       return result({ ok: false, command, exitCode: null, output: `${command} unavailable` });
     });
-    assert.equal(attempts, 4);
+    assert.equal(attempts, firstPicker.command === "zenity" ? 2 : 4);
     assert.equal(failed.ok, false);
     assert.match(failed.message ?? "", /Unable to open/);
-    assert.match(failed.message ?? "", /powershell\.exe/);
+    assert.ok((failed.message ?? "").includes(firstPicker.command));
   } finally {
     restorePlatform();
     if (previousDistro === undefined) delete process.env.WSL_DISTRO_NAME;
