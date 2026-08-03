@@ -17,7 +17,7 @@ export function DashboardMetrics({ snapshot }: DashboardMetricsProps) {
         display: "grid",
         gridTemplateColumns: {
           xs: "1fr 1fr",
-          md: "repeat(4, minmax(0, 1fr))"
+          md: `repeat(${snapshot.dockerAvailable ? 4 : 3}, minmax(0, 1fr))`
         },
         gap: { xs: 1, md: 1.25 }
       }}
@@ -43,13 +43,15 @@ export function DashboardMetrics({ snapshot }: DashboardMetricsProps) {
         icon={<DifferenceOutlinedIcon />}
         color="#d97706"
       />
-      <MetricTile
-        label="Container attivi"
-        value={snapshot.runningContainers}
-        detail={`${snapshot.dockerGroups} gruppi runtime`}
-        icon={<DnsOutlinedIcon />}
-        color="#e11d48"
-      />
+      {snapshot.dockerAvailable ? (
+        <MetricTile
+          label="Container attivi"
+          value={snapshot.runningContainers}
+          detail={`${snapshot.dockerGroups} gruppi runtime`}
+          icon={<DnsOutlinedIcon />}
+          color="#e11d48"
+        />
+      ) : null}
     </Box>
   );
 }

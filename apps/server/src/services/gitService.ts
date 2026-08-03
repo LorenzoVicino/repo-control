@@ -80,7 +80,7 @@ export async function readGitDetails(projectPath: string): Promise<GitDetails> {
     ]),
     git.raw(["stash", "list", "--date=iso-strict", "--pretty=format:%gd%x1f%ci%x1f%gs%x1e"]).catch(() => "")
   ]);
-  const current = status.current || "(detached)";
+  const current = status.detached ? "(detached)" : status.current || "(detached)";
 
   return {
     status: {
@@ -154,6 +154,7 @@ export function isSafeGitRef(ref: string): boolean {
 export function isSafeGitPath(filePath: string): boolean {
   if (
     path.isAbsolute(filePath) ||
+    path.win32.isAbsolute(filePath) ||
     filePath.includes("\0") ||
     filePath.includes("\n") ||
     filePath.includes("\r")
@@ -161,7 +162,7 @@ export function isSafeGitPath(filePath: string): boolean {
     return false;
   }
 
-  const segments = filePath.split(/[\\/]+/);
+  const segments = filePath.split(/[\\/]/);
   return segments.every((segment) => segment.length > 0 && segment !== "." && segment !== "..");
 }
 

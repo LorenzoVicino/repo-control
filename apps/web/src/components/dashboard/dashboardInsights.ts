@@ -15,6 +15,7 @@ export type DashboardSnapshot = {
   favorite: number;
   localChanges: number;
   healthPercentage: number;
+  dockerAvailable: boolean;
   runningContainers: number;
   dockerGroups: number;
   changeLoad: DashboardChangeLoad[];
@@ -54,6 +55,7 @@ export function buildDashboardSnapshot(
     favorite,
     localChanges,
     healthPercentage: projects.length === 0 ? 0 : Math.round((healthy / projects.length) * 100),
+    dockerAvailable: dockerStatus?.ok === true,
     runningContainers: dockerStatus?.ok ? dockerStatus.containers.length : 0,
     dockerGroups: dockerStatus?.ok ? dockerStatus.groups.length : 0,
     changeLoad,

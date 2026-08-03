@@ -53,6 +53,7 @@ describe("buildDashboardSnapshot", () => {
       favorite: 1,
       localChanges: 6,
       healthPercentage: 33,
+      dockerAvailable: true,
       runningContainers: 1,
       dockerGroups: 1
     });
@@ -70,6 +71,7 @@ describe("buildDashboardSnapshot", () => {
     });
 
     expect(snapshot.healthPercentage).toBe(0);
+    expect(snapshot.dockerAvailable).toBe(false);
     expect(snapshot.runningContainers).toBe(0);
     expect(snapshot.dockerGroups).toBe(0);
   });

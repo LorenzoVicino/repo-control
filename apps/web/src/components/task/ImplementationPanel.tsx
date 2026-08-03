@@ -103,25 +103,23 @@ export function ImplementationPanel({ projectId, task, onChanged }: Implementati
               <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Context pack</Typography>
               <Chip size="small" variant="outlined" label={`${task.contextRepositoryPaths.length + 1} repo`} />
             </Stack>
-            <Tooltip title="Copia contesto">
-              <span>
-                <Button
-                  aria-label="Copia context pack"
-                  size="small"
-                  disabled={!contextQuery.data}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void navigator.clipboard.writeText(contextQuery.data?.content ?? "");
-                  }}
-                  onFocus={(event) => event.stopPropagation()}
-                  sx={{ minWidth: 32, px: 0.75 }}
-                >
-                  <ContentCopyOutlinedIcon fontSize="small" />
-                </Button>
-              </span>
-            </Tooltip>
           </AccordionSummary>
           <AccordionDetails sx={{ borderTop: "1px solid", borderColor: "divider", p: 1.5, maxHeight: 360, overflow: "auto" }}>
+            <Stack direction="row" justifyContent="flex-end" sx={{ mb: 1 }}>
+              <Tooltip title="Copia contesto">
+                <span>
+                  <Button
+                    aria-label="Copia context pack"
+                    size="small"
+                    disabled={!contextQuery.data}
+                    onClick={() => void navigator.clipboard.writeText(contextQuery.data?.content ?? "")}
+                    sx={{ minWidth: 32, px: 0.75 }}
+                  >
+                    <ContentCopyOutlinedIcon fontSize="small" />
+                  </Button>
+                </span>
+              </Tooltip>
+            </Stack>
             {contextQuery.isLoading ? <CircularProgress size={22} /> : contextQuery.error instanceof Error ? (
               <Alert severity="error">{contextQuery.error.message}</Alert>
             ) : (

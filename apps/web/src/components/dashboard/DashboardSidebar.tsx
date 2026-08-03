@@ -64,6 +64,7 @@ type DashboardSidebarProps = {
   repositoryCount: number;
   favoriteCount: number;
   dockerCount: number;
+  dockerAvailable: boolean;
   workspaceRoot: string;
   rootError: string | null;
   isPickingRoot: boolean;
@@ -133,6 +134,7 @@ function SidebarContent({
   repositoryCount,
   favoriteCount,
   dockerCount,
+  dockerAvailable,
   workspaceRoot,
   rootError,
   isPickingRoot,
@@ -215,7 +217,7 @@ function SidebarContent({
           Spazio di lavoro
         </Typography>
         <Stack spacing={0.5}>
-          {NAV_ITEMS.map((item) => {
+          {NAV_ITEMS.filter((item) => item.id !== "docker" || dockerAvailable).map((item) => {
             const count = counts[item.id];
             const isActive = activeSection === item.id;
 

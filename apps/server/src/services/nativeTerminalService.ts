@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
+import { constants as fsConstants, promises as fs } from "node:fs";
+import path from "node:path";
 import { isWsl } from "../runtime.js";
 import type { AgentResumeSpec } from "./agentSessionService.js";
 
@@ -23,6 +25,7 @@ export type NativeTerminalRuntime = {
   platform?: NodeJS.Platform;
   wsl?: boolean;
   env?: NodeJS.ProcessEnv;
+  windowsTerminalCommands?: string[];
 };
 
 export async function openAgentSessionInNativeTerminal(
@@ -75,17 +78,31 @@ export async function getTerminalCandidates(
   }
 
   if (platform === "win32") {
+    const commandLine = [
+      `Set-Location -LiteralPath ${powerShellQuote(cwd)}`,
+      `& ${powerShellQuote(resumeSpec.command)} ${resumeSpec.args.map(powerShellQuote).join(" ")}`
+    ].join("; ");
+
     return [
       {
         command: "wt.exe",
-        args: ["-d", cwd, resumeSpec.command, ...resumeSpec.args]
+        args: [
+          "-p",
+          "Windows PowerShell",
+          "-d",
+          cwd,
+          "powershell.exe",
+          "-NoExit",
+          "-Command",
+          commandLine
+        ]
       },
       {
         command: "powershell.exe",
         args: [
           "-NoExit",
           "-Command",
-          `Set-Location -LiteralPath ${powerShellQuote(cwd)}; & ${powerShellQuote(resumeSpec.command)} ${resumeSpec.args.map(powerShellQuote).join(" ")}`
+          commandLine
         ]
       }
     ];
@@ -114,16 +131,68 @@ export async function getTerminalCandidates(
   const runningInWsl = runtime.wsl ?? await isWsl();
 
   if (runningInWsl) {
-    const distroArgs = env.WSL_DISTRO_NAME ? ["-d", env.WSL_DISTRO_NAME] : [];
-    return [{
-      command: "wt.exe",
-      args: ["wsl.exe", ...distroArgs, "--cd", cwd, resumeSpec.command, ...resumeSpec.args]
-    }, ...linuxCandidates];
+    const distro = env.WSL_DISTRO_NAME?.trim() || "Ubuntu";
+    const windowsTerminalCommands =
+      runtime.windowsTerminalCommands
+      ?? await findWindowsTerminalCommands(env);
+    const commandLine = [
+      `cd ${posixShellQuote(cwd)}`,
+      `exec ${posixShellQuote(resumeSpec.command)} ${resumeSpec.args.map(posixShellQuote).join(" ")}`
+    ].join(" && ");
+
+    return windowsTerminalCommands.map((command) => ({
+      command,
+      args: [
+        "-p",
+        distro,
+        "wsl.exe",
+        "-d",
+        distro,
+        "--exec",
+        "bash",
+        "-lic",
+        commandLine
+      ]
+    }));
   }
 
   return linuxCandidates;
 }
 
+async function findWindowsTerminalCommands(env: NodeJS.ProcessEnv): Promise<string[]> {
+  const configuredCommand = env.REPO_CONTROL_WINDOWS_TERMINAL?.trim();
+
+  if (configuredCommand) {
+    return [configuredCommand];
+  }
+
+  const commands: string[] = [];
+  const windowsUsersDirectory = "/mnt/c/Users";
+  const users = await fs.readdir(windowsUsersDirectory, { withFileTypes: true }).catch(() => []);
+
+  for (const user of users) {
+    if (!user.isDirectory()) {
+      continue;
+    }
+
+    const candidate = path.join(
+      windowsUsersDirectory,
+      user.name,
+      "AppData",
+      "Local",
+      "Microsoft",
+      "WindowsApps",
+      "wt.exe"
+    );
+    const available = await fs.access(candidate, fsConstants.X_OK).then(() => true).catch(() => false);
+
+    if (available) {
+      commands.push(candidate);
+    }
+  }
+
+  return commands.length > 0 ? commands : ["wt.exe"];
+}
 function spawnDetached(
   candidate: TerminalCandidate,
   cwd: string,
