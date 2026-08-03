@@ -267,7 +267,7 @@ describe("ProjectsDashboard orchestration", () => {
     });
     vi.mocked(updatePreferences).mockResolvedValue({ favoriteProjectIds: [] });
     vi.mocked(pickWorkspaceFolder).mockResolvedValue(null);
-    vi.mocked(setRootPath).mockResolvedValue({ root: "/new-workspace", projects: [] });
+    vi.mocked(setRootPath).mockResolvedValue({ root: "/new-workspace" });
     vi.mocked(updateRepoControl).mockResolvedValue({
       ok: true,
       command: "git pull",

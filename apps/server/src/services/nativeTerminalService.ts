@@ -193,7 +193,6 @@ async function findWindowsTerminalCommands(env: NodeJS.ProcessEnv): Promise<stri
 
   return commands.length > 0 ? commands : ["wt.exe"];
 }
-
 function spawnDetached(
   candidate: TerminalCandidate,
   cwd: string,

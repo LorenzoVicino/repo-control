@@ -96,7 +96,7 @@ function renderComposer(overrides: Partial<React.ComponentProps<typeof TaskPlann
 
 describe("TaskPlanningComposer", () => {
   beforeEach(() => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue("request-1");
+    vi.spyOn(crypto, "randomUUID").mockReturnValue("00000000-0000-4000-8000-000000000002");
     vi.mocked(planBrainTask).mockResolvedValue(draft);
     vi.mocked(createBrainTaskFromPlan).mockResolvedValue(createdTask);
     vi.mocked(cancelBrainTaskPlanning).mockResolvedValue({ ok: true });

@@ -110,7 +110,7 @@ describe("BranchesPanel", () => {
     const user = userEvent.setup();
     runProjectAction.mockResolvedValue(result());
     renderPanel();
-    const groups = screen.getAllByText(/branches$/).map((title) => title.closest("div.MuiBox-root")!);
+    const groups = screen.getAllByText(/branches$/).map((title) => title.closest("div.MuiBox-root") as HTMLElement);
     const localCheckout = within(groups[0]!).getAllByRole("button", { name: "Checkout" })[1]!;
     const remoteCheckout = within(groups[1]!).getByRole("button", { name: "Checkout" });
 

@@ -50,7 +50,7 @@ const workflow: WorkflowDefinition = {
 
 describe("automation supporting components", () => {
   it("builds workflows from every creation template and trims user input", async () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue("template-id");
+    vi.spyOn(crypto, "randomUUID").mockReturnValue("00000000-0000-4000-8000-000000000001");
     const onCreate = vi.fn();
     const first = renderWithTheme(
       <CreateAutomationDialog open loading={false} error={null} onClose={vi.fn()} onCreate={onCreate} />

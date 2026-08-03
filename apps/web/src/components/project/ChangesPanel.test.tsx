@@ -226,9 +226,9 @@ describe("ChangesPanel", () => {
   });
 
   it("virtualizes long file lists and cancels pending animation work on unmount", () => {
-    let frameCallback: FrameRequestCallback | null = null;
+    const frameCallbacks: FrameRequestCallback[] = [];
     const requestFrame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      frameCallback = callback;
+      frameCallbacks.push(callback);
       return 42;
     });
     const cancelFrame = vi.spyOn(window, "cancelAnimationFrame");
@@ -250,6 +250,6 @@ describe("ChangesPanel", () => {
     view.unmount();
     expect(cancelFrame).toHaveBeenCalledWith(42);
 
-    frameCallback?.(0);
+    frameCallbacks[0]?.(0);
   });
 });
