@@ -188,7 +188,10 @@ describe("TaskPlanningComposer", () => {
     await user.click(screen.getByRole("button", { name: "Analizza e prepara il piano" }));
     await user.click(await screen.findByRole("button", { name: "Interrompi analisi" }));
     expect(capturedSignal?.aborted).toBe(true);
-    expect(cancelBrainTaskPlanning).toHaveBeenCalledWith("alpha", "request-1");
+    expect(cancelBrainTaskPlanning).toHaveBeenCalledWith(
+      "alpha",
+      "00000000-0000-4000-8000-000000000002",
+    );
     expect(props.onCancel).toHaveBeenCalled();
   });
 });
