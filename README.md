@@ -1,7 +1,5 @@
 # repo-control
 
-[![CI](https://github.com/LorenzoVicino/repo-control/actions/workflows/ci.yml/badge.svg)](https://github.com/LorenzoVicino/repo-control/actions/workflows/ci.yml)
-
 **A local-first command center for multi-repository workspaces.**
 
 When work spans several repositories, the important state is scattered across terminal tabs, Git clients, Docker commands and mental notes. repo-control turns one workspace folder into a live operational view: what is clean, what is drifting, what needs attention and which action is safe to run next.
@@ -83,7 +81,7 @@ The browser never chooses an arbitrary working directory for a command. It sends
 Requirements: Git and Node.js 20.19+, 22.13+ or 24+ (Node 24 recommended).
 
 ```bash
-git clone https://github.com/LorenzoVicino/repo-control.git
+git clone YOUR_REPOSITORY_URL
 cd repo-control
 npm ci
 REPO_CONTROL_ROOT=~/projects npm run dev
@@ -150,7 +148,7 @@ CI repeats the verification gate on Node.js 20.19, 22.13 and 24, then runs the b
 
 ## Releases
 
-Release notes are published in [CHANGELOG.md](CHANGELOG.md) and [GitHub Releases](https://github.com/LorenzoVicino/repo-control/releases). While the UI is open, repo-control periodically checks for a newer tag and can update a clean local checkout from the app.
+Release notes are published in [CHANGELOG.md](CHANGELOG.md) and the repository's Releases page. While the UI is open, repo-control periodically checks for a newer tag and can update a clean local checkout from the app.
 
 ## License
 
