@@ -6,6 +6,22 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.6.0] - 2026-08-04
+
+### Changed
+
+- Resume agent sessions in Windows Terminal from the selected repository, using the matching WSL distribution and a login shell when the session belongs to WSL.
+- Show Docker navigation, metrics and quick actions only while Docker is available, refreshing availability every minute in the background.
+- Hide Task engineering from Dashboard quick actions until its workflow is redesigned.
+- Raise server and web coverage gates to 80% across statements, branches, functions and lines.
+- Update Fastify, Motion, Playwright, ESLint and Globals to their latest compatible minor releases.
+
+### Fixed
+
+- Preserve Claude tool results in conversation history and avoid surfacing whitespace-only command errors.
+- Reject unsafe Windows absolute Git paths and malformed paths with repeated separators, while reporting detached HEAD reliably.
+- Improve labels and interaction semantics across terminal and task-planning controls.
+
 ## [0.5.0] - 2026-07-30
 
 ### Added
