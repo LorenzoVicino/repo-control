@@ -88,16 +88,16 @@ test("builds WSL PowerShell candidates and converts Windows and WSL share paths"
     const calls: Array<{ command: string; args: string[] }> = [];
     const drive = await openNativeFolderPicker("/mnt/c/Users/O'Brien/work", async (_cwd, command, args) => {
       calls.push({ command, args });
-      return result({ command, stdout: "C:\\Users\\Lorenzo\\project\n" });
+      return result({ command, stdout: "C:\\Users\\developer\\project\n" });
     });
-    assert.deepEqual(drive, { ok: true, path: "/mnt/c/Users/Lorenzo/project" });
+    assert.deepEqual(drive, { ok: true, path: "/mnt/c/Users/developer/project" });
     assert.equal(calls[0]?.command, "powershell.exe");
     assert.ok(calls[0]?.args.at(-1)?.includes("C:\\Users\\O''Brien\\work"));
 
-    const share = await openNativeFolderPicker("/home/lorenzo/project", async () =>
-      result({ stdout: "\\\\wsl.localhost\\Ubuntu-24.04\\home\\lorenzo\\selected\n" })
+    const share = await openNativeFolderPicker("/home/developer/project", async () =>
+      result({ stdout: "\\\\wsl.localhost\\Ubuntu-24.04\\home\\developer\\selected\n" })
     );
-    assert.deepEqual(share, { ok: true, path: "/home/lorenzo/selected" });
+    assert.deepEqual(share, { ok: true, path: "/home/developer/selected" });
   } finally {
     restorePlatform();
     if (previousDistro === undefined) delete process.env.WSL_DISTRO_NAME;
