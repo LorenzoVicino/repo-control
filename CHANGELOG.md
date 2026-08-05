@@ -6,6 +6,11 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+### Changed
+
+- Align the README, environment example, contributor guide, security model and architecture guide with Agent sessions, cancellable background automations, current navigation, supported configuration and local persistence.
+- Replace the outdated product walkthrough with a privacy-safe synthetic demo of the current Dashboard, Git workspace, Agent sessions and automation run flow.
+
 ## [0.6.0] - 2026-08-04
 
 ### Changed
