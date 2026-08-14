@@ -103,7 +103,7 @@ export const ProjectWorkspaceTabs = React.memo(function ProjectWorkspaceTabs({
                 sx={(theme) => ({
                   position: "relative",
                   width: "100%",
-                  height: 52,
+                  height: 42,
                   minWidth: 0,
                   justifyContent: "flex-start",
                   gap: 1,
@@ -142,7 +142,7 @@ export const ProjectWorkspaceTabs = React.memo(function ProjectWorkspaceTabs({
                   }}
                 />
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="body2" noWrap sx={{ fontWeight: isActive ? 800 : 700, lineHeight: 1.2 }}>
+                  <Typography variant="body2" noWrap sx={{ fontWeight: 500, lineHeight: 1.2 }}>
                     {project.name}
                   </Typography>
                   <Typography variant="caption" noWrap component="div" color="text.secondary">
@@ -174,7 +174,7 @@ export const ProjectWorkspaceTabs = React.memo(function ProjectWorkspaceTabs({
                   sx={{
                     position: "absolute",
                     zIndex: 2,
-                    top: 11,
+                    top: 7,
                     right: 7,
                     width: 28,
                     height: 28,

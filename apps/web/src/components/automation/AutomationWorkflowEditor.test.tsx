@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -124,12 +124,19 @@ vi.mock("./AutomationRunHistory", () => ({
   )
 }));
 vi.mock("./AutomationRunDialog", () => ({
-  AutomationRunDialog: (props: Record<string, unknown>) => props.run ? (
-    <div data-testid={`run-dialog-${(props.run as WorkflowRun).id}`}>
-      <button onClick={() => (props.onClose as () => void)()}>close-run</button>
-      {props.onCancel ? <button onClick={() => (props.onCancel as () => void)()}>cancel-run</button> : null}
-    </div>
-  ) : null
+  AutomationRunDialog: (props: Record<string, unknown>) => {
+    const run = props.run as WorkflowRun | null;
+    const active = run?.status === "pending" || run?.status === "running";
+
+    return run ? (
+      <div data-testid={`run-dialog-${run.id}`} data-status={run.status}>
+        <button onClick={() => (props.onClose as () => void)()}>close-run</button>
+        {active && props.onCancel
+          ? <button onClick={() => (props.onCancel as () => void)()}>cancel-run</button>
+          : null}
+      </div>
+    ) : null;
+  }
 }));
 
 const workflow: WorkflowDefinition = {
@@ -176,6 +183,7 @@ function renderEditor(element: ReactElement) {
 
 describe("AutomationWorkflowEditor", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.spyOn(crypto, "randomUUID").mockReturnValue("00000000-0000-4000-8000-000000000001");
     vi.mocked(updateWorkflow).mockResolvedValue(workflow);
     vi.mocked(executeWorkflow).mockResolvedValue(createRun("success"));
@@ -198,6 +206,9 @@ describe("AutomationWorkflowEditor", () => {
       />
     );
 
+    vi.mocked(fetchWorkflowRun)
+      .mockResolvedValueOnce(createRun("running"))
+      .mockResolvedValue(createRun("cancelled"));
     await user.clear(screen.getByRole("textbox", { name: "Nome workflow" }));
     expect(screen.getByRole("button", { name: "Esegui" })).toBeDisabled();
     await user.type(screen.getByRole("textbox", { name: "Nome workflow" }), "Release v2");
@@ -218,6 +229,7 @@ describe("AutomationWorkflowEditor", () => {
     expect(await screen.findByTestId("run-dialog-run-1")).toBeVisible();
     await user.click(screen.getByText("cancel-run"));
     expect(cancelWorkflowRun).toHaveBeenCalledWith("run-1");
+    await waitFor(() => expect(screen.getByTestId("run-dialog-run-1")).toHaveAttribute("data-status", "cancelled"));
     await user.click(screen.getByText("close-run"));
 
     await user.click(screen.getByRole("button", { name: "Aggiungi passaggio" }));
@@ -284,4 +296,33 @@ describe("AutomationWorkflowEditor", () => {
     await user.click(screen.getByRole("button", { name: "Elimina" }));
     expect(await screen.findByText("Operazione non riuscita")).toBeInTheDocument();
   }, 20_000);
+
+  it("polls an active run until completion and keeps the dialog updated", async () => {
+    const user = userEvent.setup();
+    vi.mocked(executeWorkflow).mockResolvedValueOnce(createRun("running"));
+    vi.mocked(fetchWorkflowRun)
+      .mockResolvedValueOnce(createRun("running"))
+      .mockResolvedValue(createRun("success"));
+
+    renderEditor(
+      <AutomationWorkflowEditor
+        workflow={workflow}
+        projects={[createProjectFixture("alpha")]}
+        runs={[]}
+        onDeleted={vi.fn().mockResolvedValue(undefined)}
+        onDirtyChange={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Esegui" }));
+    await user.click(screen.getByText("submit-execution"));
+
+    expect(await screen.findByTestId("run-dialog-run-1")).toHaveAttribute("data-status", "running");
+    await waitFor(
+      () => expect(screen.getByTestId("run-dialog-run-1")).toHaveAttribute("data-status", "success"),
+      { timeout: 5_000 }
+    );
+    expect(fetchWorkflowRun).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText("cancel-run")).not.toBeInTheDocument();
+  }, 10_000);
 });

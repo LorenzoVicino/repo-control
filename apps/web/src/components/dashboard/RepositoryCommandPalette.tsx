@@ -97,15 +97,24 @@ export function RepositoryCommandPalette({
       open={open}
       onClose={onClose}
       fullWidth
-      maxWidth="sm"
+      maxWidth={false}
       transitionDuration={{ enter: 160, exit: 0 }}
       PaperProps={{
         "aria-label": "Repository command palette",
         sx: {
-          mt: { xs: 2, sm: 8 },
+          width: "min(748px, calc(100vw - 24px))",
+          mt: { xs: 2, sm: 9 },
           alignSelf: "flex-start",
           overflow: "hidden",
-          borderRadius: 1
+          borderRadius: 1.5
+        }
+      }}
+      slotProps={{
+        backdrop: {
+          sx: {
+            bgcolor: "rgba(12, 13, 22, 0.66)",
+            backdropFilter: "blur(7px)"
+          }
         }
       }}
       TransitionProps={{
@@ -131,8 +140,9 @@ export function RepositoryCommandPalette({
             ),
             sx: {
               px: 0,
-              py: 1.75,
-              fontSize: "0.95rem",
+              py: 1.5,
+              bgcolor: "var(--rc-surface-2)",
+              fontSize: 13,
               borderBottom: "1px solid",
               borderColor: "divider"
             }
@@ -140,7 +150,12 @@ export function RepositoryCommandPalette({
         />
 
         {results.length > 0 ? (
-          <List disablePadding sx={{ p: 0.75, maxHeight: 430, overflow: "auto" }}>
+          <>
+            <Stack direction="row" alignItems="center" sx={{ minHeight: 31, px: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
+              <Typography variant="overline" color="text.secondary" sx={{ flexGrow: 1 }}>Repository</Typography>
+              <Typography color="text.secondary" sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 9.5 }}>{results.length} risultati</Typography>
+            </Stack>
+            <List disablePadding sx={{ p: 0.75, maxHeight: 430, overflow: "auto" }}>
             {results.map((project, index) => (
               <ListItemButton
                 key={project.id}
@@ -151,7 +166,7 @@ export function RepositoryCommandPalette({
                   onOpenProject(project.id);
                 }}
                 sx={{
-                  minHeight: 58,
+                  minHeight: 52,
                   px: 1.25,
                   borderRadius: 0.75,
                   alignItems: "center",
@@ -177,14 +192,14 @@ export function RepositoryCommandPalette({
                 <ListItemText
                   primary={
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                      <Typography variant="body2" noWrap sx={{ fontWeight: 750, minWidth: 0 }}>
+                      <Typography variant="body2" noWrap sx={{ fontWeight: 500, minWidth: 0 }}>
                         {project.name}
                       </Typography>
                       <Chip size="small" variant="outlined" label={project.branch} />
                     </Stack>
                   }
                   secondary={
-                    <Typography variant="caption" color="text.secondary" noWrap component="span">
+                    <Typography variant="caption" color="text.secondary" noWrap component="span" sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 9.5 }}>
                       {project.path}
                     </Typography>
                   }
@@ -192,7 +207,13 @@ export function RepositoryCommandPalette({
                 <ProjectSignal project={project} />
               </ListItemButton>
             ))}
-          </List>
+            </List>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minHeight: 34, px: 1.5, borderTop: "1px solid", borderColor: "divider", bgcolor: "var(--rc-surface-2)" }}>
+              <KeyHint keys="↑↓" label="naviga" />
+              <KeyHint keys="↵" label="apri" />
+              <KeyHint keys="esc" label="chiudi" />
+            </Stack>
+          </>
         ) : (
           <Box sx={{ p: 3, textAlign: "center" }}>
             <Typography variant="body2" color="text.secondary">
@@ -202,6 +223,15 @@ export function RepositoryCommandPalette({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function KeyHint({ keys, label }: { keys: string; label: string }) {
+  return (
+    <Stack direction="row" spacing={0.45} alignItems="center">
+      <Box component="kbd" sx={{ px: 0.55, py: 0.1, border: "1px solid", borderColor: "divider", borderRadius: 0.5, fontFamily: "var(--rc-font-mono)", fontSize: 9 }}>{keys}</Box>
+      <Typography color="text.secondary" sx={{ fontSize: 9.5 }}>{label}</Typography>
+    </Stack>
   );
 }
 

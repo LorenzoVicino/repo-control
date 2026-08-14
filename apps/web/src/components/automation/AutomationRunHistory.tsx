@@ -24,7 +24,7 @@ export function AutomationRunHistory({ runs, onSelectRun }: AutomationRunHistory
     >
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1.5, py: 1.25 }}>
         <Box>
-          <Typography id="automation-runs-title" variant="subtitle2" fontWeight={800}>Esecuzioni</Typography>
+          <Typography id="automation-runs-title" variant="subtitle2" fontWeight={500}>Esecuzioni</Typography>
           <Typography variant="caption" color="text.secondary">Cronologia del workflow selezionato</Typography>
         </Box>
         <Chip size="small" variant="outlined" label={runs.length} />

@@ -178,91 +178,141 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
         </Button>
       </Stack>
       <Divider />
-      <Box sx={{ overflowX: "auto", px: 1, py: 1 }}>
-        <Stack direction="row" spacing={0.5} sx={{ minWidth: 660 }}>
-          {TASK_PHASES.map((item, index) => {
-            const unlocked = index <= currentPhaseIndex || task.status === "done";
-            const approved = index < currentPhaseIndex || task.status === "done";
-            return (
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "196px minmax(0, 1fr)" }, minWidth: 0 }}>
+        <Box
+          component="nav"
+          aria-label="Gate del task"
+          sx={{
+            p: 1,
+            bgcolor: "var(--rc-surface-1)",
+            borderRight: { md: "1px solid" },
+            borderBottom: { xs: "1px solid", md: 0 },
+            borderColor: "divider",
+            overflowX: { xs: "auto", md: "visible" }
+          }}
+        >
+          <Typography variant="overline" color="text.secondary" sx={{ display: { xs: "none", md: "block" }, px: 1, mb: 0.75 }}>
+            Gate del task
+          </Typography>
+          <Stack direction={{ xs: "row", md: "column" }} spacing={0.5} sx={{ minWidth: { xs: 680, md: 0 } }}>
+            {TASK_PHASES.map((item, index) => {
+              const unlocked = index <= currentPhaseIndex || task.status === "done";
+              const approved = index < currentPhaseIndex || task.status === "done";
+              return (
+                <Button
+                  key={item.id}
+                  size="small"
+                  disabled={!unlocked}
+                  onClick={() => setPhase(item.id)}
+                  variant={phase === item.id ? "contained" : "text"}
+                  color={approved && phase !== item.id ? "success" : "primary"}
+                  startIcon={approved ? <CheckCircleOutlineIcon fontSize="small" /> : (
+                    <Box
+                      component="span"
+                      sx={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: "50%",
+                        display: "grid",
+                        placeItems: "center",
+                        border: "1px solid currentColor",
+                        fontFamily: "var(--rc-font-mono)",
+                        fontSize: 10
+                      }}
+                    >
+                      {index + 1}
+                    </Box>
+                  )}
+                  sx={{
+                    minWidth: { xs: 124, md: 0 },
+                    justifyContent: "flex-start",
+                    px: 1.25,
+                    opacity: unlocked ? 1 : 0.55
+                  }}
+                >
+                  {item.label}
+                </Button>
+              );
+            })}
+          </Stack>
+        </Box>
+
+        <Box sx={{ minWidth: 0 }}>
+          <Box sx={{ px: { xs: 1.5, md: 2.5 }, pt: { xs: 1.5, md: 2.25 }, pb: 1.25 }}>
+            <Typography variant="overline" color="primary.main">
+              {phase === "implementation" ? "Esecuzione controllata" : "Contenuto modificabile · approvazione umana"}
+            </Typography>
+            <Typography variant="h3">{TASK_PHASES.find((item) => item.id === phase)?.label}</Typography>
+          </Box>
+          <Divider />
+          <Box sx={{ p: { xs: 1.5, md: 2.5 } }}>
+            {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
+            {phase === "definition" ? (
+              <Stack spacing={2}>
+                <TextField label="Titolo" value={title} onChange={(event) => setTitle(event.target.value)} fullWidth />
+                <TextField
+                  label="Descrizione"
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  multiline
+                  minRows={5}
+                  fullWidth
+                />
+                <TextField
+                  label="Motivazione"
+                  value={motivation}
+                  onChange={(event) => setMotivation(event.target.value)}
+                  multiline
+                  minRows={3}
+                  fullWidth
+                />
+              </Stack>
+            ) : phase === "implementation" ? (
+              <ImplementationPanel projectId={projectId} task={task} onChanged={onChanged} />
+            ) : (
+              <TextField
+                label={TASK_PHASES.find((item) => item.id === phase)?.label}
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
+                multiline
+                minRows={14}
+                fullWidth
+                inputProps={{ style: { fontFamily: "var(--rc-font-mono)", fontSize: 13.5, lineHeight: 1.55 } }}
+              />
+            )}
+          </Box>
+
+          {phase !== "implementation" ? (
+            <Stack
+              direction={{ xs: "column-reverse", sm: "row" }}
+              justifyContent="flex-end"
+              spacing={1}
+              sx={{ px: { xs: 1.5, md: 2.5 }, py: 1.5, borderTop: "1px solid", borderColor: "divider", bgcolor: "var(--rc-surface-1)" }}
+            >
+              <Button variant="outlined" onClick={() => saveMutation.mutate()} disabled={busy}>Salva bozza</Button>
               <Button
-                key={item.id}
-                size="small"
-                disabled={!unlocked}
-                onClick={() => setPhase(item.id)}
-                variant={phase === item.id ? "contained" : "text"}
-                color={approved && phase !== item.id ? "success" : "primary"}
-                startIcon={approved ? <CheckCircleOutlineIcon fontSize="small" /> : undefined}
-                sx={{ minWidth: 124, flex: 1 }}
+                variant="contained"
+                onClick={() => approveMutation.mutate()}
+                disabled={busy}
+                startIcon={busy ? <CircularProgress size={16} /> : <CheckCircleOutlineIcon />}
               >
-                {item.label}
+                Approva gate e continua
               </Button>
-            );
-          })}
-        </Stack>
-      </Box>
-      <Divider />
-
-      <Box sx={{ p: { xs: 1.5, md: 2.5 } }}>
-        {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
-        {phase === "definition" ? (
-          <Stack spacing={2}>
-            <TextField label="Titolo" value={title} onChange={(event) => setTitle(event.target.value)} fullWidth />
-            <TextField
-              label="Descrizione"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              multiline
-              minRows={5}
-              fullWidth
-            />
-            <TextField
-              label="Motivazione"
-              value={motivation}
-              onChange={(event) => setMotivation(event.target.value)}
-              multiline
-              minRows={3}
-              fullWidth
-            />
-          </Stack>
-        ) : phase === "implementation" ? (
-          <ImplementationPanel projectId={projectId} task={task} onChanged={onChanged} />
-        ) : (
-          <TextField
-            label={TASK_PHASES.find((item) => item.id === phase)?.label}
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-            multiline
-            minRows={14}
-            fullWidth
-            inputProps={{ style: { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13.5, lineHeight: 1.55 } }}
-          />
-        )}
-
-        {phase !== "implementation" ? (
-          <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 2 }}>
-            <Button variant="outlined" onClick={() => saveMutation.mutate()} disabled={busy}>Salva</Button>
-            <Button
-              variant="contained"
-              onClick={() => approveMutation.mutate()}
-              disabled={busy}
-              startIcon={busy ? <CircularProgress size={16} /> : <CheckCircleOutlineIcon />}
-            >
-              Approva e continua
-            </Button>
-          </Stack>
-        ) : task.status === "implementation" ? (
-          <Stack alignItems="flex-end" sx={{ mt: 2 }}>
-            <Button
-              variant="contained"
-              color="success"
-              onClick={() => approveMutation.mutate()}
-              disabled={busy}
-              startIcon={<CheckCircleOutlineIcon />}
-            >
-              Chiudi task
-            </Button>
-          </Stack>
-        ) : null}
+            </Stack>
+          ) : task.status === "implementation" ? (
+            <Stack alignItems="flex-end" sx={{ px: { xs: 1.5, md: 2.5 }, py: 1.5, borderTop: "1px solid", borderColor: "divider", bgcolor: "var(--rc-surface-1)" }}>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={() => approveMutation.mutate()}
+                disabled={busy}
+                startIcon={<CheckCircleOutlineIcon />}
+              >
+                Chiudi task
+              </Button>
+            </Stack>
+          ) : null}
+        </Box>
       </Box>
     </Paper>
   );

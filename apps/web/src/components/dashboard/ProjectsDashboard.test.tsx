@@ -38,9 +38,13 @@ vi.mock("../../api/projects", () => ({
       tracking: "origin/main",
       ahead: 0,
       behind: 0,
-      files: { staged: [], unstaged: [] }
+      files: { staged: [], unstaged: [] },
+      diff: {
+        staged: { files: 0, additions: 0, deletions: 0, binaryFiles: 0, untrackedFiles: 0 },
+        unstaged: { files: 0, additions: 0, deletions: 0, binaryFiles: 0, untrackedFiles: 0 }
+      }
     },
-    branches: { current: "main", local: [], remote: [] },
+    branches: { current: "main", defaultBranch: "main", local: [], remote: [] },
     stashes: []
   }),
   fetchGitActivity: vi.fn().mockResolvedValue({ commits: [], offset: 0, limit: 6, hasMore: false, nextOffset: null }),

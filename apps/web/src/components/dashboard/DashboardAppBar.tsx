@@ -1,4 +1,3 @@
-import { keyframes } from "@emotion/react";
 import MenuIcon from "@mui/icons-material/Menu";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
@@ -23,9 +22,9 @@ import {
   Tooltip,
   Typography
 } from "@mui/material";
+import { APP_VERSION } from "../../config";
 import type { AppUpdateStatus } from "../../types/app";
 import type { ViewMode } from "../../types/common";
-import { APP_VERSION } from "../../config";
 import type { DashboardSection } from "./DashboardSidebar";
 
 const SECTION_LABELS: Record<DashboardSection, string> = {
@@ -37,12 +36,6 @@ const SECTION_LABELS: Record<DashboardSection, string> = {
   favorites: "Preferiti",
   repositories: "Repository"
 };
-
-const updateAvailablePulse = keyframes`
-  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.36); }
-  70% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
-`;
 
 type DashboardAppBarProps = {
   activeSection: DashboardSection;
@@ -96,31 +89,29 @@ export function DashboardAppBar({
       sx={{
         top: 0,
         zIndex: (theme) => theme.zIndex.appBar,
-        bgcolor: (theme) => alpha(theme.palette.background.paper, 0.94),
+        bgcolor: (theme) => alpha(theme.palette.background.paper, 0.97),
         borderBottom: "1px solid",
         borderColor: "divider",
-        backdropFilter: "blur(14px)"
+        backdropFilter: "blur(16px)"
       }}
     >
       <Toolbar
         sx={{
           width: "100%",
-          maxWidth: 1680,
-          mx: "auto",
-          minHeight: { xs: "auto", md: 68 },
+          minHeight: { xs: "auto", md: 52 },
           display: "grid",
           gridTemplateColumns: {
             xs: "minmax(0, 1fr) auto",
-            md: "minmax(170px, 0.55fr) minmax(320px, 1.45fr) auto"
+            md: "minmax(220px, 1fr) minmax(320px, 560px) minmax(220px, 1fr)"
           },
           gridTemplateAreas: {
             xs: '"context actions" "search search"',
             md: '"context search actions"'
           },
           alignItems: "center",
-          gap: { xs: 1, md: 2 },
-          px: { xs: 1.5, sm: 2.5, lg: 3 },
-          py: { xs: 1.25, md: 0 }
+          gap: { xs: 1, md: 2.25 },
+          px: { xs: 1.25, sm: 2, lg: 2.75 },
+          py: { xs: 1, md: 0 }
         }}
       >
         <Stack
@@ -136,20 +127,22 @@ export function DashboardAppBar({
           >
             <MenuIcon />
           </IconButton>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="caption" color="text.secondary" noWrap component="div">
-              <Box component="span" sx={{ display: { xs: "inline", md: "none" }, fontWeight: 750 }}>
-                repo-control ·{" "}
-              </Box>
-              {activeProjectName ? "Repository" : "Workspace"}
-            </Typography>
-            <Typography variant="body2" noWrap sx={{ fontWeight: 750 }}>
-              {activeProjectName ?? SECTION_LABELS[activeSection]}
-            </Typography>
-          </Box>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            Workspace
+          </Typography>
+          <Typography aria-hidden="true" variant="caption" color="text.disabled">/</Typography>
+          {activeProjectName ? (
+            <>
+              <Typography variant="caption" color="text.secondary" noWrap>Repository</Typography>
+              <Typography aria-hidden="true" variant="caption" color="text.disabled">/</Typography>
+            </>
+          ) : null}
+          <Typography variant="caption" color="text.primary" noWrap sx={{ fontWeight: 500 }}>
+            {activeProjectName ?? SECTION_LABELS[activeSection]}
+          </Typography>
         </Stack>
 
-        <Box sx={{ gridArea: "search", justifySelf: { xs: "stretch", md: "center" }, width: { xs: "100%", md: "min(100%, 760px)" } }}>
+        <Box sx={{ gridArea: "search", justifySelf: "center", width: "100%", maxWidth: 560 }}>
           <Tooltip title="Cerca repository (Ctrl+P)" placement="bottom">
             <TextField
               fullWidth
@@ -169,14 +162,13 @@ export function DashboardAppBar({
                 readOnly: true,
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
+                    <SearchIcon sx={{ fontSize: 17 }} />
                   </InputAdornment>
                 ),
                 endAdornment: (
                   <InputAdornment position="end">
                     <Typography
                       component="kbd"
-                      variant="caption"
                       color="text.secondary"
                       sx={{
                         px: 0.7,
@@ -184,24 +176,22 @@ export function DashboardAppBar({
                         border: "1px solid",
                         borderColor: "divider",
                         borderRadius: 0.5,
-                        bgcolor: "action.hover",
-                        fontFamily: "inherit",
-                        fontSize: "0.65rem"
+                        bgcolor: "var(--rc-surface-3)",
+                        fontFamily: "var(--rc-font-mono)",
+                        fontSize: 9
                       }}
                     >
-                      Ctrl+P
+                      Ctrl P
                     </Typography>
                   </InputAdornment>
                 )
               }}
               sx={{
                 "& .MuiOutlinedInput-root": {
-                  height: 38,
-                  borderRadius: 0.875,
+                  height: 32,
                   cursor: "pointer",
-                  fontSize: "0.875rem",
-                  "&:hover fieldset": { borderColor: "primary.main" },
-                  "&.Mui-focused fieldset": { borderWidth: 1 }
+                  fontSize: 12,
+                  "&:hover fieldset": { borderColor: "primary.main" }
                 },
                 "& .MuiInputBase-input": { cursor: "pointer" }
               }}
@@ -216,6 +206,26 @@ export function DashboardAppBar({
           justifyContent="flex-end"
           sx={{ gridArea: "actions", justifySelf: "end", minWidth: 0 }}
         >
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={0.6}
+            sx={{ display: { xs: "none", xl: "flex" }, color: "text.secondary" }}
+          >
+            <Box
+              aria-hidden="true"
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                bgcolor: isFetchingProjects ? "primary.main" : "success.main",
+                animation: isFetchingProjects ? "rc-pulse 1.4s ease-in-out infinite" : "none"
+              }}
+            />
+            <Typography noWrap sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 9.5 }}>
+              {isFetchingProjects ? "scansione…" : "workspace aggiornato"}
+            </Typography>
+          </Stack>
           <Chip
             size="small"
             variant="outlined"
@@ -225,44 +235,23 @@ export function DashboardAppBar({
           />
           <Tooltip title={updateTooltip}>
             <span>
-              <Badge
-                color="warning"
-                variant="dot"
-                invisible={!canUpdateApp}
-                overlap="rectangular"
-                sx={{
-                  "& .MuiBadge-badge": {
-                    boxShadow: (theme) => `0 0 0 2px ${theme.palette.background.paper}`
-                  }
-                }}
-              >
+              <Badge color="warning" variant="dot" invisible={!canUpdateApp} overlap="rectangular">
                 <Button
                   size="small"
-                  variant={canUpdateApp ? "contained" : "outlined"}
+                  variant="outlined"
                   color={canUpdateApp ? "primary" : "inherit"}
                   aria-label={getUpdateAriaLabel(appUpdateStatus, canUpdateApp)}
                   startIcon={
-                    isUpdatingApp || (isCheckingAppUpdate && !appUpdateStatus) ? (
-                      <CircularProgress color="inherit" size={16} />
-                    ) : (
-                      <SyncIcon fontSize="small" />
-                    )
+                    isUpdatingApp || (isCheckingAppUpdate && !appUpdateStatus)
+                      ? <CircularProgress color="inherit" size={14} />
+                      : <SyncIcon sx={{ fontSize: 16 }} />
                   }
                   onClick={onUpdateApp}
                   disabled={!canUpdateApp}
                   sx={{
-                    minWidth: { xs: 36, sm: 104 },
-                    px: { xs: 1, sm: 1.5 },
-                    fontWeight: canUpdateApp ? 800 : 500,
-                    animation: canUpdateApp ? `${updateAvailablePulse} 1.8s ease-in-out infinite` : "none",
-                    boxShadow: canUpdateApp ? "0 0 18px rgba(37, 99, 235, 0.32)" : undefined,
-                    "&:hover": {
-                      boxShadow: canUpdateApp ? "0 0 22px rgba(37, 99, 235, 0.42)" : undefined
-                    },
-                    "& .MuiButton-startIcon": {
-                      ml: 0,
-                      mr: { xs: 0, sm: 0.75 }
-                    }
+                    minWidth: { xs: 32, sm: 92 },
+                    px: { xs: 0.75, sm: 1.25 },
+                    "& .MuiButton-startIcon": { ml: 0, mr: { xs: 0, sm: 0.65 } }
                   }}
                 >
                   <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Aggiorna</Box>
@@ -297,7 +286,7 @@ export function DashboardAppBar({
                   aria-label="Aggiorna repository"
                   size="small"
                 >
-                  {isFetchingProjects ? <CircularProgress size={20} /> : <RefreshIcon fontSize="small" />}
+                  {isFetchingProjects ? <CircularProgress size={17} /> : <RefreshIcon fontSize="small" />}
                 </IconButton>
               </span>
             </Tooltip>

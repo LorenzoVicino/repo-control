@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithTheme } from "../../test/render";
@@ -15,8 +15,8 @@ function createGroup(index: number, serviceCount = 1): DockerContainerGroup {
       id: `container-${index}-${serviceIndex}`,
       name: `container-${serviceIndex}`,
       image: "image:latest",
-      status: "Up",
-      ports: "",
+      status: serviceIndex === 1 ? "Up 1 minute (unhealthy)" : "Up 1 minute (healthy)",
+      ports: serviceIndex === 0 ? "0.0.0.0:3000->3000/tcp" : "",
       runningFor: "1 minute",
       composeProject: index === 0 ? "compose-project" : null,
       composeService: index === 0 ? `service-${serviceIndex}` : null,
@@ -52,14 +52,19 @@ describe("ControlCenter", () => {
     );
 
     expect(screen.getByText("6 progetti")).toBeVisible();
-    expect(screen.getByText("Altri 1 progetti")).toBeVisible();
-    expect(screen.getByText("+1")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Mostra 1 altro gruppo" })).toBeVisible();
+    expect(screen.getByText("service-4")).toBeVisible();
+    expect(screen.getByRole("link", { name: /3000→3000\/tcp/ })).toHaveAttribute("href", "http://localhost:3000");
+    expect(screen.getByText("Unhealthy")).toBeVisible();
     expect(screen.getByText("/workspace/project-0")).toBeVisible();
     expect(screen.getByText("stop fallito")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Aggiorna container Docker" }));
     await user.click(screen.getByRole("button", { name: "Ferma compose project-0" }));
+    expect(screen.getByText(/Gli altri gruppi Docker non verranno toccati/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Ferma 5 servizi" }));
     expect(onRefreshDocker).toHaveBeenCalledOnce();
     expect(onStopDockerGroup).toHaveBeenCalledWith(groups[0]);
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(screen.getByRole("button", { name: "Ferma container project-1" })).toBeDisabled();
   });
 

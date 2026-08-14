@@ -19,37 +19,87 @@ function transcriptDirectory(homePath: string, projectPath: string): string {
   return path.join(homePath, ".claude", "projects", key);
 }
 
+async function createFakeClaudeCli(temporaryRoot: string): Promise<string> {
+  const scriptPath = path.join(temporaryRoot, "fake-claude.cjs");
+  const commandPath = path.join(temporaryRoot, process.platform === "win32" ? "fake-claude.cmd" : "fake-claude");
+  const backgroundSessions = [
+    { session_id: "shared-session", name: "Background duplicate", prompt: "background prompt", created_at: "2026-08-01T00:00:00.000Z", status: "running" },
+    { sessionId: "background-2", title: "Background two", task: "Do work", updated_at: "2026-08-04T00:00:00.000Z", state: "done" },
+    { id: "short", createdAt: "2026-08-02T00:00:00.000Z" },
+    { id: "123456789", lastActivityAt: "2026-08-03T00:00:00.000Z" },
+    null,
+    "bad",
+    { title: "missing id" }
+  ];
+
+  await fs.writeFile(scriptPath, `const fs = require("node:fs");
+const args = process.argv.slice(2);
+const mode = process.env.REPO_CONTROL_CLAUDE_TEST_MODE;
+
+if (args.includes("--version")) {
+  if (mode === "status-fail") {
+    process.stderr.write("missing cli\\n");
+    process.exitCode = 1;
+  } else {
+    process.stdout.write("  claude 9.1.0  \\nsecond line\\n");
+  }
+} else if (args[0] === "auth") {
+  if (mode === "status-fail") {
+    process.stderr.write("not authenticated\\n");
+    process.exitCode = 1;
+  } else {
+    process.stdout.write("authenticated\\n");
+  }
+} else if (args[0] === "agents") {
+  if (mode === "background-fail" || mode === "status-fail") {
+    process.stderr.write("unsupported\\n");
+    process.exitCode = 1;
+  } else {
+    process.stdout.write(${JSON.stringify(JSON.stringify(backgroundSessions) + "\n")});
+  }
+} else {
+  if (process.env.REPO_CONTROL_CLAUDE_ARGS_PATH) {
+    fs.writeFileSync(process.env.REPO_CONTROL_CLAUDE_ARGS_PATH, args.join("\\n") + "\\n");
+  }
+
+  switch (mode) {
+    case "json-success": process.stdout.write('{"session_id":"new-session","result":"Implemented"}\\n'); break;
+    case "json-error": process.stdout.write('{"sessionId":"error-session","response":"Partial","error":"permission denied","is_error":true}\\n'); break;
+    case "typed-error": process.stdout.write('{"type":"error","message_error":"typed failure","stderr":"stderr fallback"}\\n'); break;
+    case "plain": process.stdout.write(" plain response \\n"); break;
+    case "stderr": process.stderr.write("cli exploded\\n"); process.exitCode = 1; break;
+    case "empty": process.exitCode = 1; break;
+    default: process.stderr.write("unexpected arguments: " + args.join(" ") + "\\n"); process.exitCode = 2;
+  }
+}
+`, "utf8");
+
+  if (process.platform === "win32") {
+    await fs.writeFile(commandPath, `@echo off\r\n"${process.execPath}" "${scriptPath}" %*\r\n`, "utf8");
+  } else {
+    await fs.writeFile(commandPath, `#!/usr/bin/env sh\nexec "${process.execPath}" "${scriptPath}" "$@"\n`, "utf8");
+    await fs.chmod(commandPath, 0o755);
+  }
+
+  return commandPath;
+}
+
 test("discovers Claude transcript and background sessions and reconstructs message details", async () => {
   const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "repo-control-claude-sessions-"));
   const projectPath = path.join(temporaryRoot, "project");
   const homePath = path.join(temporaryRoot, "home");
-  const cliPath = path.join(temporaryRoot, "fake-claude.sh");
+  const cliPath = await createFakeClaudeCli(temporaryRoot);
   const previousHome = process.env.HOME;
+  const previousUserProfile = process.env.USERPROFILE;
   const previousClaude = process.env.REPO_CONTROL_CLAUDE;
   const previousMode = process.env.REPO_CONTROL_CLAUDE_TEST_MODE;
 
   try {
     process.env.HOME = homePath;
+    process.env.USERPROFILE = homePath;
     process.env.REPO_CONTROL_CLAUDE = cliPath;
     process.env.REPO_CONTROL_CLAUDE_TEST_MODE = "sessions";
     await fs.mkdir(projectPath, { recursive: true });
-    await fs.writeFile(cliPath, `#!/usr/bin/env bash
-if [[ " $* " == *" --version "* ]]; then
-  if [[ "$REPO_CONTROL_CLAUDE_TEST_MODE" == "status-fail" ]]; then printf 'missing cli\\n' >&2; exit 1; fi
-  printf '  claude 9.1.0  \\nsecond line\\n'
-elif [[ "$1" == "auth" ]]; then
-  if [[ "$REPO_CONTROL_CLAUDE_TEST_MODE" == "status-fail" ]]; then printf 'not authenticated\\n' >&2; exit 1; fi
-  printf 'authenticated\\n'
-elif [[ "$1" == "agents" ]]; then
-  if [[ "$REPO_CONTROL_CLAUDE_TEST_MODE" == "background-fail" || "$REPO_CONTROL_CLAUDE_TEST_MODE" == "status-fail" ]]; then printf 'unsupported\\n' >&2; exit 1; fi
-  printf '%s\\n' '[{"session_id":"shared-session","name":"Background duplicate","prompt":"background prompt","created_at":"2026-08-01T00:00:00.000Z","status":"running"},{"sessionId":"background-2","title":"Background two","task":"Do work","updated_at":"2026-08-04T00:00:00.000Z","state":"done"},{"id":"short","createdAt":"2026-08-02T00:00:00.000Z"},{"id":"123456789","lastActivityAt":"2026-08-03T00:00:00.000Z"},null,"bad",{"title":"missing id"}]'
-else
-  printf 'unexpected arguments: %s\\n' "$*" >&2
-  exit 2
-fi
-`, "utf8");
-    await fs.chmod(cliPath, 0o755);
-
     const directory = transcriptDirectory(homePath, projectPath);
     await fs.mkdir(directory, { recursive: true });
     const longTitle = `A title ${"x".repeat(120)}`;
@@ -103,16 +153,17 @@ fi
     assert.ok(unavailable.sessions.some((session) => session.id === "shared-session"));
   } finally {
     restoreEnv("HOME", previousHome);
+    restoreEnv("USERPROFILE", previousUserProfile);
     restoreEnv("REPO_CONTROL_CLAUDE", previousClaude);
     restoreEnv("REPO_CONTROL_CLAUDE_TEST_MODE", previousMode);
-    await fs.rm(temporaryRoot, { recursive: true, force: true });
+    await fs.rm(temporaryRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
 test("runs new and resumed Claude messages and normalizes JSON, plain and failed responses", async () => {
   const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "repo-control-claude-run-"));
   const projectPath = path.join(temporaryRoot, "project");
-  const cliPath = path.join(temporaryRoot, "fake-claude.sh");
+  const cliPath = await createFakeClaudeCli(temporaryRoot);
   const argsPath = path.join(temporaryRoot, "args.txt");
   const previousClaude = process.env.REPO_CONTROL_CLAUDE;
   const previousMode = process.env.REPO_CONTROL_CLAUDE_TEST_MODE;
@@ -122,19 +173,6 @@ test("runs new and resumed Claude messages and normalizes JSON, plain and failed
     await fs.mkdir(projectPath);
     process.env.REPO_CONTROL_CLAUDE = `  ${cliPath}  `;
     process.env.REPO_CONTROL_CLAUDE_ARGS_PATH = argsPath;
-    await fs.writeFile(cliPath, `#!/usr/bin/env bash
-printf '%s\\n' "$@" > "$REPO_CONTROL_CLAUDE_ARGS_PATH"
-case "$REPO_CONTROL_CLAUDE_TEST_MODE" in
-  json-success) printf '%s\\n' '{"session_id":"new-session","result":"Implemented"}' ;;
-  json-error) printf '%s\\n' '{"sessionId":"error-session","response":"Partial","error":"permission denied","is_error":true}' ;;
-  typed-error) printf '%s\\n' '{"type":"error","message_error":"typed failure","stderr":"stderr fallback"}' ;;
-  plain) printf ' plain response \\n' ;;
-  stderr) printf 'cli exploded\\n' >&2; exit 1 ;;
-  empty) exit 1 ;;
-esac
-`, "utf8");
-    await fs.chmod(cliPath, 0o755);
-
     process.env.REPO_CONTROL_CLAUDE_TEST_MODE = "json-success";
     const created = await runClaudeMessage(projectPath, "Implement", null, "plan", ["/context/one", "/context/two"]);
     assert.equal(created.ok, true);
@@ -182,6 +220,6 @@ esac
     restoreEnv("REPO_CONTROL_CLAUDE", previousClaude);
     restoreEnv("REPO_CONTROL_CLAUDE_TEST_MODE", previousMode);
     restoreEnv("REPO_CONTROL_CLAUDE_ARGS_PATH", previousArgsPath);
-    await fs.rm(temporaryRoot, { recursive: true, force: true });
+    await fs.rm(temporaryRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });

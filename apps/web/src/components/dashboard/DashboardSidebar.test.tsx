@@ -55,6 +55,7 @@ describe("DashboardSidebar", () => {
     const onNavigate = vi.fn();
     const onCloseMobile = vi.fn();
     const onPickWorkspace = vi.fn();
+    const onColorPaletteChange = vi.fn();
     const { rerender } = renderWithTheme(
       <DashboardSidebar
         activeSection="favorites"
@@ -72,7 +73,7 @@ describe("DashboardSidebar", () => {
         onToggleCollapsed={vi.fn()}
         onCloseMobile={onCloseMobile}
         onPickWorkspace={onPickWorkspace}
-        onColorPaletteChange={vi.fn()}
+        onColorPaletteChange={onColorPaletteChange}
       />
     );
 
@@ -81,6 +82,11 @@ describe("DashboardSidebar", () => {
     await user.click(mobile.getByRole("button", { name: /Repository/ }));
     expect(onNavigate).toHaveBeenCalledWith("repositories");
     expect(onCloseMobile).toHaveBeenCalledOnce();
+    const mobilePaletteButton = mobile.getByRole("button", { name: /Seleziona palette colori/ });
+    await user.click(mobilePaletteButton);
+    expect(mobilePaletteButton).toHaveAttribute("aria-expanded", "true");
+    await user.click(screen.getByRole("menuitemradio", { name: "Verde" }));
+    expect(onColorPaletteChange).toHaveBeenCalledWith("green");
 
     rerender(
       <DashboardSidebar

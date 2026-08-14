@@ -74,7 +74,7 @@ export function CreateAutomationDialog({
             minRows={2}
           />
           <Stack spacing={0.75}>
-            <Typography variant="subtitle2" fontWeight={800}>Scegli una base</Typography>
+            <Typography variant="subtitle2" fontWeight={500}>Scegli una base</Typography>
             <ToggleButtonGroup
               exclusive
               orientation="vertical"
@@ -148,7 +148,7 @@ function TemplateOption({
       <Stack direction="row" spacing={1.25} alignItems="center">
         {icon}
         <Stack spacing={0.15}>
-          <Typography variant="body2" fontWeight={800} color="text.primary">{title}</Typography>
+          <Typography variant="body2" fontWeight={500} color="text.primary">{title}</Typography>
           <Typography variant="caption" color="text.secondary">{description}</Typography>
         </Stack>
       </Stack>

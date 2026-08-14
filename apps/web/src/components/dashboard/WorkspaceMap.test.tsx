@@ -66,16 +66,35 @@ describe("WorkspaceMap", () => {
     expect(screen.getByText("Nessun repository trovato")).toBeVisible();
 
     rerender(<FavoriteProjects projects={projects} favoriteProjectIds={[]} {...callbacks} />);
-    expect(screen.queryByLabelText("Repository preferiti")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Repository preferiti")).toBeVisible();
+    expect(screen.getByText("Crea il tuo launchpad")).toBeVisible();
 
-    rerender(<FavoriteProjects projects={projects} favoriteProjectIds={["dirty"]} {...callbacks} />);
+    rerender(<FavoriteProjects projects={projects} favoriteProjectIds={["dirty"]} openProjectIds={["dirty"]} {...callbacks} />);
     const section = screen.getByLabelText("Repository preferiti");
     expect(section).toBeVisible();
-    const toggle = screen.getByRole("button", { name: /Preferiti/ });
-    await user.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await user.click(toggle);
+    expect(screen.getByText("Aperto")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Apri dirty" }));
+    await user.click(screen.getByRole("button", { name: "Rimuovi dirty dai preferiti" }));
     expect(callbacks.onSelectProject).toHaveBeenCalledWith("dirty");
+    expect(callbacks.onToggleFavorite).toHaveBeenCalledWith("dirty");
+  });
+
+  it("groups by operating status and marks already-open repositories", () => {
+    renderWithTheme(
+      <WorkspaceMap
+        root="/workspace"
+        projects={projects}
+        favoriteProjectIds={[]}
+        openProjectIds={["clean"]}
+        density="compact"
+        groupBy="status"
+        onSelectProject={vi.fn()}
+        onToggleFavorite={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /Da controllare/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /Puliti e sincronizzati/ })).toBeVisible();
+    expect(screen.getByText("Aperto")).toBeVisible();
   });
 });

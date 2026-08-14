@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createProjectFixture } from "../../test/projectFixture";
 import type { DockerContainersResponse } from "../../types/docker";
-import { buildDashboardSnapshot } from "./dashboardInsights";
+import { buildDashboardSnapshot } from "./dashboardSnapshot";
 
 describe("buildDashboardSnapshot", () => {
   it("derives health, change load, recency and Docker metrics", () => {

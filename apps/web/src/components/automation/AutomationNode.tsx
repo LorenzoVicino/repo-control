@@ -63,7 +63,7 @@ export const AutomationNode = React.memo(function AutomationNode({
           <Icon sx={{ fontSize: 21 }} />
         </Box>
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="body2" fontWeight={800} lineHeight={1.25} noWrap>
+          <Typography variant="body2" fontWeight={500} lineHeight={1.25} noWrap>
             {workflowNode.name}
           </Typography>
           <Typography

@@ -4,7 +4,12 @@ import {
   Chip,
   CircularProgress,
   Container,
+  FormControl,
+  MenuItem,
+  Select,
   Stack,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography
 } from "@mui/material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -43,6 +48,9 @@ const APP_UPDATE_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const DOCKER_POLL_INTERVAL_MS = 60 * 1000;
 const MAX_WARM_PROJECT_PANELS = 4;
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "repo-control-sidebar-collapsed";
+type RepositorySort = "attention" | "name" | "recent" | "changes";
+type RepositoryGrouping = "folder" | "status";
+type RepositoryDensity = "compact" | "comfortable";
 const loadAppMotionBackdrop = () => import("./AppMotionBackdrop");
 const loadAgentSessionsPage = () => import("../agents/AgentSessionsPage");
 const loadAutomationPage = () => import("../automation/AutomationPage");
@@ -93,6 +101,9 @@ export function ProjectsDashboard({
   const queryClient = useQueryClient();
   const [isNavigating, startNavigationTransition] = React.useTransition();
   const [viewMode, setViewMode] = React.useState<ViewMode>("map");
+  const [repositorySort, setRepositorySort] = React.useState<RepositorySort>("attention");
+  const [repositoryGrouping, setRepositoryGrouping] = React.useState<RepositoryGrouping>("folder");
+  const [repositoryDensity, setRepositoryDensity] = React.useState<RepositoryDensity>("comfortable");
   const [activeSection, setActiveSection] = React.useState<DashboardSection>("overview");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(
     () => window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true"
@@ -148,6 +159,10 @@ export function ProjectsDashboard({
 
   const projects = React.useMemo(() => data?.projects ?? [], [data?.projects]);
   const filteredProjects = React.useMemo(() => filterProjects(projects, search), [projects, search]);
+  const repositoryProjects = React.useMemo(
+    () => sortRepositoryProjects(filteredProjects, repositorySort),
+    [filteredProjects, repositorySort]
+  );
   const favoriteProjectIdSet = React.useMemo(() => new Set(favoriteProjectIds), [favoriteProjectIds]);
   const projectsById = React.useMemo(
     () => new Map(projects.map((project) => [project.id, project])),
@@ -458,7 +473,10 @@ export function ProjectsDashboard({
         workspaceRoot={workspaceRoot}
         rootError={rootError}
         isPickingRoot={isPickingRoot}
+        openProjects={openProjects}
+        activeProjectId={activeProjectId}
         onNavigate={navigateToSection}
+        onOpenProject={activateProject}
         onToggleCollapsed={() => setIsSidebarCollapsed((currentValue) => !currentValue)}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         onPickWorkspace={() => {
@@ -528,7 +546,7 @@ export function ProjectsDashboard({
                 sx={{
                   minWidth: 0,
                   minHeight: { xs: 720, lg: 620 },
-                  height: { xs: "auto", lg: "calc(100dvh - 153px)" }
+                  height: { xs: "auto", lg: "calc(100dvh - 121px)" }
                 }}
               >
                 {openProjects.map((project) => (
@@ -618,32 +636,14 @@ export function ProjectsDashboard({
 
           {!activeProject && activeSection === "favorites" ? (
             <ViewEntrance>
-              {favoriteProjectCount > 0 ? (
-                <FavoriteProjects
-                  projects={projects}
-                  favoriteProjectIds={favoriteProjectIds}
-                  onSelectProject={openProject}
-                  onToggleFavorite={toggleFavoriteProject}
-                />
-              ) : (
-                <Box component="section" aria-labelledby="favorites-title">
-                  <Typography id="favorites-title" component="h1" variant="h1">Preferiti</Typography>
-                  <Box
-                    sx={{
-                      minHeight: 220,
-                      mt: 1.5,
-                      display: "grid",
-                      placeItems: "center",
-                      border: "1px dashed",
-                      borderColor: "divider",
-                      borderRadius: 1,
-                      bgcolor: "background.paper"
-                    }}
-                  >
-                    <Typography variant="body2" color="text.secondary">Nessun repository preferito.</Typography>
-                  </Box>
-                </Box>
-              )}
+              <FavoriteProjects
+                projects={projects}
+                favoriteProjectIds={favoriteProjectIds}
+                openProjectIds={openProjectIds}
+                onSelectProject={openProject}
+                onToggleFavorite={toggleFavoriteProject}
+                onBrowseRepositories={() => navigateToSection("repositories")}
+              />
             </ViewEntrance>
           ) : null}
 
@@ -666,6 +666,49 @@ export function ProjectsDashboard({
                   <Chip size="small" variant="outlined" label={filteredProjects.length} />
                 </Stack>
 
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  alignItems={{ sm: "center" }}
+                  sx={{ mb: 1.5, p: 1, border: "1px solid", borderColor: "divider", borderRadius: 1, bgcolor: "var(--rc-surface-1)" }}
+                >
+                  <FormControl size="small" sx={{ minWidth: 170 }}>
+                    <Select
+                      value={repositorySort}
+                      onChange={(event) => setRepositorySort(event.target.value as RepositorySort)}
+                      inputProps={{ "aria-label": "Ordina repository" }}
+                    >
+                      <MenuItem value="attention">Prima quelli da controllare</MenuItem>
+                      <MenuItem value="recent">Commit più recente</MenuItem>
+                      <MenuItem value="changes">Più modifiche locali</MenuItem>
+                      <MenuItem value="name">Nome A–Z</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ minWidth: 160 }} disabled={viewMode !== "map"}>
+                    <Select
+                      value={repositoryGrouping}
+                      onChange={(event) => setRepositoryGrouping(event.target.value as RepositoryGrouping)}
+                      inputProps={{ "aria-label": "Raggruppa repository" }}
+                    >
+                      <MenuItem value="folder">Per cartella</MenuItem>
+                      <MenuItem value="status">Per stato operativo</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <Box sx={{ flex: 1 }} />
+                  <ToggleButtonGroup
+                    exclusive
+                    size="small"
+                    value={repositoryDensity}
+                    onChange={(_, value: RepositoryDensity | null) => {
+                      if (value) setRepositoryDensity(value);
+                    }}
+                    aria-label="Densità repository"
+                  >
+                    <ToggleButton value="compact" aria-label="Densità compatta">Compatta</ToggleButton>
+                    <ToggleButton value="comfortable" aria-label="Densità comoda">Comoda</ToggleButton>
+                  </ToggleButtonGroup>
+                </Stack>
+
                 {isLoading ? (
                   <Box
                     sx={{
@@ -683,8 +726,11 @@ export function ProjectsDashboard({
                 ) : viewMode === "map" ? (
                   <WorkspaceMap
                     root={data?.root ?? ""}
-                    projects={filteredProjects}
+                    projects={repositoryProjects}
                     favoriteProjectIds={favoriteProjectIds}
+                    openProjectIds={openProjectIds}
+                    density={repositoryDensity}
+                    groupBy={repositoryGrouping}
                     onSelectProject={openProject}
                     onToggleFavorite={toggleFavoriteProject}
                   />
@@ -698,7 +744,12 @@ export function ProjectsDashboard({
                       bgcolor: "background.paper"
                     }}
                   >
-                    <ProjectTable projects={filteredProjects} onSelectProject={openProject} />
+                    <ProjectTable
+                      projects={repositoryProjects}
+                      openProjectIds={openProjectIds}
+                      density={repositoryDensity}
+                      onSelectProject={openProject}
+                    />
                   </Box>
                 )}
               </Box>
@@ -784,4 +835,24 @@ function getLegacyFavoriteProjectIds(): string[] {
   } catch {
     return [];
   }
+}
+
+function sortRepositoryProjects(projects: ProjectsResponse["projects"], sort: RepositorySort) {
+  return [...projects].sort((left, right) => {
+    if (sort === "name") return left.name.localeCompare(right.name);
+    if (sort === "recent") {
+      const leftDate = left.lastCommit ? Date.parse(left.lastCommit.date) : 0;
+      const rightDate = right.lastCommit ? Date.parse(right.lastCommit.date) : 0;
+      return rightDate - leftDate || left.name.localeCompare(right.name);
+    }
+    if (sort === "changes") {
+      const leftChanges = left.modified + left.staged + left.untracked;
+      const rightChanges = right.modified + right.staged + right.untracked;
+      return rightChanges - leftChanges || left.name.localeCompare(right.name);
+    }
+
+    const leftAttention = Number(!left.isClean) * 100 + left.behind * 10 + left.ahead;
+    const rightAttention = Number(!right.isClean) * 100 + right.behind * 10 + right.ahead;
+    return rightAttention - leftAttention || left.name.localeCompare(right.name);
+  });
 }

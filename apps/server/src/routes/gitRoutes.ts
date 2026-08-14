@@ -9,7 +9,8 @@ import {
   isSafeGitRef,
   normalizeRemoteBranch,
   readGitActivity,
-  readGitDetails
+  readGitDetails,
+  readGitFileDiff
 } from "../services/gitService.js";
 
 type GitRoutesContext = ProjectResolver & {
@@ -64,6 +65,20 @@ export async function registerGitRoutes(app: FastifyInstance, context: GitRoutes
     const projectPath = await context.resolveProjectPath(params.id);
 
     return readGitActivity(projectPath, query.offset, query.limit);
+  });
+
+  app.get("/api/projects/:id/git/diff", async (request) => {
+    const params = projectParamsSchema.parse(request.params);
+    const query = z
+      .object({
+        path: gitFilePathSchema,
+        previousPath: gitFilePathSchema.nullish(),
+        staged: z.enum(["true", "false"]).transform((value) => value === "true").default("false")
+      })
+      .parse(request.query);
+    const projectPath = await context.resolveProjectPath(params.id);
+
+    return readGitFileDiff(projectPath, query.path, query.previousPath ?? null, query.staged);
   });
 
   app.post("/api/projects/:id/git/pull", async (request) => {

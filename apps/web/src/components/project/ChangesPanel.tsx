@@ -17,13 +17,14 @@ import {
   Tooltip,
   Typography
 } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import React from "react";
-import { runProjectAction } from "../../api/projects";
+import { fetchGitFileDiff, runProjectAction } from "../../api/projects";
 import { ActionButton } from "../shared/ActionButton";
 import { EmptyPanel } from "../shared/EmptyPanel";
 import { LoadingPanel } from "../shared/LoadingPanel";
 import type { CommandResult } from "../../types/common";
-import type { GitDetails, GitFileChange, GitFileStatus, GitStashEntry } from "../../types/git";
+import type { GitDetails, GitFileChange, GitFileDiff, GitFileStatus, GitStashEntry } from "../../types/git";
 import { commandErrorResult } from "../../utils/commandResult";
 import { formatDate } from "../../utils/projects";
 
@@ -43,12 +44,23 @@ export function ChangesPanel({ projectId, details, isLoading, onResult, onComple
   const [commitMessage, setCommitMessage] = React.useState("");
   const [isCommitting, setIsCommitting] = React.useState(false);
   const files = details?.status.files;
-  const stagedFiles = files?.staged ?? [];
-  const unstagedFiles = files?.unstaged ?? [];
+  const stagedFiles = React.useMemo(() => files?.staged ?? [], [files?.staged]);
+  const unstagedFiles = React.useMemo(() => files?.unstaged ?? [], [files?.unstaged]);
   const stagedCount = stagedFiles.length;
   const unstagedCount = unstagedFiles.length;
   const totalChanges = stagedCount + unstagedCount;
   const canSync = Boolean(details?.status.tracking);
+  const [selectedChange, setSelectedChange] = React.useState<{ file: GitFileChange; staged: boolean } | null>(null);
+  const selectedKey = selectedChange ? getChangeKey(selectedChange.file, selectedChange.staged) : null;
+
+  React.useEffect(() => {
+    const allChanges = [
+      ...stagedFiles.map((file) => ({ file, staged: true })),
+      ...unstagedFiles.map((file) => ({ file, staged: false }))
+    ];
+    if (selectedKey && allChanges.some((change) => getChangeKey(change.file, change.staged) === selectedKey)) return;
+    setSelectedChange(allChanges[0] ?? null);
+  }, [files, selectedKey, stagedFiles, unstagedFiles]);
 
   async function commitChanges() {
     const message = commitMessage.trim();
@@ -91,27 +103,49 @@ export function ChangesPanel({ projectId, details, isLoading, onResult, onComple
   }
 
   return (
-    <Stack spacing={1.5}>
-      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
-        <Chip
-          size="small"
-          color={details.status.isClean ? "success" : "warning"}
-          label={details.status.isClean ? "working tree pulito" : `${totalChanges} modifiche`}
-        />
-        <Chip size="small" label={`${stagedCount} staged`} variant="outlined" />
-        <Chip size="small" label={`${unstagedCount} unstaged`} variant="outlined" />
-        {details.status.tracking ? <Chip size="small" label={details.status.tracking} color="primary" /> : null}
+    <Stack spacing={1.25} sx={{ minWidth: 0 }}>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1}
+        alignItems={{ xs: "stretch", sm: "center" }}
+        justifyContent="space-between"
+        sx={{ px: 0.25 }}
+      >
+        <Box>
+          <Typography variant="overline" color="text.secondary">Working tree</Typography>
+          <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center" sx={{ mt: 0.35 }}>
+            <Chip
+              size="small"
+              color={details.status.isClean ? "success" : "warning"}
+              label={details.status.isClean ? "working tree pulito" : `${totalChanges} modifiche`}
+            />
+            <Chip size="small" label={`${stagedCount} staged`} variant="outlined" />
+            <Chip size="small" label={`${unstagedCount} unstaged`} variant="outlined" />
+          </Stack>
+        </Box>
+        <Stack direction="row" spacing={0.75} alignItems="center">
+          <Chip size="small" label={details.status.current} color="primary" variant="outlined" />
+          {details.status.tracking ? <Chip size="small" label={details.status.tracking} variant="outlined" /> : null}
+        </Stack>
       </Stack>
 
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1fr) 320px" },
-          gap: 1.25,
-          alignItems: "start"
+          gridTemplateColumns: {
+            xs: "minmax(0, 1fr)",
+            lg: "minmax(250px, 300px) minmax(320px, 1fr) minmax(280px, 320px)"
+          },
+          gridTemplateAreas: {
+            xs: '"files" "diff" "actions"',
+            lg: '"files diff actions"'
+          },
+          gap: 1,
+          alignItems: "start",
+          minWidth: 0
         }}
       >
-        <Stack spacing={1.25} sx={{ minWidth: 0 }}>
+        <Stack spacing={1} sx={{ minWidth: 0, gridArea: "files" }}>
           <GitFileSection
             projectId={projectId}
             title="Staged"
@@ -124,6 +158,9 @@ export function ChangesPanel({ projectId, details, isLoading, onResult, onComple
             fileActionLabel="Unstage file"
             fileActionIcon={<UndoIcon fontSize="small" />}
             disabled={stagedCount === 0}
+            staged
+            selectedKey={selectedKey}
+            onSelect={(file) => setSelectedChange({ file, staged: true })}
             onResult={onResult}
             onCompleted={onCompleted}
           />
@@ -139,14 +176,36 @@ export function ChangesPanel({ projectId, details, isLoading, onResult, onComple
             fileActionLabel="Stage file"
             fileActionIcon={<AddIcon fontSize="small" />}
             disabled={unstagedCount === 0}
+            staged={false}
+            selectedKey={selectedKey}
+            onSelect={(file) => setSelectedChange({ file, staged: false })}
             onResult={onResult}
             onCompleted={onCompleted}
           />
         </Stack>
 
-        <Stack spacing={1.25} sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0, gridArea: "diff" }}>
+          <GitDiffPanel projectId={projectId} selectedChange={selectedChange} />
+        </Box>
+
+        <Stack spacing={1} sx={{ minWidth: 0, gridArea: "actions" }}>
           <GitActionBlock title="Commit">
             <Stack spacing={1}>
+              <CommitSummary details={details} />
+              <Box
+                sx={{
+                  px: 1,
+                  py: 0.8,
+                  borderLeft: "2px solid",
+                  borderColor: stagedCount > 0 ? "primary.main" : "divider",
+                  bgcolor: "var(--rc-surface-2)"
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  Crea un commit su <Box component="span" sx={{ color: "text.primary", fontFamily: "var(--rc-font-mono)" }}>{details.status.current}</Box>
+                  {` con ${stagedCount} file; ${unstagedCount} resteranno fuori dal commit.`}
+                </Typography>
+              </Box>
               <TextField
                 size="small"
                 label="Messaggio commit"
@@ -234,6 +293,9 @@ type GitFileSectionProps = {
   fileActionLabel: string;
   fileActionIcon: React.ReactNode;
   disabled: boolean;
+  staged: boolean;
+  selectedKey: string | null;
+  onSelect: (file: GitFileChange) => void;
   onResult: (result: CommandResult) => void;
   onCompleted: () => void;
 };
@@ -250,6 +312,9 @@ function GitFileSection({
   fileActionLabel,
   fileActionIcon,
   disabled,
+  staged,
+  selectedKey,
+  onSelect,
   onResult,
   onCompleted
 }: GitFileSectionProps) {
@@ -258,7 +323,7 @@ function GitFileSection({
       sx={{
         border: "1px solid",
         borderColor: "divider",
-        borderRadius: 1,
+        borderRadius: "var(--rc-radius-panel)",
         overflow: "hidden",
         minWidth: 0
       }}
@@ -267,9 +332,9 @@ function GitFileSection({
         direction="row"
         spacing={1}
         alignItems="center"
-        sx={{ px: 1.25, py: 1, borderBottom: "1px solid", borderColor: "divider" }}
+        sx={{ px: 1.25, py: 0.75, minHeight: 38, borderBottom: "1px solid", borderColor: "divider", bgcolor: "var(--rc-surface-2)" }}
       >
-        <Typography variant="body2" sx={{ fontWeight: 750, flexGrow: 1 }}>
+        <Typography variant="body2" sx={{ fontWeight: 500, flexGrow: 1 }}>
           {title}
         </Typography>
         <Chip size="small" label={files.length} />
@@ -293,6 +358,9 @@ function GitFileSection({
             actionPath={fileActionPath}
             actionLabel={fileActionLabel}
             actionIcon={fileActionIcon}
+            staged={staged}
+            selectedKey={selectedKey}
+            onSelect={onSelect}
             onResult={onResult}
             onCompleted={onCompleted}
           />
@@ -313,6 +381,9 @@ type GitFileListProps = {
   actionPath: string;
   actionLabel: string;
   actionIcon: React.ReactNode;
+  staged: boolean;
+  selectedKey: string | null;
+  onSelect: (file: GitFileChange) => void;
   onResult: (result: CommandResult) => void;
   onCompleted: () => void;
 };
@@ -324,6 +395,9 @@ function GitFileList({
   actionPath,
   actionLabel,
   actionIcon,
+  staged,
+  selectedKey,
+  onSelect,
   onResult,
   onCompleted
 }: GitFileListProps) {
@@ -378,6 +452,8 @@ function GitFileList({
                 actionPath={actionPath}
                 actionLabel={actionLabel}
                 actionIcon={actionIcon}
+                selected={getChangeKey(file, staged) === selectedKey}
+                onSelect={onSelect}
                 onResult={onResult}
                 onCompleted={onCompleted}
               />
@@ -395,6 +471,8 @@ type GitFileRowProps = {
   actionPath: string;
   actionLabel: string;
   actionIcon: React.ReactNode;
+  selected: boolean;
+  onSelect: (file: GitFileChange) => void;
   onResult: (result: CommandResult) => void;
   onCompleted: () => void;
 };
@@ -405,12 +483,25 @@ const GitFileRow = React.memo(function GitFileRow({
   actionPath,
   actionLabel,
   actionIcon,
+  selected,
+  onSelect,
   onResult,
   onCompleted
 }: GitFileRowProps) {
   return (
     <Box
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      onClick={() => onSelect(file)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect(file);
+        }
+      }}
       sx={{
+        position: "relative",
         display: "grid",
         gridTemplateColumns: "minmax(0, 1fr) auto 34px",
         gap: 0.75,
@@ -419,7 +510,21 @@ const GitFileRow = React.memo(function GitFileRow({
         px: 1.25,
         py: 0.5,
         borderBottom: "1px solid",
-        borderColor: "divider"
+        borderColor: "divider",
+        cursor: "pointer",
+        bgcolor: selected ? "action.selected" : "transparent",
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          inset: "7px auto 7px 0",
+          width: 2,
+          borderRadius: 1,
+          bgcolor: "primary.main",
+          transform: selected ? "scaleY(1)" : "scaleY(0)",
+          transition: "transform var(--rc-motion-fast) ease"
+        },
+        "&:hover": { bgcolor: "action.hover" },
+        "&:focus-visible": { outline: "3px solid", outlineColor: "action.focus", outlineOffset: -3 }
       }}
     >
       <Typography
@@ -479,7 +584,8 @@ function GitFileActionButton({
 }: GitFileActionButtonProps) {
   const [isRunning, setIsRunning] = React.useState(false);
 
-  async function runAction() {
+  async function runAction(event: React.MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
     setIsRunning(true);
 
     try {
@@ -507,6 +613,115 @@ function GitFileActionButton({
   );
 }
 
+function CommitSummary({ details }: { details: GitDetails }) {
+  const summary = details.status.diff.staged;
+  return (
+    <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+      <Chip size="small" label={`${summary.files} file`} variant="outlined" />
+      <Chip size="small" label={`+${summary.additions}`} color="success" variant="outlined" />
+      <Chip size="small" label={`−${summary.deletions}`} color="error" variant="outlined" />
+      {summary.binaryFiles > 0 ? <Chip size="small" label={`${summary.binaryFiles} binari`} variant="outlined" /> : null}
+    </Stack>
+  );
+}
+
+function GitDiffPanel({
+  projectId,
+  selectedChange
+}: {
+  projectId: string;
+  selectedChange: { file: GitFileChange; staged: boolean } | null;
+}) {
+  const diffQuery = useQuery({
+    queryKey: ["git-file-diff", projectId, selectedChange?.file.previousPath, selectedChange?.file.path, selectedChange?.staged],
+    queryFn: () => fetchGitFileDiff(projectId, selectedChange!.file, selectedChange!.staged),
+    enabled: Boolean(selectedChange)
+  });
+
+  return (
+    <Box sx={{ position: { lg: "sticky" }, top: { lg: 0 }, minWidth: 0 }}>
+      <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: "var(--rc-radius-panel)", overflow: "hidden" }}>
+        <Stack direction="row" alignItems="center" sx={{ minHeight: 42, px: 1.25, py: 0.75, borderBottom: "1px solid", borderColor: "divider", bgcolor: "var(--rc-surface-2)" }}>
+          <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+            <Typography variant="body2" noWrap sx={{ fontWeight: 500, fontFamily: selectedChange ? "var(--rc-font-mono)" : undefined }}>
+              {selectedChange ? getGitFileDisplayPath(selectedChange.file) : "Diff"}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {selectedChange ? (selectedChange.staged ? "Modifiche staged" : "Modifiche working tree") : "Seleziona un file"}
+            </Typography>
+          </Box>
+          {diffQuery.data ? (
+            <Stack direction="row" spacing={0.5}>
+              <Chip size="small" label={`+${diffQuery.data.additions}`} color="success" variant="outlined" />
+              <Chip size="small" label={`−${diffQuery.data.deletions}`} color="error" variant="outlined" />
+            </Stack>
+          ) : null}
+        </Stack>
+        <DiffContent diff={diffQuery.data} isLoading={diffQuery.isFetching} error={diffQuery.error} />
+      </Box>
+    </Box>
+  );
+}
+
+function DiffContent({ diff, isLoading, error }: { diff: GitFileDiff | undefined; isLoading: boolean; error: Error | null }) {
+  if (isLoading && !diff) {
+    return <Stack direction="row" spacing={1} alignItems="center" sx={{ p: 2 }}><CircularProgress size={16} /><Typography variant="body2">Caricamento diff</Typography></Stack>;
+  }
+  if (error) return <Typography variant="body2" color="error" sx={{ p: 2 }}>{error.message}</Typography>;
+  if (!diff) return <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>Seleziona un file per ispezionare le modifiche.</Typography>;
+  if (diff.binary) return <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>File binario: anteprima testuale non disponibile.</Typography>;
+  if (!diff.patch) return <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>Nessuna differenza testuale disponibile.</Typography>;
+
+  return (
+    <Box
+      sx={{
+        maxHeight: { xs: 440, lg: "calc(100dvh - 286px)" },
+        minHeight: 280,
+        overflow: "auto",
+        bgcolor: "#141622",
+        color: "#cfd3e5",
+        fontFamily: "var(--rc-font-mono)",
+        fontSize: 11.5,
+        lineHeight: 1.65
+      }}
+    >
+      {diff.patch.split("\n").map((line, index) => (
+        <Box
+          key={`${index}-${line.slice(0, 24)}`}
+          component="div"
+          sx={{
+            px: 1.25,
+            minWidth: "max-content",
+            whiteSpace: "pre",
+            color: getDiffLineColor(line),
+            bgcolor: getDiffLineBackground(line)
+          }}
+        >
+          {line || " "}
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+function getDiffLineColor(line: string): string {
+  if (line.startsWith("+") && !line.startsWith("+++")) return "#99dec3";
+  if (line.startsWith("-") && !line.startsWith("---")) return "#f2a695";
+  if (line.startsWith("@@")) return "#a2d1ed";
+  return "#cfd3e5";
+}
+
+function getDiffLineBackground(line: string): string {
+  if (line.startsWith("+") && !line.startsWith("+++")) return "rgba(108, 194, 161, 0.10)";
+  if (line.startsWith("-") && !line.startsWith("---")) return "rgba(224, 131, 111, 0.10)";
+  if (line.startsWith("@@")) return "rgba(116, 179, 217, 0.08)";
+  return "transparent";
+}
+
+function getChangeKey(file: GitFileChange, staged: boolean): string {
+  return `${staged ? "staged" : "unstaged"}:${file.previousPath ?? ""}:${file.path}`;
+}
+
 type GitActionBlockProps = {
   title: string;
   children: React.ReactNode;
@@ -518,12 +733,12 @@ function GitActionBlock({ title, children }: GitActionBlockProps) {
       sx={{
         border: "1px solid",
         borderColor: "divider",
-        borderRadius: 1,
+        borderRadius: "var(--rc-radius-panel)",
         p: 1.25,
         minWidth: 0
       }}
     >
-      <Typography variant="body2" sx={{ fontWeight: 750, mb: 1 }}>
+      <Typography variant="overline" color="text.secondary" sx={{ display: "block", mb: 1 }}>
         {title}
       </Typography>
       {children}

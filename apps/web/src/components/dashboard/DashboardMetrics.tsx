@@ -4,7 +4,7 @@ import DifferenceOutlinedIcon from "@mui/icons-material/DifferenceOutlined";
 import DnsOutlinedIcon from "@mui/icons-material/DnsOutlined";
 import { alpha, Box, Paper, Stack, Typography } from "@mui/material";
 import React from "react";
-import type { DashboardSnapshot } from "./dashboardInsights";
+import type { DashboardSnapshot } from "./dashboardSnapshot";
 
 type DashboardMetricsProps = {
   snapshot: DashboardSnapshot;

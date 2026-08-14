@@ -12,7 +12,8 @@ import {
   isSafeGitRef,
   normalizeRemoteBranch,
   readGitActivity,
-  readGitDetails
+  readGitDetails,
+  readGitFileDiff
 } from "./gitService.js";
 
 const execFileAsync = promisify(execFile);
@@ -61,6 +62,8 @@ test("reads Git details, changes, branches, stashes and paginated activity from 
     assert.equal(cleanDetails.status.isClean, true);
     assert.equal(cleanDetails.status.tracking, "origin/main");
     assert.ok(cleanDetails.branches.local.some((branch) => branch.name === "main" && branch.current));
+    assert.ok(cleanDetails.branches.local.some((branch) => branch.name === "feature/local" && branch.merged));
+    assert.ok(cleanDetails.branches.local.every((branch) => branch.lastCommit?.hash));
     assert.ok(cleanDetails.branches.remote.some((branch) => branch.name === "origin/feature/local" && branch.remote));
     assert.equal(cleanDetails.stashes[0]?.index, 0);
     assert.match(cleanDetails.stashes[0]?.message ?? "", /saved work/);
@@ -80,6 +83,16 @@ test("reads Git details, changes, branches, stashes and paginated activity from 
     assert.ok(dirtyDetails.status.files.unstaged.some((change) => change.path === "deleted.ts" && change.label === "deleted"));
     assert.ok(dirtyDetails.status.files.unstaged.some((change) => change.path === "new-name.ts" && change.previousPath === "old-name.ts"));
     assert.ok(dirtyDetails.status.files.unstaged.some((change) => change.path === "untracked.ts" && change.label === "untracked"));
+    assert.equal(dirtyDetails.status.diff.staged.additions >= 1, true);
+    assert.equal(dirtyDetails.status.diff.unstaged.deletions >= 1, true);
+    assert.equal(dirtyDetails.status.diff.unstaged.untrackedFiles, 1);
+    const stagedDiff = await readGitFileDiff(repositoryPath, "staged.ts", null, true);
+    assert.equal(stagedDiff.staged, true);
+    assert.match(stagedDiff.patch, /\+staged/);
+    assert.equal(stagedDiff.additions, 1);
+    const untrackedDiff = await readGitFileDiff(repositoryPath, "untracked.ts", null, false);
+    assert.match(untrackedDiff.patch, /new file mode/);
+    assert.match(untrackedDiff.patch, /\+new/);
     assert.match(await getDirtyCheckoutMessage(repositoryPath) ?? "", /Checkout blocked/);
 
     await git(repositoryPath, "reset", "--hard", "HEAD");

@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readRunningDockerContainers, stopDockerContainers } from "./docker.js";
+import {
+  parseDockerComposePs,
+  readDockerComposeProject,
+  readRunningDockerContainers,
+  stopDockerContainers
+} from "./docker.js";
 
 function commandResult(overrides: Record<string, unknown> = {}) {
   return {
@@ -83,4 +88,70 @@ test("stops the selected Docker containers with the long action timeout", async 
 
   assert.equal(actual, expected);
   assert.deepEqual(calls, [["/workspace", "docker", ["stop", "one", "two"], 300_000]]);
+});
+
+test("reads configured Compose services including stopped containers, health and published ports", async () => {
+  const psRows = [
+    JSON.stringify({
+      ID: "web-id",
+      Name: "acme-web-1",
+      Image: "app:web",
+      Project: "acme",
+      Service: "web",
+      State: "running",
+      Status: "Up 2 minutes (healthy)",
+      Health: "healthy",
+      RunningFor: "2 minutes",
+      Publishers: [{ URL: "0.0.0.0", TargetPort: 3000, PublishedPort: 5173, Protocol: "tcp" }]
+    }),
+    JSON.stringify({
+      ID: "db-id",
+      Name: "acme-db-1",
+      Image: "postgres:17",
+      Project: "acme",
+      Service: "db",
+      State: "exited",
+      Status: "Exited (0)",
+      Publishers: [{ TargetPort: 5432, PublishedPort: 0, Protocol: "tcp" }]
+    })
+  ].join("\n");
+  const calls: unknown[][] = [];
+  const response = await readDockerComposeProject("C:\\workspace\\acme", async (...args: unknown[]) => {
+    calls.push(args);
+    const commandArgs = args[2] as string[];
+    return commandArgs.includes("config")
+      ? commandResult({ stdout: "web\ndb\nworker\n" })
+      : commandResult({ stdout: psRows });
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.name, "acme");
+  assert.deepEqual(response.services.map((service) => service.name), ["db", "web", "worker"]);
+  assert.equal(response.services.find((service) => service.name === "worker")?.status, "Not created");
+  assert.equal(response.services.find((service) => service.name === "web")?.health, "healthy");
+  assert.equal(response.services.find((service) => service.name === "web")?.ports[0]?.url, "http://127.0.0.1:5173");
+  assert.deepEqual((calls[1]?.[2] as string[]).slice(0, 3), ["compose", "ps", "--all"]);
+});
+
+test("parses Compose JSON arrays and returns project-specific failures", async () => {
+  const services = parseDockerComposePs(JSON.stringify([{
+    ID: "api-id",
+    Name: "demo-api-1",
+    Image: "demo:api",
+    Service: "api",
+    State: "running",
+    Status: "Up (unhealthy)",
+    Publishers: [{ URL: "::1", TargetPort: "8080", PublishedPort: "8080", Protocol: "tcp" }]
+  }]));
+  assert.equal(services[0]?.health, "unhealthy");
+  assert.equal(services[0]?.ports[0]?.url, "http://[::1]:8080");
+
+  const response = await readDockerComposeProject("/workspace/demo", async (_cwd, _command, args) =>
+    args.includes("config")
+      ? commandResult({ ok: false, exitCode: 1, output: "permission denied" })
+      : commandResult()
+  );
+  assert.equal(response.ok, false);
+  assert.equal(response.error, "permission denied");
+  assert.deepEqual(response.services, []);
 });

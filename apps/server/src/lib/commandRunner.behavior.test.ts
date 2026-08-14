@@ -53,7 +53,9 @@ test("times out long-running commands", async () => {
   assert.match(timeoutResult.stderr, /timed out/);
 });
 
-test("settles promptly even when the command backgrounds a process that outlives it", async () => {
+test("settles promptly even when the command backgrounds a process that outlives it", {
+  skip: process.platform === "win32" ? "Unix process-group behavior is covered on CI" : false
+}, async () => {
   const startedAt = Date.now();
   const result = await runShellCommand(process.cwd(), "sleep 5 & echo parent-done", 10_000);
   const elapsedMs = Date.now() - startedAt;

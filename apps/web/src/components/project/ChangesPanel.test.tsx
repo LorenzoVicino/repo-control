@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithTheme } from "../../test/render";
@@ -7,9 +8,11 @@ import type { GitDetails, GitFileChange, GitFileStatus } from "../../types/git";
 import { ChangesPanel } from "./ChangesPanel";
 
 const runProjectAction = vi.fn();
+const fetchGitFileDiff = vi.fn();
 
 vi.mock("../../api/projects", () => ({
-  runProjectAction: (...args: unknown[]) => runProjectAction(...args)
+  runProjectAction: (...args: unknown[]) => runProjectAction(...args),
+  fetchGitFileDiff: (...args: unknown[]) => fetchGitFileDiff(...args)
 }));
 
 vi.mock("../shared/ActionButton", () => ({
@@ -41,9 +44,13 @@ function details(overrides: Partial<GitDetails["status"]> = {}): GitDetails {
           file("src/untracked.ts", "untracked")
         ]
       },
+      diff: {
+        staged: { files: 1, additions: 4, deletions: 1, binaryFiles: 0, untrackedFiles: 0 },
+        unstaged: { files: 5, additions: 3, deletions: 2, binaryFiles: 0, untrackedFiles: 1 }
+      },
       ...overrides
     },
-    branches: { current: "main", local: [], remote: [] },
+    branches: { current: "main", defaultBranch: "main", local: [], remote: [] },
     stashes: [
       { ref: "stash@{0}", index: 0, date: "2026-08-03T10:00:00.000Z", message: "coverage work" },
       { ref: "stash@{1}", index: 1, date: "", message: "without date" }
@@ -57,14 +64,30 @@ function result(overrides: Partial<CommandResult> = {}): CommandResult {
 
 function renderPanel(gitDetails: GitDetails | null = details(), isLoading = false) {
   const callbacks = { onResult: vi.fn(), onCompleted: vi.fn() };
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
   const view = renderWithTheme(
-    <ChangesPanel projectId="alpha" details={gitDetails ?? undefined} isLoading={isLoading} {...callbacks} />
+    <QueryClientProvider client={queryClient}>
+      <ChangesPanel projectId="alpha" details={gitDetails ?? undefined} isLoading={isLoading} {...callbacks} />
+    </QueryClientProvider>
   );
   return { ...view, ...callbacks };
 }
 
 describe("ChangesPanel", () => {
-  beforeEach(() => runProjectAction.mockReset());
+  beforeEach(() => {
+    runProjectAction.mockReset();
+    fetchGitFileDiff.mockReset();
+    fetchGitFileDiff.mockResolvedValue({
+      path: "src/staged.ts",
+      previousPath: null,
+      staged: true,
+      patch: "@@ -1 +1 @@\n-old\n+new",
+      additions: 1,
+      deletions: 1,
+      binary: false,
+      truncated: false
+    });
+  });
 
   it("renders loading and unavailable Git states", () => {
     const loading = renderPanel(null, true);
@@ -114,6 +137,19 @@ describe("ChangesPanel", () => {
     for (const name of ["Unstage all", "Stage all", "Pull", "Push", "Stash changes"]) {
       expect(screen.getByRole("button", { name })).toBeEnabled();
     }
+  });
+
+  it("loads the selected file diff and shows the staged commit summary", async () => {
+    renderPanel();
+
+    expect(await screen.findByText("+new")).toBeVisible();
+    expect(fetchGitFileDiff).toHaveBeenCalledWith(
+      "alpha",
+      expect.objectContaining({ path: "src/staged.ts" }),
+      true
+    );
+    expect(screen.getByText("1 file")).toBeVisible();
+    expect(screen.getByText("+4")).toBeVisible();
   });
 
   it("commits a trimmed message with Ctrl+Enter and clears it on success", async () => {
@@ -239,10 +275,10 @@ describe("ChangesPanel", () => {
       }
     });
     const view = renderPanel(longDetails);
-    expect(screen.getByText("src/file-0.ts")).toBeVisible();
+    expect(screen.getAllByText("src/file-0.ts")[0]).toBeVisible();
     expect(screen.queryByText("src/file-20.ts")).not.toBeInTheDocument();
 
-    const scrollContainer = screen.getByText("src/file-0.ts").parentElement?.parentElement?.parentElement?.parentElement;
+    const scrollContainer = screen.getAllByText("src/file-0.ts")[0]?.parentElement?.parentElement?.parentElement?.parentElement;
     expect(scrollContainer).toBeTruthy();
     fireEvent.scroll(scrollContainer!, { target: { scrollTop: 820 } });
     fireEvent.scroll(scrollContainer!, { target: { scrollTop: 900 } });

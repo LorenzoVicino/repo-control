@@ -13,18 +13,26 @@ vi.mock("../../api/workflows", () => ({
   fetchWorkflowRuns: vi.fn(),
   fetchWorkflows: vi.fn()
 }));
-vi.mock("./AutomationWorkflowEditor", () => ({
-  AutomationWorkflowEditor: (props: Record<string, unknown>) => {
+vi.mock("./AutomationWorkflowEditor", async () => {
+  const React = await import("react");
+
+  return {
+    AutomationWorkflowEditor: (props: Record<string, unknown>) => {
     const workflow = props.workflow as WorkflowDefinition;
+    const [runOpen, setRunOpen] = React.useState(false);
     return (
       <div data-testid={`editor-${workflow.id}`} data-runs={(props.runs as WorkflowRun[]).length}>
+        <span data-testid="editor-revision">{workflow.updatedAt}</span>
+        <button onClick={() => setRunOpen(true)}>editor-open-run</button>
+        {runOpen ? <div role="dialog" aria-label="Mock run">run-live</div> : null}
         <button onClick={() => (props.onDirtyChange as (dirty: boolean) => void)(true)}>editor-dirty</button>
         <button onClick={() => (props.onDirtyChange as (dirty: boolean) => void)(false)}>editor-clean</button>
         <button onClick={() => void (props.onDeleted as () => Promise<void>)()}>editor-deleted</button>
       </div>
     );
-  }
-}));
+    }
+  };
+});
 vi.mock("./AutomationWorkflowList", () => ({
   AutomationWorkflowList: (props: Record<string, unknown>) => (
     <div data-testid="workflow-list">
@@ -119,6 +127,7 @@ describe("AutomationPage", () => {
     expect(await screen.findByTestId("editor-alpha")).toBeVisible();
 
     await user.click(screen.getByText("editor-dirty"));
+    await user.click(screen.getByRole("button", { name: /Workflow attivo/ }));
     await user.click(screen.getByText("list-create"));
     await user.click(screen.getByRole("button", { name: "Scarta e continua" }));
     await waitForElementToBeRemoved(() => screen.queryByRole("dialog", { name: "Modifiche non salvate" }));
@@ -152,5 +161,23 @@ describe("AutomationPage", () => {
     vi.mocked(fetchWorkflowRuns).mockResolvedValueOnce({ runs: [] });
     renderPage();
     expect(await screen.findByText("workflows offline")).toBeVisible();
+  });
+
+  it("keeps the live run dialog open when a workflow refresh changes its revision", async () => {
+    const user = userEvent.setup();
+    const refreshedAlpha = { ...alpha, updatedAt: "2026-08-04T00:00:00.000Z" };
+    vi.mocked(fetchWorkflows)
+      .mockResolvedValueOnce({ workflows: [alpha, beta] })
+      .mockResolvedValue({ workflows: [refreshedAlpha, beta] });
+    renderPage();
+
+    expect(await screen.findByTestId("editor-alpha")).toBeVisible();
+    await user.click(screen.getByText("editor-open-run"));
+    expect(screen.getByRole("dialog", { name: "Mock run" })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Aggiorna workflow" }));
+
+    expect(await screen.findByText(refreshedAlpha.updatedAt)).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "Mock run" })).toBeVisible();
   });
 });

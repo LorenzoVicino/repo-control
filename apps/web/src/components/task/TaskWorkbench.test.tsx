@@ -67,7 +67,7 @@ describe("TaskWorkbench", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Titolo" }), { target: { value: "Coverage 80" } });
     fireEvent.change(screen.getByRole("textbox", { name: "Descrizione" }), { target: { value: "New description" } });
     fireEvent.change(screen.getByRole("textbox", { name: "Motivazione" }), { target: { value: "New motivation" } });
-    await user.click(screen.getByRole("button", { name: "Salva" }));
+    await user.click(screen.getByRole("button", { name: "Salva bozza" }));
     await waitFor(() => expect(updateBrainTask).toHaveBeenCalledWith("alpha", "task-1", {
       title: "Coverage 80",
       definition: { description: "New description", motivation: "New motivation" }
@@ -82,15 +82,15 @@ describe("TaskWorkbench", () => {
     vi.mocked(approveBrainTask)
       .mockResolvedValueOnce({ ...task, status: "requirements" })
       .mockResolvedValueOnce({ ...task, status: "done" });
-    await user.click(screen.getByRole("button", { name: "Approva e continua" }));
+    await user.click(screen.getByRole("button", { name: "Approva gate e continua" }));
     const requirements = await screen.findByRole("textbox", { name: "Requisiti" });
     fireEvent.change(requirements, { target: { value: "Updated requirements" } });
-    await user.click(screen.getByRole("button", { name: "Salva" }));
+    await user.click(screen.getByRole("button", { name: "Salva bozza" }));
     await waitFor(() => expect(updateBrainTask).toHaveBeenCalledWith("alpha", "task-1", {
       phase: "requirements",
       content: "Updated requirements"
     }));
-    await user.click(screen.getByRole("button", { name: "Approva e continua" }));
+    await user.click(screen.getByRole("button", { name: "Approva gate e continua" }));
     expect(await screen.findByTestId("implementation-panel")).toBeVisible();
     expect(approveBrainTask).toHaveBeenLastCalledWith("alpha", "task-1", "requirements");
     expect(onChanged).toHaveBeenCalled();
@@ -100,12 +100,12 @@ describe("TaskWorkbench", () => {
     const user = userEvent.setup();
     vi.mocked(updateBrainTask).mockRejectedValueOnce(new Error("save failed"));
     renderWorkbench();
-    await user.click(screen.getByRole("button", { name: "Salva" }));
+    await user.click(screen.getByRole("button", { name: "Salva bozza" }));
     expect(await screen.findByText("save failed")).toBeVisible();
 
     vi.mocked(updateBrainTask).mockResolvedValueOnce(task);
     vi.mocked(approveBrainTask).mockRejectedValueOnce("approval failed");
-    await user.click(screen.getByRole("button", { name: "Approva e continua" }));
+    await user.click(screen.getByRole("button", { name: "Approva gate e continua" }));
     expect(await screen.findByText("Operazione non riuscita")).toBeVisible();
 
     fireEvent.change(screen.getByRole("combobox", { name: "Repository di contesto" }), { target: { value: "beta" } });

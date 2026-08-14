@@ -8,7 +8,9 @@ const webBaseUrl = `http://127.0.0.1:${webPort}`;
 
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  // Browser scenarios share one local API and some mutate workflow state.
+  // Keep this spec sequential so tests cannot invalidate each other's active workflow.
+  fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,

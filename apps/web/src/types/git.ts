@@ -19,6 +19,32 @@ export type GitBranchInfo = {
   upstream: string | null;
   ahead: number;
   behind: number;
+  merged: boolean;
+  lastCommit: {
+    hash: string;
+    message: string;
+    date: string;
+    author: string;
+  } | null;
+};
+
+export type GitDiffSummary = {
+  files: number;
+  additions: number;
+  deletions: number;
+  binaryFiles: number;
+  untrackedFiles: number;
+};
+
+export type GitFileDiff = {
+  path: string;
+  previousPath: string | null;
+  staged: boolean;
+  patch: string;
+  additions: number;
+  deletions: number;
+  binary: boolean;
+  truncated: boolean;
 };
 
 export type GitDetails = {
@@ -30,9 +56,14 @@ export type GitDetails = {
     ahead: number;
     behind: number;
     files: GitChangeGroups;
+    diff: {
+      staged: GitDiffSummary;
+      unstaged: GitDiffSummary;
+    };
   };
   branches: {
     current: string;
+    defaultBranch: string | null;
     local: GitBranchInfo[];
     remote: GitBranchInfo[];
   };
