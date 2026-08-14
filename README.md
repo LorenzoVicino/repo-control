@@ -5,12 +5,10 @@
 When work spans several repositories, the important state is scattered across terminal tabs, Git clients, Docker commands and local AI-agent sessions. repo-control turns one workspace folder into a live operational view: what is clean, what is drifting, what needs attention and which action is safe to run next.
 
 <p align="center">
-  <a href="docs/repo-control-demo.webm">
-    <img src="docs/repo-control-demo.gif" alt="repo-control demo: workspace health, keyboard repository search, scoped Git operations, local agent sessions and visual automations" width="100%" />
-  </a>
+  <img src="docs/repo-control-workbench.png" alt="repo-control v0.7.0 repository workbench with the persistent, repository-scoped terminal" width="100%" />
 </p>
 
-<p align="center"><sub>Dashboard → Ctrl+P repository search → scoped Git workspace → local Agent sessions → visual automations. The showcase uses synthetic repositories and conversations; click the GIF for the full-quality video.</sub></p>
+<p align="center"><sub>The v0.7.0 repository workbench keeps Git, branches, terminal and Docker operations inside one scoped workspace. Captured from the live application with the local path normalized for publication.</sub></p>
 
 ## The problem
 
