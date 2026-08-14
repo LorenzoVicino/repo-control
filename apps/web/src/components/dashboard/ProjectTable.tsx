@@ -1,17 +1,22 @@
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import CallSplitIcon from "@mui/icons-material/CallSplit";
-import { alpha, Box, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
+import { alpha, Box, Chip, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
 import React from "react";
 import { StatusChips } from "../shared/StatusChips";
 import { SyncChips } from "../shared/SyncChips";
 import type { ProjectSummary } from "../../types/projects";
 
+const EMPTY_PROJECT_IDS: string[] = [];
+
 type ProjectTableProps = {
   projects: ProjectSummary[];
+  openProjectIds?: string[];
+  density?: "compact" | "comfortable";
   onSelectProject: (projectId: string) => void;
 };
 
-export const ProjectTable = React.memo(function ProjectTable({ projects, onSelectProject }: ProjectTableProps) {
+export const ProjectTable = React.memo(function ProjectTable({ projects, openProjectIds = EMPTY_PROJECT_IDS, density = "compact", onSelectProject }: ProjectTableProps) {
+  const openProjectIdSet = React.useMemo(() => new Set(openProjectIds), [openProjectIds]);
   if (projects.length === 0) {
     return (
       <Box sx={{ p: 4, textAlign: "center" }}>
@@ -25,7 +30,7 @@ export const ProjectTable = React.memo(function ProjectTable({ projects, onSelec
 
   return (
     <TableContainer sx={{ maxHeight: "calc(100dvh - 220px)" }}>
-      <Table size="small" stickyHeader sx={{ minWidth: 1040 }}>
+      <Table size={density === "compact" ? "small" : "medium"} stickyHeader sx={{ minWidth: 1040 }}>
         <TableHead>
           <TableRow>
             <TableCell>Repository</TableCell>
@@ -51,6 +56,11 @@ export const ProjectTable = React.memo(function ProjectTable({ projects, onSelec
               }}
               sx={{
                 cursor: "pointer",
+                bgcolor: openProjectIdSet.has(project.id) ? (theme) => alpha(theme.palette.primary.main, 0.045) : "transparent",
+                "& > td:first-of-type": {
+                  borderLeft: "2px solid",
+                  borderLeftColor: openProjectIdSet.has(project.id) ? "primary.main" : "transparent"
+                },
                 "&:focus-visible": {
                   outline: "3px solid",
                   outlineColor: (theme) => alpha(theme.palette.primary.main, 0.25),
@@ -75,9 +85,10 @@ export const ProjectTable = React.memo(function ProjectTable({ projects, onSelec
                   >
                     <AccountTreeIcon sx={{ fontSize: 18 }} />
                   </Box>
-                  <Typography variant="body2" noWrap sx={{ fontWeight: 750 }}>
+                  <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
                     {project.name}
                   </Typography>
+                  {openProjectIdSet.has(project.id) ? <Chip size="small" color="primary" variant="outlined" label="Aperto" /> : null}
                 </Stack>
               </TableCell>
               <TableCell>
@@ -115,7 +126,7 @@ export const ProjectTable = React.memo(function ProjectTable({ projects, onSelec
                   variant="caption"
                   noWrap
                   component="div"
-                  sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}
+                  sx={{ fontFamily: "var(--rc-font-mono)" }}
                 >
                   {project.path}
                 </Typography>

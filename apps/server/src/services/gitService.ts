@@ -1,3 +1,4 @@
+import { promises as fs } from "node:fs";
 import path from "node:path";
 import { simpleGit } from "simple-git";
 import type { StatusResult } from "simple-git";
@@ -23,6 +24,32 @@ export type GitBranchInfo = {
   upstream: string | null;
   ahead: number;
   behind: number;
+  merged: boolean;
+  lastCommit: {
+    hash: string;
+    message: string;
+    date: string;
+    author: string;
+  } | null;
+};
+
+export type GitDiffSummary = {
+  files: number;
+  additions: number;
+  deletions: number;
+  binaryFiles: number;
+  untrackedFiles: number;
+};
+
+export type GitFileDiff = {
+  path: string;
+  previousPath: string | null;
+  staged: boolean;
+  patch: string;
+  additions: number;
+  deletions: number;
+  binary: boolean;
+  truncated: boolean;
 };
 
 export type GitDetails = {
@@ -34,9 +61,14 @@ export type GitDetails = {
     ahead: number;
     behind: number;
     files: GitChangeGroups;
+    diff: {
+      staged: GitDiffSummary;
+      unstaged: GitDiffSummary;
+    };
   };
   branches: {
     current: string;
+    defaultBranch: string | null;
     local: GitBranchInfo[];
     remote: GitBranchInfo[];
   };
@@ -67,20 +99,40 @@ export type GitActivity = {
   nextOffset: number | null;
 };
 
+const MAX_GIT_DIFF_LENGTH = 60_000;
+
 export async function readGitDetails(projectPath: string): Promise<GitDetails> {
   const git = simpleGit(projectPath);
-  const [status, localBranchesRaw, remoteBranchesRaw, stashListRaw] = await Promise.all([
+  const [
+    status,
+    localBranchesRaw,
+    remoteBranchesRaw,
+    stashListRaw,
+    stagedDiffRaw,
+    unstagedDiffRaw,
+    mergedLocalRaw,
+    mergedRemoteRaw,
+    defaultBranchRaw
+  ] = await Promise.all([
     git.status(),
-    git.raw(["branch", "--format=%(refname:short)|%(HEAD)|%(upstream:short)|%(upstream:track)", "--sort=refname"]),
+    git.raw(["branch", `--format=${getBranchFormat()}`, "--sort=refname"]),
     git.raw([
       "branch",
       "-r",
-      "--format=%(refname:short)|%(HEAD)|%(upstream:short)|%(upstream:track)",
+      `--format=${getBranchFormat()}`,
       "--sort=refname"
     ]),
-    git.raw(["stash", "list", "--date=iso-strict", "--pretty=format:%gd%x1f%ci%x1f%gs%x1e"]).catch(() => "")
+    git.raw(["stash", "list", "--date=iso-strict", "--pretty=format:%gd%x1f%ci%x1f%gs%x1e"]).catch(() => ""),
+    git.raw(["diff", "--cached", "--numstat"]).catch(() => ""),
+    git.raw(["diff", "--numstat"]).catch(() => ""),
+    git.raw(["branch", "--format=%(refname:short)", "--merged"]).catch(() => ""),
+    git.raw(["branch", "-r", "--format=%(refname:short)", "--merged"]).catch(() => ""),
+    git.raw(["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"]).catch(() => "")
   ]);
   const current = status.detached ? "(detached)" : status.current || "(detached)";
+  const files = getChangeGroups(status);
+  const mergedLocalBranches = parseNameSet(mergedLocalRaw);
+  const mergedRemoteBranches = parseNameSet(mergedRemoteRaw);
 
   return {
     status: {
@@ -90,14 +142,54 @@ export async function readGitDetails(projectPath: string): Promise<GitDetails> {
       tracking: status.tracking || null,
       ahead: status.ahead,
       behind: status.behind,
-      files: getChangeGroups(status)
+      files,
+      diff: {
+        staged: parseDiffSummary(stagedDiffRaw, files.staged.length, 0),
+        unstaged: parseDiffSummary(unstagedDiffRaw, files.unstaged.length, status.not_added.length)
+      }
     },
     branches: {
       current,
-      local: parseBranchRows(localBranchesRaw, false, status),
-      remote: parseBranchRows(remoteBranchesRaw, true, status)
+      defaultBranch: normalizeDefaultBranch(defaultBranchRaw),
+      local: parseBranchRows(localBranchesRaw, false, status, mergedLocalBranches),
+      remote: parseBranchRows(remoteBranchesRaw, true, status, mergedRemoteBranches)
     },
     stashes: parseGitStashes(stashListRaw)
+  };
+}
+
+export async function readGitFileDiff(
+  projectPath: string,
+  filePath: string,
+  previousPath: string | null,
+  staged: boolean
+): Promise<GitFileDiff> {
+  const git = simpleGit(projectPath);
+  const pathArgs = getGitPathArgs(filePath, previousPath);
+  const args = staged
+    ? ["diff", "--cached", "--no-ext-diff", "--unified=3", ...pathArgs]
+    : ["diff", "--no-ext-diff", "--unified=3", ...pathArgs];
+  let patch = await git.raw(args).catch(() => "");
+  let binary = /Binary files .* differ|GIT binary patch/.test(patch);
+
+  if (!patch && !staged) {
+    const untrackedContent = await readUntrackedFile(projectPath, filePath);
+    patch = untrackedContent.patch;
+    binary = untrackedContent.binary;
+  }
+
+  const { additions, deletions } = countPatchChanges(patch);
+  const truncated = patch.length > MAX_GIT_DIFF_LENGTH;
+
+  return {
+    path: filePath,
+    previousPath,
+    staged,
+    patch: truncated ? `${patch.slice(0, MAX_GIT_DIFF_LENGTH)}\n… diff troncato …` : patch,
+    additions,
+    deletions,
+    binary,
+    truncated
   };
 }
 
@@ -278,15 +370,22 @@ function parseGitStashes(output: string): GitStashEntry[] {
     .filter((stash) => stash.ref.length > 0);
 }
 
-function parseBranchRows(output: string, remote: boolean, status: StatusResult): GitBranchInfo[] {
+function parseBranchRows(
+  output: string,
+  remote: boolean,
+  status: StatusResult,
+  mergedBranches: Set<string>
+): GitBranchInfo[] {
   return output
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const [name = "", head = "", upstream = "", track = ""] = line.split("|");
+      const [name = "", head = "", upstream = "", track = "", hash = "", author = "", date = "", ...subjectParts] =
+        line.split("\x1f");
       const sync = parseTrack(track);
       const isCurrent = head === "*";
+      const message = subjectParts.join("\x1f");
 
       return {
         name,
@@ -294,10 +393,102 @@ function parseBranchRows(output: string, remote: boolean, status: StatusResult):
         remote,
         upstream: upstream || null,
         ahead: isCurrent ? status.ahead : sync.ahead,
-        behind: isCurrent ? status.behind : sync.behind
+        behind: isCurrent ? status.behind : sync.behind,
+        merged: mergedBranches.has(name),
+        lastCommit: hash
+          ? { hash, message, date, author }
+          : null
       };
     })
     .filter((branch) => branch.name.length > 0 && branch.name !== "origin/HEAD");
+}
+
+function getBranchFormat(): string {
+  return [
+    "%(refname:short)",
+    "%(HEAD)",
+    "%(upstream:short)",
+    "%(upstream:track)",
+    "%(objectname:short)",
+    "%(authorname)",
+    "%(authordate:iso-strict)",
+    "%(subject)"
+  ].join("\x1f");
+}
+
+function parseNameSet(output: string): Set<string> {
+  return new Set(output.split("\n").map((name) => name.trim()).filter(Boolean));
+}
+
+function normalizeDefaultBranch(output: string): string | null {
+  const branch = output.trim();
+  return branch ? branch.replace(/^origin\//, "") : null;
+}
+
+function parseDiffSummary(
+  output: string,
+  fileCount: number,
+  untrackedFiles: number
+): GitDiffSummary {
+  let additions = 0;
+  let deletions = 0;
+  let binaryFiles = 0;
+
+  for (const row of output.split("\n").map((line) => line.trim()).filter(Boolean)) {
+    const [added = "0", deleted = "0"] = row.split("\t");
+    if (added === "-" || deleted === "-") {
+      binaryFiles += 1;
+      continue;
+    }
+    additions += Number(added) || 0;
+    deletions += Number(deleted) || 0;
+  }
+
+  return { files: fileCount, additions, deletions, binaryFiles, untrackedFiles };
+}
+
+async function readUntrackedFile(
+  projectPath: string,
+  filePath: string
+): Promise<{ patch: string; binary: boolean }> {
+  const absolutePath = path.resolve(projectPath, filePath);
+  const relativePath = path.relative(projectPath, absolutePath);
+
+  if (!isSafeGitPath(relativePath)) {
+    return { patch: "", binary: false };
+  }
+
+  const content = await fs.readFile(absolutePath).catch(() => null);
+  if (!content) return { patch: "", binary: false };
+  if (content.includes(0)) {
+    return { patch: `Binary file ${filePath}`, binary: true };
+  }
+
+  const text = content.toString("utf8");
+  const lines = text.split("\n");
+  return {
+    binary: false,
+    patch: [
+      `diff --git a/${filePath} b/${filePath}`,
+      "new file mode 100644",
+      "--- /dev/null",
+      `+++ b/${filePath}`,
+      `@@ -0,0 +1,${lines.length} @@`,
+      ...lines.map((line) => `+${line}`)
+    ].join("\n")
+  };
+}
+
+function countPatchChanges(patch: string): { additions: number; deletions: number } {
+  let additions = 0;
+  let deletions = 0;
+
+  for (const line of patch.split("\n")) {
+    if (line.startsWith("+") && !line.startsWith("+++")) additions += 1;
+    if (line.startsWith("-") && !line.startsWith("---")) deletions += 1;
+  }
+
+  return { additions, deletions };
 }
 
 function parseTrack(track: string): { ahead: number; behind: number } {

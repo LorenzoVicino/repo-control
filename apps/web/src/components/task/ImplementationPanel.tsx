@@ -78,7 +78,7 @@ export function ImplementationPanel({ projectId, task, onChanged }: Implementati
             multiline
             minRows={4}
             helperText="Un comando per riga. Almeno uno è obbligatorio."
-            inputProps={{ style: { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" } }}
+            inputProps={{ style: { fontFamily: "var(--rc-font-mono)" } }}
           />
           {runError ? <Alert severity="error">{runError}</Alert> : null}
           <Button
@@ -126,7 +126,7 @@ export function ImplementationPanel({ projectId, task, onChanged }: Implementati
               <Typography
                 component="pre"
                 variant="caption"
-                sx={{ m: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}
+                sx={{ m: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "var(--rc-font-mono)" }}
               >
                 {contextQuery.data?.content}
               </Typography>
@@ -160,30 +160,62 @@ export function ImplementationPanel({ projectId, task, onChanged }: Implementati
           <Divider />
           <Stack spacing={1.5} sx={{ p: 1.5 }}>
             {latestRun.error ? <Alert severity="error">{latestRun.error}</Alert> : null}
+            {latestRun.status === "failed" ? (
+              <Alert severity="warning">
+                Recovery disponibile: correggi istruzione o verifiche e avvia una nuova iterazione. Il context pack resta invariato.
+              </Alert>
+            ) : null}
             {latestRun.response ? (
               <Typography
                 component="pre"
                 variant="body2"
-                sx={{ m: 0, maxHeight: 240, overflow: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}
+                sx={{ m: 0, maxHeight: 240, overflow: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "var(--rc-font-mono)" }}
               >
                 {latestRun.response}
               </Typography>
             ) : null}
-            <Stack spacing={0.75}>
+            <Stack spacing={0.75} aria-label="Risultati delle verifiche">
               {latestRun.checks.map((check) => (
-                <Stack key={check.id} direction="row" spacing={1} alignItems="center">
-                  {check.ok ? (
-                    <CheckCircleOutlineIcon color="success" fontSize="small" />
-                  ) : (
-                    <ErrorOutlineIcon color="error" fontSize="small" />
-                  )}
-                  <Typography
-                    variant="caption"
-                    sx={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", overflowWrap: "anywhere" }}
-                  >
-                    {check.command}
-                  </Typography>
-                </Stack>
+                <Accordion
+                  key={check.id}
+                  variant="outlined"
+                  disableGutters
+                  sx={{ "&:before": { display: "none" }, borderColor: check.ok ? "divider" : "error.main" }}
+                >
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, width: "100%", pr: 1 }}>
+                      {check.ok ? (
+                        <CheckCircleOutlineIcon color="success" fontSize="small" />
+                      ) : (
+                        <ErrorOutlineIcon color="error" fontSize="small" />
+                      )}
+                      <Typography
+                        variant="caption"
+                        sx={{ fontFamily: "var(--rc-font-mono)", overflowWrap: "anywhere", flex: 1, minWidth: 0 }}
+                      >
+                        {check.command}
+                      </Typography>
+                      <Chip
+                        size="small"
+                        color={check.ok ? "success" : "error"}
+                        variant="outlined"
+                        label={`${check.ok ? "PASS" : "FAIL"} · ${formatDuration(check.durationMs)}`}
+                      />
+                    </Stack>
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ borderTop: "1px solid", borderColor: "divider", bgcolor: "var(--rc-surface-1)" }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Exit code: {check.exitCode ?? "n/d"}
+                    </Typography>
+                    <Typography
+                      component="pre"
+                      variant="caption"
+                      sx={{ m: 0, mt: 1, maxHeight: 260, overflow: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "var(--rc-font-mono)" }}
+                    >
+                      {check.output || "Nessun output prodotto dal comando."}
+                    </Typography>
+                  </AccordionDetails>
+                </Accordion>
               ))}
             </Stack>
           </Stack>
@@ -191,4 +223,9 @@ export function ImplementationPanel({ projectId, task, onChanged }: Implementati
       ) : null}
     </Stack>
   );
+}
+
+function formatDuration(durationMs: number): string {
+  if (durationMs < 1_000) return `${durationMs} ms`;
+  return `${(durationMs / 1_000).toFixed(durationMs < 10_000 ? 1 : 0)} s`;
 }

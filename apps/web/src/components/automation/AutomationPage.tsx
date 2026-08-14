@@ -129,6 +129,7 @@ export function AutomationPage({ projects }: AutomationPageProps) {
 
   function discardChangesAndContinue() {
     setEditorDirty(false);
+    setWorkflowMenuAnchor(null);
 
     if (pendingWorkflowId) {
       setSelectedWorkflowId(pendingWorkflowId);
@@ -178,7 +179,7 @@ export function AutomationPage({ projects }: AutomationPageProps) {
         spacing={1}
         alignItems="center"
         sx={{
-          minHeight: 54,
+          minHeight: 48,
           px: { xs: 1, sm: 1.25 },
           flexShrink: 0,
           borderBottom: "1px solid",
@@ -198,10 +199,10 @@ export function AutomationPage({ projects }: AutomationPageProps) {
           sx={{
             minWidth: 0,
             maxWidth: { xs: 210, sm: 360 },
-            minHeight: 42,
+            minHeight: 36,
             px: 1,
             justifyContent: "flex-start",
-            borderRadius: 1.5,
+            borderRadius: "var(--rc-radius-control)",
             "&:hover": { bgcolor: "action.hover" }
           }}
         >
@@ -209,7 +210,7 @@ export function AutomationPage({ projects }: AutomationPageProps) {
             <Typography component="span" variant="caption" color="text.secondary" sx={{ display: "block", lineHeight: 1.1 }}>
               Workflow attivo
             </Typography>
-            <Typography component="span" variant="body2" fontWeight={800} noWrap sx={{ display: "block" }}>
+            <Typography component="span" variant="body2" fontWeight={500} noWrap sx={{ display: "block" }}>
               {selectedWorkflow?.name ?? "Seleziona workflow"}
             </Typography>
           </Box>
@@ -263,7 +264,7 @@ export function AutomationPage({ projects }: AutomationPageProps) {
         ) : null}
         {selectedWorkflow ? (
           <AutomationWorkflowEditor
-            key={`${selectedWorkflow.id}:${selectedWorkflow.updatedAt}`}
+            key={selectedWorkflow.id}
             workflow={selectedWorkflow}
             projects={projects}
             runs={selectedRuns}

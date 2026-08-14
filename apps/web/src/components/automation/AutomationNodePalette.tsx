@@ -48,10 +48,10 @@ export function AutomationNodePalette({ nodeTypes, onAddNode, onClose }: Automat
         color: "text.primary"
       }}
     >
-      <Box sx={{ px: 2, pt: 1.75, pb: 1.5 }}>
+      <Box sx={{ px: 1.25, pt: 1.25, pb: 1 }}>
         <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
           <Box>
-            <Typography variant="subtitle1" fontWeight={850}>Cosa vuoi aggiungere?</Typography>
+            <Typography variant="subtitle1" fontWeight={500}>Libreria nodi</Typography>
             <Typography variant="caption" color="text.secondary">
               {AUTOMATION_NODE_DEFINITIONS.length} passaggi disponibili
             </Typography>
@@ -64,16 +64,16 @@ export function AutomationNodePalette({ nodeTypes, onAddNode, onClose }: Automat
         </Stack>
         <Box
           sx={{
-            mt: 1.5,
-            minHeight: 40,
+            mt: 1,
+            minHeight: 34,
             px: 1.25,
             display: "flex",
             alignItems: "center",
             gap: 1,
             border: "1px solid",
             borderColor: "divider",
-            borderRadius: 1.5,
-            bgcolor: "background.default",
+            borderRadius: "var(--rc-radius-control)",
+            bgcolor: "var(--rc-surface-2)",
             "&:focus-within": {
               borderColor: "primary.main",
               boxShadow: (theme) => `0 0 0 3px ${alpha(theme.palette.primary.main, 0.14)}`
@@ -96,7 +96,7 @@ export function AutomationNodePalette({ nodeTypes, onAddNode, onClose }: Automat
       <Box sx={{ minHeight: 0, flexGrow: 1, overflowY: "auto", px: 1, py: 1 }}>
         {filteredDefinitions.length === 0 ? (
           <Box sx={{ px: 2, py: 5, textAlign: "center" }}>
-            <Typography variant="body2" fontWeight={750}>Nessun passaggio trovato</Typography>
+            <Typography variant="body2" fontWeight={500}>Nessun passaggio trovato</Typography>
             <Typography variant="caption" color="text.secondary">
               Prova con “Git”, “Docker” o “input”.
             </Typography>
@@ -126,12 +126,12 @@ export function AutomationNodePalette({ nodeTypes, onAddNode, onClose }: Automat
                       onClick={() => onAddNode(definition.type)}
                       sx={{
                         width: "100%",
-                        minHeight: 54,
+                        minHeight: 46,
                         px: 1,
                         py: 0.75,
                         justifyContent: "flex-start",
                         border: "1px solid transparent",
-                        borderRadius: 1.5,
+                        borderRadius: "var(--rc-radius-control)",
                         textAlign: "left",
                         color: "text.primary",
                         transition: "background-color 140ms ease, border-color 140ms ease",
@@ -149,8 +149,8 @@ export function AutomationNodePalette({ nodeTypes, onAddNode, onClose }: Automat
                     >
                       <Box
                         sx={{
-                          width: 34,
-                          height: 34,
+                          width: 28,
+                          height: 28,
                           display: "grid",
                           placeItems: "center",
                           flexShrink: 0,
@@ -164,7 +164,7 @@ export function AutomationNodePalette({ nodeTypes, onAddNode, onClose }: Automat
                         <Icon sx={{ fontSize: 19 }} />
                       </Box>
                       <Box sx={{ minWidth: 0, ml: 1.1, flexGrow: 1 }}>
-                        <Typography variant="body2" component="div" fontWeight={750} noWrap>
+                        <Typography variant="body2" component="div" fontWeight={500} noWrap>
                           {definition.label}
                         </Typography>
                         <Typography variant="caption" component="div" color="text.secondary" noWrap>

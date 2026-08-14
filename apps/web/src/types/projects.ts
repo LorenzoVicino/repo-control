@@ -24,7 +24,7 @@ export type ProjectsResponse = {
   projects: ProjectSummary[];
 };
 
-export type ProjectDetailTab = "git" | "branches" | "terminal" | "docker" | "deploy";
+export type ProjectDetailTab = "overview" | "git" | "branches" | "terminal" | "docker";
 
 export type ProjectTone = {
   label: string;

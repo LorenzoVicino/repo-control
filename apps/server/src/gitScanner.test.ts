@@ -51,7 +51,7 @@ test("scans nested repositories and reports their working tree state", async () 
     assert.deepEqual(projects.map((project) => project.name), ["alpha", "beta"]);
     const alpha = projects[0];
     assert.ok(alpha);
-    assert.equal(alpha.id, Buffer.from("group/alpha").toString("base64url"));
+    assert.equal(alpha.id, Buffer.from(path.join("group", "alpha")).toString("base64url"));
     assert.equal(alpha.branch, "main");
     assert.equal(alpha.isClean, false);
     assert.equal(alpha.staged, 1);
@@ -62,7 +62,7 @@ test("scans nested repositories and reports their working tree state", async () 
 
     assert.equal(await readProjectSummary(invalidPath, temporaryRoot), null);
   } finally {
-    await fs.rm(temporaryRoot, { recursive: true, force: true });
+    await fs.rm(temporaryRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -72,6 +72,6 @@ test("returns an empty result for a workspace without repositories", async () =>
   try {
     assert.deepEqual(await scanProjects(temporaryRoot), []);
   } finally {
-    await fs.rm(temporaryRoot, { recursive: true, force: true });
+    await fs.rm(temporaryRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });

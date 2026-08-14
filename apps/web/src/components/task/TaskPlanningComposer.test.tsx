@@ -82,6 +82,7 @@ function renderComposer(overrides: Partial<React.ComponentProps<typeof TaskPlann
     projectId: "alpha",
     projects: [createProjectFixture("alpha"), createProjectFixture("beta")],
     canCancel: true,
+    onStageChange: vi.fn(),
     onCancel: vi.fn(),
     onCreated: vi.fn().mockResolvedValue(undefined),
     ...overrides

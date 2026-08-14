@@ -7,18 +7,22 @@ import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
 import { runProjectCommand, runShellCommand } from "../lib/commandRunner.js";
+import type { CommandResult } from "../lib/commandRunner.js";
 import { readWorkflowRun } from "./workflow/store.js";
 import type { WorkflowDraft, WorkflowExecutionContext } from "./workflow/types.js";
 import {
   cancelWorkflowRun,
   createWorkflow,
+  executeDryRun,
   reconcileStaleWorkflowRuns,
   startWorkflowRun,
+  updateWorkflow,
   WorkflowRunConflictError
 } from "./workflowService.js";
 
 const execFileAsync = promisify(execFile);
 const TERMINAL_RUN_STATUSES = new Set(["success", "warning", "failed", "cancelled", "interrupted"]);
+const LONG_RUNNING_COMMAND = 'node -e "setTimeout(() => {}, 10000)"';
 
 async function createRepository(repositoryPath: string): Promise<void> {
   await fs.mkdir(repositoryPath, { recursive: true });
@@ -50,7 +54,7 @@ async function withTemporaryConfigAndRoot<T>(run: (context: WorkflowExecutionCon
   } finally {
     if (previousConfigPath === undefined) delete process.env.REPO_CONTROL_CONFIG_DIR;
     else process.env.REPO_CONTROL_CONFIG_DIR = previousConfigPath;
-    await fs.rm(temporaryRoot, { recursive: true, force: true });
+    await fs.rm(temporaryRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 }
 
@@ -80,6 +84,40 @@ function terminalWorkflowDraft(name: string, command: string): WorkflowDraft {
       { id: "edge-1", source: "trigger", target: "repositories" },
       { id: "edge-2", source: "repositories", target: "command" }
     ]
+  };
+}
+
+function inputTerminalWorkflowDraft(name: string): WorkflowDraft {
+  const draft = terminalWorkflowDraft(name, "echo {{inputs.message}}");
+  const nodes = draft.nodes as Array<Record<string, unknown>>;
+  const edges = draft.edges as Array<Record<string, unknown>>;
+
+  nodes.splice(1, 0, {
+    id: "message",
+    type: "input.text",
+    name: "Release message",
+    position: { x: 100, y: 0 },
+    config: { key: "message", label: "Release message", required: true, defaultValue: "" }
+  });
+  edges.splice(
+    0,
+    edges.length,
+    { id: "edge-input-1", source: "trigger", target: "message" },
+    { id: "edge-input-2", source: "message", target: "repositories" },
+    { id: "edge-input-3", source: "repositories", target: "command" }
+  );
+  return draft;
+}
+
+function successfulCommandResult(command: string, stdout = "ok\n"): CommandResult {
+  return {
+    ok: true,
+    command,
+    exitCode: 0,
+    stdout,
+    stderr: "",
+    output: stdout,
+    durationMs: 1
   };
 }
 
@@ -113,9 +151,84 @@ test("persists a pending run before the background execution finishes", async ()
   });
 });
 
+test("persists completed steps while a command is still running", async () => {
+  await withTemporaryConfigAndRoot(async (baseContext) => {
+    let markCommandStarted!: () => void;
+    let finishCommand!: (result: CommandResult) => void;
+    const commandStarted = new Promise<void>((resolve) => {
+      markCommandStarted = resolve;
+    });
+    const commandFinished = new Promise<CommandResult>((resolve) => {
+      finishCommand = resolve;
+    });
+    const context: WorkflowExecutionContext = {
+      ...baseContext,
+      runShellCommand: async () => {
+        markCommandStarted();
+        return commandFinished;
+      }
+    };
+    const workflow = await createWorkflow(terminalWorkflowDraft("Progressive persistence", "echo ready"));
+    const run = await startWorkflowRun(workflow.id, context);
+    assert.ok(run);
+
+    await Promise.race([
+      commandStarted,
+      delay(5_000).then(() => {
+        throw new Error("workflow command did not start");
+      })
+    ]);
+    const inProgress = await readWorkflowRun(run.id);
+    assert.equal(inProgress?.status, "running");
+    assert.deepEqual(inProgress?.steps.map((step) => step.nodeId), ["trigger", "repositories"]);
+
+    finishCommand(successfulCommandResult("echo ready", "ready\n"));
+    const completed = await waitForTerminalRun(run.id);
+    assert.equal(completed.status, "success");
+    assert.deepEqual(completed.steps.map((step) => step.nodeId), ["trigger", "repositories", "command"]);
+    assert.equal(completed.steps.at(-1)?.stdout, "ready");
+    assert.deepEqual(completed.summary, {
+      selectedProjects: 1,
+      succeeded: 3,
+      failed: 0,
+      skipped: 0,
+      commands: 1
+    });
+  });
+});
+
+test("dry runs persist a redacted preview without invoking a command runner", async () => {
+  await withTemporaryConfigAndRoot(async (baseContext) => {
+    const context: WorkflowExecutionContext = {
+      ...baseContext,
+      runProjectCommand: async () => {
+        throw new Error("dry run unexpectedly invoked the project runner");
+      },
+      runShellCommand: async () => {
+        throw new Error("dry run unexpectedly invoked the shell runner");
+      }
+    };
+    const secretInput = "release candidate; never execute this";
+    const workflow = await createWorkflow(inputTerminalWorkflowDraft("Safe preview"));
+    const run = await executeDryRun(workflow.id, context, { message: secretInput });
+
+    assert.ok(run);
+    assert.equal(run.mode, "dry-run");
+    assert.equal(run.status, "success");
+    const commandStep = run.steps.find((step) => step.nodeId === "command");
+    assert.match(commandStep?.command ?? "", /REPO_CONTROL_INPUT_MESSAGE/);
+    assert.equal(commandStep?.command?.includes(secretInput), false);
+    const persisted = await readWorkflowRun(run.id);
+    assert.equal(persisted?.id, run.id);
+    assert.equal(persisted?.status, "success");
+    assert.equal(persisted?.steps.length, run.steps.length);
+    assert.equal(persisted?.steps.find((step) => step.nodeId === "command")?.command, commandStep?.command);
+  });
+});
+
 test("cancelling an active run kills the process and marks the run cancelled promptly", async () => {
   await withTemporaryConfigAndRoot(async (context) => {
-    const workflow = await createWorkflow(terminalWorkflowDraft("Cancellable", "sleep 10"));
+    const workflow = await createWorkflow(terminalWorkflowDraft("Cancellable", LONG_RUNNING_COMMAND));
     const run = await startWorkflowRun(workflow.id, context);
     assert.ok(run);
 
@@ -134,7 +247,7 @@ test("cancelling an active run kills the process and marks the run cancelled pro
 
 test("rejects a second concurrent run of the same workflow", async () => {
   await withTemporaryConfigAndRoot(async (context) => {
-    const workflow = await createWorkflow(terminalWorkflowDraft("Concurrent", "sleep 2"));
+    const workflow = await createWorkflow(terminalWorkflowDraft("Concurrent", LONG_RUNNING_COMMAND));
     const first = await startWorkflowRun(workflow.id, context);
     assert.ok(first);
 
@@ -148,9 +261,25 @@ test("rejects a second concurrent run of the same workflow", async () => {
   });
 });
 
+test("releases the workflow reservation when validation fails before execution", async () => {
+  await withTemporaryConfigAndRoot(async (context) => {
+    const invalidDraft = terminalWorkflowDraft("Initially invalid", "echo fixed");
+    invalidDraft.edges = [];
+    const workflow = await createWorkflow(invalidDraft);
+
+    await assert.rejects(() => startWorkflowRun(workflow.id, context), /disconnected/);
+
+    const updated = await updateWorkflow(workflow.id, terminalWorkflowDraft("Now valid", "echo fixed"));
+    assert.ok(updated);
+    const run = await startWorkflowRun(workflow.id, context);
+    assert.ok(run);
+    assert.equal((await waitForTerminalRun(run.id)).status, "success");
+  });
+});
+
 test("reconcileStaleWorkflowRuns marks leftover pending/running records as interrupted", async () => {
   await withTemporaryConfigAndRoot(async (context) => {
-    const workflow = await createWorkflow(terminalWorkflowDraft("Interrupted", "sleep 10"));
+    const workflow = await createWorkflow(terminalWorkflowDraft("Interrupted", LONG_RUNNING_COMMAND));
     const run = await startWorkflowRun(workflow.id, context);
     assert.ok(run);
 

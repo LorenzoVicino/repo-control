@@ -180,6 +180,12 @@ export function AutomationWorkflowEditor({
   });
   const cancelMutation = useMutation({
     mutationFn: (runId: string) => cancelWorkflowRun(runId),
+    onSuccess: async (_outcome, runId) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["workflow-run", runId] }),
+        queryClient.invalidateQueries({ queryKey: ["workflow-runs"] })
+      ]);
+    },
     onError: (error) => setEditorError(getErrorMessage(error))
   });
   const busy = saveMutation.isPending || runMutation.isPending || deleteMutation.isPending;
@@ -370,7 +376,7 @@ export function AutomationWorkflowEditor({
         alignItems="center"
         justifyContent="space-between"
         sx={{
-          minHeight: 62,
+          minHeight: 50,
           px: { xs: 0.5, sm: 1.5 },
           py: 0.75,
           flexShrink: 0,
@@ -402,9 +408,9 @@ export function AutomationWorkflowEditor({
               sx={{
                 "& .MuiInputBase-input": {
                   py: 0.1,
-                  fontSize: "0.95rem",
+                  fontSize: 13,
                   lineHeight: 1.3,
-                  fontWeight: 850
+                  fontWeight: 500
                 },
                 "& .MuiInput-underline:before": { borderBottomColor: "transparent" },
                 "& .MuiInput-underline:hover:not(.Mui-disabled):before": { borderBottomColor: "divider" }
@@ -579,9 +585,9 @@ export function AutomationWorkflowEditor({
                 overflow: "hidden",
                 border: "1px solid",
                 borderColor: "divider",
-                borderRadius: 1.5,
+                borderRadius: "var(--rc-radius-control)",
                 bgcolor: "background.paper",
-                boxShadow: (currentTheme) => `0 10px 30px ${alpha(currentTheme.palette.common.black, 0.16)}`
+                boxShadow: "none"
               },
               "& .react-flow__controls-button": {
                 width: 34,
@@ -671,8 +677,8 @@ export function AutomationWorkflowEditor({
                     minWidth: { xs: 40, sm: 0 },
                     minHeight: 38,
                     px: { xs: 1, sm: 1.5 },
-                    borderRadius: 1.5,
-                    boxShadow: (currentTheme) => `0 10px 28px ${alpha(currentTheme.palette.common.black, 0.18)}`,
+                    borderRadius: "var(--rc-radius-control)",
+                    boxShadow: "none",
                     "& .MuiButton-startIcon": { m: { xs: 0, sm: "0 8px 0 -4px" } }
                   }}
                 >
@@ -689,8 +695,10 @@ export function AutomationWorkflowEditor({
                 position: "absolute",
                 zIndex: 4,
                 inset: "0 0 0 auto",
-                width: { xs: "min(92vw, 380px)", sm: 380 },
-                boxShadow: (currentTheme) => `-18px 0 44px ${alpha(currentTheme.palette.common.black, 0.18)}`
+                width: { xs: "min(92vw, 326px)", sm: 326 },
+                borderLeft: "1px solid",
+                borderColor: "divider",
+                boxShadow: "none"
               }}
             >
               <AutomationNodeInspector
@@ -718,7 +726,7 @@ export function AutomationWorkflowEditor({
           <Box sx={{ width: "100%", maxWidth: 980, mx: "auto" }}>
             <Stack direction="row" alignItems="flex-end" justifyContent="space-between" spacing={2} sx={{ mb: 2 }}>
               <Box>
-                <Typography variant="h4" fontWeight={850}>Cronologia</Typography>
+                <Typography variant="h4" fontWeight={500}>Cronologia</Typography>
                 <Typography variant="body2" color="text.secondary">
                   Controlla risultati, durata e stato delle ultime esecuzioni.
                 </Typography>
@@ -745,13 +753,13 @@ export function AutomationWorkflowEditor({
           paper: {
             sx: {
               mt: 0.75,
-              width: { xs: "min(92vw, 360px)", sm: 360 },
+              width: { xs: "min(92vw, 300px)", sm: 300 },
               height: "min(70dvh, 640px)",
               overflow: "hidden",
               border: "1px solid",
               borderColor: "divider",
-              borderRadius: 2,
-              boxShadow: 12
+              borderRadius: "var(--rc-radius-panel)",
+              boxShadow: "0 18px 48px rgba(0, 0, 0, 0.42)"
             }
           }
         }}

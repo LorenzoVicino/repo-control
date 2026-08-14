@@ -31,7 +31,7 @@ apps/server/src/
   services/     application use cases and external-tool integrations
     brain/      legacy Task engineering contracts and persistence helpers
     workflow/   workflow schemas, validation, inputs and JSON storage
-  docker.ts     Docker availability and running-container discovery
+  docker.ts     Docker discovery plus Compose service, health and port normalization
   folderPicker.ts
                 native workspace selection across supported platforms
   gitScanner.ts recursive repository discovery and summary reads
@@ -50,9 +50,9 @@ Current route domains are:
 | --- | --- |
 | `appRoutes` | Health, workspace discovery and selection, favorites, updates and VS Code launch. |
 | `agentSessionRoutes` | Workspace-scoped agent history search and validated native-terminal resume. |
-| `gitRoutes` | Git details, activity, staging, commits, stashes, sync and branches. |
-| `terminalRoutes` | Scoped shell execution and command suggestions. |
-| `dockerRoutes` | Container discovery plus validated Compose and stop actions. |
+| `gitRoutes` | Git details, activity, file diffs, staged summaries, staging, commits, stashes, sync and branches. |
+| `terminalRoutes` | Scoped shell execution, one active command per repository, cancellation and command suggestions. |
+| `dockerRoutes` | Container discovery plus validated Compose service state, logs, restart and stack actions. |
 | `workflowRoutes` | Workflow CRUD, dry runs, background runs, progress reads and cancellation. |
 | `brainRoutes` / `claudeRoutes` | Task-engineering backend retained while its UI entry point is hidden pending redesign. |
 
@@ -87,7 +87,7 @@ apps/web/src/
     agents/     unified local agent history
     automation/ visual workflow editor, execution and history
     dashboard/  navigation, health views and repository discovery
-    project/    Git, branch, terminal, Docker and placeholder deploy tabs
+    project/    capability-driven overview, Git diff, branch, terminal and Docker panels
     shared/     reusable presentation components with no feature ownership
     task/       hidden Task engineering UI retained for redesign work
   types/        API and UI contracts split by domain
@@ -97,6 +97,8 @@ apps/web/src/
 Feature components import their own API module and domain types directly. Avoid adding a global API client or type barrel: explicit imports keep dependencies visible and prevent unrelated features from becoming coupled.
 
 Large pages should orchestrate data and navigation. Extract independent panels, dialogs and pure domain logic once they have their own state, props or testable behavior.
+
+Repository details use a single full-width shell: Panoramica is the default and feature tabs are rendered only when their repository capability exists. Docker currently follows this rule through Compose-file detection. Deploy is intentionally absent; any future CI/CD tab must be backed by detected pipeline configuration and real status/actions rather than a static placeholder. Once opened, the terminal panel remains mounted while the repository workspace stays open so its transcript and active request survive navigation between repository tabs.
 
 Dashboard sections are lazy-loaded. Task engineering still has code and server endpoints but is deliberately absent from the sidebar and quick actions; documentation and user-facing navigation should not present it as a current capability until the redesign is complete.
 

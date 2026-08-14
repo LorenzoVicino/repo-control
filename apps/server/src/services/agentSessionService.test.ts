@@ -53,8 +53,8 @@ test("discovers Codex, Claude Code and Gemini sessions for workspace projects", 
   ]);
   await Promise.all(
     ["codex", "claude", "gemini"].map(async (command) => {
-      const executablePath = path.join(executableDirectory, command);
-      await fs.writeFile(executablePath, "#!/bin/sh\n");
+      const executablePath = path.join(executableDirectory, process.platform === "win32" ? `${command}.cmd` : command);
+      await fs.writeFile(executablePath, process.platform === "win32" ? "@echo off\r\n" : "#!/bin/sh\n");
       await fs.chmod(executablePath, 0o755);
     })
   );

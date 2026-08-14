@@ -4,95 +4,101 @@ import type { ColorMode, ColorPalette } from "./types/common";
 export const COLOR_PALETTE_STORAGE_KEY = "repo-control-color-palette";
 const LEGACY_COLOR_MODE_STORAGE_KEY = "repo-control-color-mode";
 
+export const UI_FONT_FAMILY = 'Inter, "Segoe UI", system-ui, sans-serif';
+export const MONO_FONT_FAMILY = '"JetBrains Mono", "SFMono-Regular", Consolas, monospace';
+
 type ThemePaletteTokens = {
   mode: ColorMode;
   background: string;
-  paper: string;
+  surface1: string;
+  surface2: string;
+  surface3: string;
   divider: string;
+  strongDivider: string;
   textPrimary: string;
   textSecondary: string;
+  textTertiary: string;
   primary: {
     main: string;
     dark: string;
     light: string;
     contrastText: string;
+    tint: string;
   };
-  secondary: {
-    main: string;
-    dark: string;
-    light: string;
-    contrastText: string;
-  };
-  disabledBackground: string;
-  outlineHover: string;
-  tableHead: string;
+};
+
+const DARK_SURFACES = {
+  mode: "dark" as const,
+  background: "#161826",
+  surface1: "#1b1e2d",
+  surface2: "#232532",
+  surface3: "#2b2e3d",
+  divider: "rgba(233, 233, 237, 0.10)",
+  strongDivider: "rgba(233, 233, 237, 0.18)",
+  textPrimary: "#e9e9ed",
+  textSecondary: "#9397ab",
+  textTertiary: "#75798c"
 };
 
 const COLOR_PALETTE_TOKENS: Record<ColorPalette, ThemePaletteTokens> = {
   white: {
     mode: "light",
-    background: "#f6f7f9",
-    paper: "#ffffff",
-    divider: "#dde1e7",
-    textPrimary: "#111318",
-    textSecondary: "#606874",
-    primary: { main: "#18181b", dark: "#09090b", light: "#52525b", contrastText: "#ffffff" },
-    secondary: { main: "#64748b", dark: "#475569", light: "#94a3b8", contrastText: "#ffffff" },
-    disabledBackground: "#e9ecf0",
-    outlineHover: "#aeb6c2",
-    tableHead: "#f7f8fa"
+    background: "#f3f5fe",
+    surface1: "#fdfdff",
+    surface2: "#eceffb",
+    surface3: "#e4e7f5",
+    divider: "rgba(41, 43, 49, 0.12)",
+    strongDivider: "rgba(41, 43, 49, 0.22)",
+    textPrimary: "#292b31",
+    textSecondary: "#595d6c",
+    textTertiary: "#75798c",
+    primary: {
+      main: "#5d5294",
+      dark: "#423a6a",
+      light: "#796cbf",
+      contrastText: "#fdfdff",
+      tint: "#e7e5fe"
+    }
   },
   black: {
-    mode: "dark",
-    background: "#050608",
-    paper: "#0d0f12",
-    divider: "#292d33",
-    textPrimary: "#fafafa",
-    textSecondary: "#a1a1aa",
-    primary: { main: "#f4f4f5", dark: "#d4d4d8", light: "#ffffff", contrastText: "#09090b" },
-    secondary: { main: "#a1a1aa", dark: "#71717a", light: "#d4d4d8", contrastText: "#09090b" },
-    disabledBackground: "#1c1f24",
-    outlineHover: "#525760",
-    tableHead: "#14171c"
+    ...DARK_SURFACES,
+    primary: {
+      main: "#9184d9",
+      dark: "#796cbf",
+      light: "#b5abfc",
+      contrastText: "#161826",
+      tint: "#2b2741"
+    }
   },
   red: {
-    mode: "dark",
-    background: "#17080c",
-    paper: "#230d13",
-    divider: "#4d1d29",
-    textPrimary: "#fff1f2",
-    textSecondary: "#e7a3b1",
-    primary: { main: "#f43f5e", dark: "#e11d48", light: "#fb7185", contrastText: "#ffffff" },
-    secondary: { main: "#fb7185", dark: "#f43f5e", light: "#fda4af", contrastText: "#3f0713" },
-    disabledBackground: "#3a1620",
-    outlineHover: "#7d3043",
-    tableHead: "#2d1119"
+    ...DARK_SURFACES,
+    primary: {
+      main: "#e0836f",
+      dark: "#b75f4c",
+      light: "#f2a695",
+      contrastText: "#161826",
+      tint: "#3d292c"
+    }
   },
   blue: {
-    mode: "dark",
-    background: "#07101f",
-    paper: "#0d192b",
-    divider: "#20324a",
-    textPrimary: "#eaf2ff",
-    textSecondary: "#94a8c4",
-    primary: { main: "#60a5fa", dark: "#3b82f6", light: "#93c5fd", contrastText: "#07101f" },
-    secondary: { main: "#38bdf8", dark: "#0ea5e9", light: "#7dd3fc", contrastText: "#07101f" },
-    disabledBackground: "#17243a",
-    outlineHover: "#38516f",
-    tableHead: "#101f34"
+    ...DARK_SURFACES,
+    primary: {
+      main: "#74b3d9",
+      dark: "#4b8db6",
+      light: "#a2d1ed",
+      contrastText: "#161826",
+      tint: "#223344"
+    }
   },
   green: {
-    mode: "dark",
-    background: "#07150f",
-    paper: "#0d2117",
-    divider: "#1e4a34",
-    textPrimary: "#ecfdf5",
-    textSecondary: "#9ac7b1",
-    primary: { main: "#34d399", dark: "#10b981", light: "#6ee7b7", contrastText: "#042f20" },
-    secondary: { main: "#6ee7b7", dark: "#34d399", light: "#a7f3d0", contrastText: "#042f20" },
-    disabledBackground: "#173527",
-    outlineHover: "#39745a",
-    tableHead: "#102a1d"
+    ...DARK_SURFACES,
+    primary: {
+      main: "#6cc2a1",
+      dark: "#489778",
+      light: "#99dec3",
+      contrastText: "#161826",
+      tint: "#213a36"
+    }
   }
 };
 
@@ -102,137 +108,195 @@ export const COLOR_PALETTE_OPTIONS: ReadonlyArray<{
   color: string;
   surface: string;
 }> = [
-  { id: "white", label: "Bianco", color: "#18181b", surface: "#ffffff" },
-  { id: "black", label: "Nero", color: "#f4f4f5", surface: "#050608" },
-  { id: "red", label: "Rosso", color: "#f43f5e", surface: "#17080c" },
-  { id: "blue", label: "Blu", color: "#60a5fa", surface: "#07101f" },
-  { id: "green", label: "Verde", color: "#34d399", surface: "#07150f" }
+  { id: "white", label: "Bianco", color: "#5d5294", surface: "#fdfdff" },
+  { id: "black", label: "Nero", color: "#9184d9", surface: "#161826" },
+  { id: "red", label: "Rosso", color: "#e0836f", surface: "#161826" },
+  { id: "blue", label: "Blu", color: "#74b3d9", surface: "#161826" },
+  { id: "green", label: "Verde", color: "#6cc2a1", surface: "#161826" }
 ];
 
 export function createAppTheme(colorPalette: ColorPalette) {
   const tokens = COLOR_PALETTE_TOKENS[colorPalette];
   const isLight = tokens.mode === "light";
-  const {
-    background,
-    paper,
-    divider,
-    textPrimary,
-    textSecondary
-  } = tokens;
+  const semantic = {
+    success: isLight ? "#2f7d5f" : "#6cc2a1",
+    warning: isLight ? "#8a6118" : "#d9a95f",
+    error: isLight ? "#a8412c" : "#e0836f",
+    info: isLight ? "#2a6b93" : "#74b3d9"
+  };
 
   return createTheme({
     palette: {
       mode: tokens.mode,
-      primary: tokens.primary,
-      secondary: tokens.secondary,
-      info: {
-        main: isLight ? "#0284c7" : "#38bdf8"
+      primary: {
+        main: tokens.primary.main,
+        dark: tokens.primary.dark,
+        light: tokens.primary.light,
+        contrastText: tokens.primary.contrastText
       },
-      success: {
-        main: isLight ? "#059669" : "#34d399"
+      secondary: {
+        main: isLight ? "#423a6a" : "#a7a1db",
+        dark: isLight ? "#2b2741" : "#796cbf",
+        light: isLight ? "#796cbf" : "#d2cefd",
+        contrastText: isLight ? "#fdfdff" : "#161826"
       },
-      warning: {
-        main: isLight ? "#d97706" : "#fbbf24"
-      },
-      error: {
-        main: isLight ? "#dc2626" : "#fb7185"
-      },
+      success: { main: semantic.success },
+      warning: { main: semantic.warning },
+      error: { main: semantic.error },
+      info: { main: semantic.info },
       background: {
-        default: background,
-        paper
+        default: tokens.background,
+        paper: tokens.surface1
       },
       text: {
-        primary: textPrimary,
-        secondary: textSecondary
+        primary: tokens.textPrimary,
+        secondary: tokens.textSecondary,
+        disabled: tokens.textTertiary
       },
-      divider,
+      divider: tokens.divider,
       action: {
-        hover: alpha(tokens.primary.main, isLight ? 0.055 : 0.09),
-        selected: alpha(tokens.primary.main, isLight ? 0.1 : 0.16),
-        focus: alpha(tokens.primary.main, 0.16),
-        disabledBackground: tokens.disabledBackground
+        hover: alpha(tokens.textPrimary, isLight ? 0.045 : 0.055),
+        selected: alpha(tokens.primary.main, isLight ? 0.105 : 0.13),
+        focus: alpha(tokens.primary.main, 0.2),
+        disabled: tokens.textTertiary,
+        disabledBackground: tokens.surface2
       }
     },
-    shape: {
-      borderRadius: 8
-    },
+    shape: { borderRadius: 8 },
+    spacing: 8,
     typography: {
-      fontFamily: 'Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
+      fontSize: 13,
       h1: {
-        fontSize: "1.5rem",
-        fontWeight: 750,
-        lineHeight: 1.2
+        fontSize: "25px",
+        fontWeight: 500,
+        lineHeight: 1.15,
+        letterSpacing: "-0.02em"
       },
       h2: {
-        fontSize: "1rem",
-        fontWeight: 750,
-        lineHeight: 1.3
+        fontSize: "16px",
+        fontWeight: 500,
+        lineHeight: 1.2,
+        letterSpacing: "-0.012em"
       },
-      h5: {
-        fontSize: "1.25rem",
-        fontWeight: 750,
+      h3: {
+        fontSize: "15px",
+        fontWeight: 500,
+        lineHeight: 1.25,
+        letterSpacing: "-0.01em"
+      },
+      h4: {
+        fontSize: "14px",
+        fontWeight: 500,
         lineHeight: 1.25
       },
+      h5: {
+        fontSize: "21px",
+        fontWeight: 500,
+        lineHeight: 1.15,
+        letterSpacing: "-0.02em"
+      },
       h6: {
-        fontSize: "1rem",
-        fontWeight: 700,
-        lineHeight: 1.35
+        fontSize: "13.5px",
+        fontWeight: 500,
+        lineHeight: 1.3
       },
       subtitle1: {
-        fontSize: "0.95rem",
-        fontWeight: 650
+        fontSize: "13.5px",
+        fontWeight: 500,
+        lineHeight: 1.4
+      },
+      subtitle2: {
+        fontSize: "12.5px",
+        fontWeight: 500,
+        lineHeight: 1.4
       },
       body1: {
-        fontSize: "0.925rem"
+        fontSize: "13px",
+        fontWeight: 400,
+        lineHeight: 1.55
       },
       body2: {
-        fontSize: "0.825rem",
-        lineHeight: 1.5
+        fontSize: "12.5px",
+        fontWeight: 400,
+        lineHeight: 1.55
       },
       caption: {
-        fontSize: "0.74rem",
+        fontSize: "11.5px",
+        fontWeight: 400,
         lineHeight: 1.45
       },
       button: {
-        fontSize: "0.8rem",
-        fontWeight: 700,
+        fontSize: "12px",
+        fontWeight: 500,
         letterSpacing: 0,
         textTransform: "none"
       },
       overline: {
-        fontSize: "0.68rem",
-        fontWeight: 750,
+        fontFamily: MONO_FONT_FAMILY,
+        fontSize: "9.5px",
+        fontWeight: 600,
         lineHeight: 1.7,
-        letterSpacing: "0.06em",
+        letterSpacing: "0.14em",
         textTransform: "uppercase"
       }
     },
     components: {
       MuiCssBaseline: {
-        defaultProps: {
-          enableColorScheme: true
-        },
+        defaultProps: { enableColorScheme: true },
         styleOverrides: {
+          ":root": {
+            "--rc-surface-1": tokens.surface1,
+            "--rc-surface-2": tokens.surface2,
+            "--rc-surface-3": tokens.surface3,
+            "--rc-border": tokens.divider,
+            "--rc-border-strong": tokens.strongDivider,
+            "--rc-text-tertiary": tokens.textTertiary,
+            "--rc-accent-tint": tokens.primary.tint,
+            "--rc-font-mono": MONO_FONT_FAMILY,
+            "--rc-radius-panel": "9px",
+            "--rc-radius-control": "7px",
+            "--rc-motion-fast": "140ms",
+            "--rc-motion-base": "190ms"
+          },
           html: {
-            backgroundColor: background,
+            backgroundColor: tokens.background,
             scrollBehavior: "smooth"
           },
           body: {
             minWidth: 320,
-            backgroundColor: background,
-            color: textPrimary,
-            WebkitFontSmoothing: "antialiased"
+            backgroundColor: tokens.background,
+            color: tokens.textPrimary,
+            WebkitFontSmoothing: "antialiased",
+            textRendering: "optimizeLegibility"
           },
-          "::selection": {
-            backgroundColor: alpha(tokens.secondary.main, 0.28)
+          "#root": { minHeight: "100dvh" },
+          "*, *::before, *::after": { boxSizing: "border-box" },
+          "::selection": { backgroundColor: alpha(tokens.primary.main, 0.28) },
+          "*": { scrollbarColor: `${alpha(tokens.textSecondary, 0.35)} transparent` },
+          "*:focus-visible": {
+            outline: `2px solid ${tokens.primary.main}`,
+            outlineOffset: 2
           },
-          "*": {
-            scrollbarColor: `${alpha(textSecondary, 0.35)} transparent`
+          ".rc-mono": { fontFamily: MONO_FONT_FAMILY },
+          ".rc-section-label": {
+            fontFamily: MONO_FONT_FAMILY,
+            fontSize: "9.5px",
+            fontWeight: 600,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: tokens.textTertiary
+          },
+          "@keyframes rc-pulse": {
+            "0%, 100%": { opacity: 0.45, transform: "scale(0.86)" },
+            "50%": { opacity: 1, transform: "scale(1)" }
+          },
+          "@keyframes rc-sweep": {
+            "0%": { transform: "translateX(-100%)" },
+            "100%": { transform: "translateX(250%)" }
           },
           "@media (prefers-reduced-motion: reduce)": {
-            html: {
-              scrollBehavior: "auto"
-            },
+            html: { scrollBehavior: "auto" },
             "*, *::before, *::after": {
               animationDuration: "0.01ms !important",
               animationIterationCount: "1 !important",
@@ -245,115 +309,126 @@ export function createAppTheme(colorPalette: ColorPalette) {
       MuiAppBar: {
         styleOverrides: {
           root: {
-            backgroundImage: "none"
+            backgroundImage: "none",
+            boxShadow: "none"
           }
         }
       },
       MuiPaper: {
-        defaultProps: {
-          elevation: 0
-        },
+        defaultProps: { elevation: 0 },
+        styleOverrides: {
+          root: { backgroundImage: "none" },
+          outlined: { borderColor: tokens.divider }
+        }
+      },
+      MuiCard: {
+        defaultProps: { elevation: 0 },
         styleOverrides: {
           root: {
-            backgroundImage: "none"
-          },
-          outlined: {
-            borderColor: divider
+            backgroundImage: "none",
+            border: `1px solid ${tokens.divider}`,
+            borderRadius: 9
           }
         }
       },
+      MuiButtonBase: {
+        defaultProps: { disableRipple: true }
+      },
       MuiButton: {
-        defaultProps: {
-          disableElevation: true
-        },
+        defaultProps: { disableElevation: true },
         styleOverrides: {
           root: {
-            minHeight: 36,
-            borderRadius: 6,
-            paddingInline: 14,
-            transition: "background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease",
+            minHeight: 32,
+            borderRadius: 7,
+            paddingInline: 11,
+            transition: "background-color var(--rc-motion-fast) ease, border-color var(--rc-motion-fast) ease, color var(--rc-motion-fast) ease",
             "&:focus-visible": {
-              outline: `3px solid ${alpha(tokens.primary.main, 0.26)}`,
+              outline: `2px solid ${tokens.primary.main}`,
               outlineOffset: 2
             }
           },
           containedPrimary: {
-            boxShadow: `0 1px 2px ${alpha("#000000", isLight ? 0.16 : 0.32)}`,
+            color: isLight ? tokens.primary.dark : tokens.primary.light,
+            backgroundColor: tokens.primary.tint,
+            border: `1px solid ${alpha(tokens.primary.main, 0.78)}`,
             "&:hover": {
-              boxShadow: `0 4px 14px ${alpha(tokens.primary.main, 0.26)}`
+              backgroundColor: alpha(tokens.primary.main, isLight ? 0.17 : 0.2),
+              borderColor: tokens.primary.main,
+              boxShadow: "none"
             }
           },
           outlined: {
-            borderColor: divider,
+            borderColor: tokens.strongDivider,
             "&:hover": {
-              borderColor: tokens.outlineHover
+              borderColor: tokens.primary.main,
+              backgroundColor: alpha(tokens.primary.main, 0.08)
             }
+          },
+          text: {
+            "&:hover": { backgroundColor: alpha(tokens.textPrimary, 0.055) }
           }
         }
       },
       MuiIconButton: {
         styleOverrides: {
           root: {
-            width: 36,
-            height: 36,
-            borderRadius: 6,
-            transition: "background-color 160ms ease, color 160ms ease, transform 160ms ease",
+            width: 32,
+            height: 32,
+            borderRadius: 7,
+            transition: "background-color var(--rc-motion-fast) ease, color var(--rc-motion-fast) ease",
             "&:focus-visible": {
-              outline: `3px solid ${alpha(tokens.primary.main, 0.26)}`,
+              outline: `2px solid ${tokens.primary.main}`,
               outlineOffset: 2
             }
           },
-          sizeSmall: {
-            width: 32,
-            height: 32
-          }
+          sizeSmall: { width: 28, height: 28 }
         }
       },
       MuiChip: {
         styleOverrides: {
           root: {
-            height: 25,
-            borderRadius: 5,
-            fontSize: "0.71rem",
-            fontWeight: 650
+            height: 23,
+            borderRadius: 4,
+            fontFamily: MONO_FONT_FAMILY,
+            fontSize: "10.5px",
+            fontWeight: 500
           },
-          sizeSmall: {
-            height: 23
-          },
-          label: {
-            paddingInline: 8
-          }
+          sizeSmall: { height: 21 },
+          label: { paddingInline: 7 },
+          outlined: { borderColor: tokens.strongDivider }
         }
       },
       MuiOutlinedInput: {
         styleOverrides: {
           root: {
+            minHeight: 34,
             borderRadius: 7,
-            backgroundColor: paper,
-            "& .MuiOutlinedInput-notchedOutline": {
-              borderColor: divider
-            },
-            "&:hover .MuiOutlinedInput-notchedOutline": {
-              borderColor: tokens.outlineHover
+            backgroundColor: tokens.surface2,
+            "& .MuiOutlinedInput-notchedOutline": { borderColor: tokens.divider },
+            "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: tokens.strongDivider },
+            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+              borderColor: tokens.primary.main,
+              borderWidth: 1
             }
           },
-          inputSizeSmall: {
-            paddingTop: 8,
-            paddingBottom: 8
-          }
+          input: { paddingTop: 8, paddingBottom: 8 },
+          inputSizeSmall: { paddingTop: 7, paddingBottom: 7 }
         }
+      },
+      MuiInputLabel: {
+        styleOverrides: { root: { fontSize: "12px" } }
       },
       MuiToggleButton: {
         styleOverrides: {
           root: {
-            minWidth: 36,
-            minHeight: 34,
-            padding: 6,
-            borderColor: divider,
-            color: textSecondary,
+            minWidth: 32,
+            minHeight: 32,
+            padding: 5,
+            borderColor: tokens.divider,
+            color: tokens.textSecondary,
             "&.Mui-selected": {
               color: tokens.primary.light,
-              backgroundColor: alpha(tokens.primary.main, isLight ? 0.1 : 0.15)
+              backgroundColor: tokens.primary.tint
             }
           }
         }
@@ -361,33 +436,35 @@ export function createAppTheme(colorPalette: ColorPalette) {
       MuiTableCell: {
         styleOverrides: {
           root: {
-            borderColor: divider,
-            paddingTop: 11,
-            paddingBottom: 11
+            height: 44,
+            borderColor: tokens.divider,
+            padding: "8px 12px"
           },
           head: {
-            color: textSecondary,
-            fontSize: "0.7rem",
-            fontWeight: 750,
-            letterSpacing: "0.04em",
+            height: 34,
+            color: tokens.textTertiary,
+            fontFamily: MONO_FONT_FAMILY,
+            fontSize: "9.5px",
+            fontWeight: 600,
+            letterSpacing: "0.12em",
             textTransform: "uppercase",
-            backgroundColor: tokens.tableHead
+            backgroundColor: tokens.surface2
           }
         }
       },
       MuiTabs: {
         styleOverrides: {
-          indicator: {
-            height: 2
-          }
+          root: { minHeight: 42 },
+          indicator: { height: 2, borderRadius: "2px 2px 0 0" }
         }
       },
       MuiTab: {
         styleOverrides: {
           root: {
-            minHeight: 44,
-            fontSize: "0.78rem",
-            fontWeight: 700,
+            minHeight: 42,
+            minWidth: 72,
+            fontSize: "12px",
+            fontWeight: 500,
             letterSpacing: 0,
             textTransform: "none"
           }
@@ -396,18 +473,49 @@ export function createAppTheme(colorPalette: ColorPalette) {
       MuiDialog: {
         styleOverrides: {
           paper: {
-            border: `1px solid ${divider}`,
+            border: `1px solid ${tokens.strongDivider}`,
+            borderRadius: 12,
+            backgroundColor: tokens.surface1,
             boxShadow: isLight
-              ? `0 24px 70px ${alpha("#111827", 0.2)}`
-              : "0 24px 70px rgba(0, 0, 0, 0.55)"
+              ? "0 30px 80px rgba(41, 43, 49, 0.22)"
+              : "0 30px 80px rgba(0, 0, 0, 0.60)"
           }
         }
+      },
+      MuiDialogTitle: {
+        styleOverrides: { root: { fontSize: "16px", fontWeight: 500 } }
+      },
+      MuiMenu: {
+        styleOverrides: {
+          paper: {
+            border: `1px solid ${tokens.strongDivider}`,
+            borderRadius: 9,
+            boxShadow: isLight
+              ? "0 18px 48px rgba(41, 43, 49, 0.18)"
+              : "0 18px 48px rgba(0, 0, 0, 0.48)"
+          }
+        }
+      },
+      MuiMenuItem: {
+        styleOverrides: { root: { minHeight: 34, borderRadius: 7, fontSize: "12.5px" } }
       },
       MuiTooltip: {
         styleOverrides: {
           tooltip: {
+            border: `1px solid ${tokens.strongDivider}`,
             borderRadius: 5,
-            fontSize: "0.72rem"
+            backgroundColor: tokens.surface3,
+            color: tokens.textPrimary,
+            fontSize: "11px"
+          }
+        }
+      },
+      MuiAlert: {
+        styleOverrides: {
+          root: {
+            borderRadius: 7,
+            border: `1px solid ${tokens.divider}`,
+            backgroundImage: "none"
           }
         }
       }

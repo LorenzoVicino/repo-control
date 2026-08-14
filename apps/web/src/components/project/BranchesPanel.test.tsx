@@ -19,7 +19,17 @@ vi.mock("../shared/ActionButton", () => ({
 }));
 
 function branch(name: string, overrides: Partial<GitBranchInfo> = {}): GitBranchInfo {
-  return { name, current: false, remote: false, upstream: null, ahead: 0, behind: 0, ...overrides };
+  return {
+    name,
+    current: false,
+    remote: false,
+    upstream: null,
+    ahead: 0,
+    behind: 0,
+    merged: false,
+    lastCommit: null,
+    ...overrides
+  };
 }
 
 function details(overrides: Partial<GitDetails["status"]> = {}, local?: GitBranchInfo[], remote?: GitBranchInfo[]): GitDetails {
@@ -32,10 +42,15 @@ function details(overrides: Partial<GitDetails["status"]> = {}, local?: GitBranc
       ahead: 2,
       behind: 1,
       files: { staged: [], unstaged: [] },
+      diff: {
+        staged: { files: 0, additions: 0, deletions: 0, binaryFiles: 0, untrackedFiles: 0 },
+        unstaged: { files: 0, additions: 0, deletions: 0, binaryFiles: 0, untrackedFiles: 0 }
+      },
       ...overrides
     },
     branches: {
       current: "main",
+      defaultBranch: "main",
       local: local ?? [branch("main", { current: true, upstream: "origin/main" }), branch("feature", { ahead: 1 })],
       remote: remote ?? [branch("origin/main", { remote: true, behind: 1 })]
     },
@@ -160,5 +175,28 @@ describe("BranchesPanel", () => {
     await user.click(screen.getByRole("button", { name: "Mostra altri 2" }));
     expect(screen.getByText("feature-37")).toBeVisible();
     expect(screen.queryByRole("button", { name: /Mostra altri/ })).not.toBeInTheDocument();
+  });
+
+  it("shows branch commit metadata and filters by name, author or message", async () => {
+    const user = userEvent.setup();
+    renderPanel(details({}, [
+      branch("main", { current: true }),
+      branch("feature/search", {
+        merged: true,
+        lastCommit: {
+          hash: "abc1234",
+          message: "Improve repository search",
+          author: "Lorenzo",
+          date: "2026-08-14T08:00:00.000Z"
+        }
+      })
+    ], []));
+
+    expect(screen.getByText(/abc1234 · Improve repository search/)).toBeVisible();
+    expect(screen.getByText("merged")).toBeVisible();
+    const search = screen.getByRole("textbox", { name: "Cerca branch" });
+    await user.type(search, "lorenzo");
+    expect(screen.getByText("feature/search")).toBeVisible();
+    expect(screen.queryByText("main", { selector: "p" })).not.toBeInTheDocument();
   });
 });

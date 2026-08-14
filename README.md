@@ -33,8 +33,8 @@ repo-control keeps the convenience of a dashboard without moving control to a re
 
 1. Point repo-control at a workspace folder. It discovers Git repositories recursively while skipping common dependency and build directories.
 2. Triage clean, modified, behind and ahead repositories from the Dashboard.
-3. Jump to a project with `Ctrl+P` and inspect its real Git state.
-4. Run focused Git, branch, terminal or Docker actions inside the selected repository boundary.
+3. Jump to a project with `Ctrl+P`; its Panoramica surfaces working-tree health, sync drift, Docker state and recent commits before any action is needed.
+4. Inspect a file diff, prepare a commit, work with branches, run a terminal command or operate Docker without leaving the selected repository boundary.
 5. Find a local agent conversation associated with a discovered repository and resume it in a native terminal.
 6. Turn repeated operations into visual workflows that can be previewed, monitored and cancelled.
 
@@ -52,12 +52,14 @@ repo-control keeps the convenience of a dashboard without moving control to a re
 | --- | --- |
 | Workspace health | See clean, modified, ahead and behind repositories together, with recent commit activity and favorites. |
 | Agent sessions | Search local Codex, Claude Code and Gemini CLI conversations by title or content, filter by provider and resume them from the matching repository. |
-| Git workspace | Inspect staged and unstaged changes; stage or unstage files; commit, stash, fetch, pull and push without losing repository context. |
-| Branches | Compare local and remote branches, create or check out branches and inspect upstream divergence. Dirty checkouts are blocked from branch changes. |
-| Local tooling | Open a repository in VS Code, run scoped terminal commands with local suggestions and operate Docker Compose projects. |
+| Repository overview | Triage attention items, working-tree health, upstream drift, Compose services and recent commits from one full-width landing view. |
+| Git workspace | Inspect staged and unstaged files with an inline text diff and staged line summary; stage, unstage, commit, stash, fetch, pull and push without losing repository context. |
+| Branches | Search local and remote branches, identify the default and merged branches, inspect each latest commit and upstream divergence, then create or check out safely. Dirty checkouts are blocked from branch changes. |
+| Local tooling | Open a repository in VS Code and run scoped terminal commands whose output survives project-tab navigation and whose active process can be stopped. |
+| Docker Compose | Inspect configured and stopped services, health, images and published ports; open web ports, tail per-service logs, restart a service or operate the complete stack. |
 | Automations | Build visual Git, Docker and terminal workflows with graph validation, runtime text inputs, dry runs, background execution, cancellation and inspectable history. |
 
-Docker navigation is shown only when the Docker CLI is available. Docker and VS Code are optional; their controls require the corresponding local tool.
+The repository Docker tab is capability-driven and appears only for repositories with a Compose file. Workspace-level Docker navigation is shown only when the Docker CLI is available. Docker and VS Code are optional; their controls require the corresponding local tool. There is no speculative Deploy tab: a future CI/CD tab should appear only after repo-control detects a supported pipeline for that repository.
 
 ### Agent session discovery
 
@@ -147,7 +149,7 @@ repo-control stores its own data outside Git by default:
 - macOS: `~/Library/Application Support/repo-control`
 - Linux/WSL: `${XDG_CONFIG_HOME:-~/.config}/repo-control`
 
-The directory contains `preferences.json`, `terminal-history.json`, `workflows.json` and `workflow-runs.json` as those features are used. Workflow history includes command output and retains at most 100 runs. Older task-engineering data, if present, remains in the `brain/` subdirectory. UI palette and dashboard quote choices are kept in browser local storage.
+The directory contains `preferences.json`, `terminal-history.json`, `workflows.json` and `workflow-runs.json` as those features are used. Terminal command suggestions persist in `terminal-history.json`; the visible terminal transcript stays mounted while its repository remains open, but is not written to disk. Workflow history includes command output and retains at most 100 runs. Older task-engineering data, if present, remains in the `brain/` subdirectory. UI palette and dashboard quote choices are kept in browser local storage.
 
 ### Windows with WSL
 
@@ -166,6 +168,7 @@ repo-control can execute Git, Docker and terminal commands on your machine. Its 
 - the API and Vite development server bind to localhost by default and have no authentication layer;
 - project commands are resolved against repositories discovered under the active workspace;
 - branch changes are rejected for dirty repositories, pull uses `--ff-only`, and force push or implicit discard flows are not exposed;
+- only one terminal command per repository can run at a time, and its active process tree can be cancelled from the repository terminal;
 - workflow execution is blocked when the visible graph is invalid, downstream steps stop after a command failure and active runs can be cancelled;
 - agent search reads local transcript content, but only returns matching summaries or snippets for sessions associated with the active workspace;
 - credentials and workspace content stay local unless a command or resumed external tool sends them elsewhere.

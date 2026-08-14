@@ -19,9 +19,10 @@ describe("ProjectTable", () => {
       }),
       createProjectFixture("beta")
     ];
-    renderWithTheme(<ProjectTable projects={projects} onSelectProject={onSelectProject} />);
+    renderWithTheme(<ProjectTable projects={projects} openProjectIds={["alpha"]} density="comfortable" onSelectProject={onSelectProject} />);
 
     expect(screen.getByText("Feature")).toBeVisible();
+    expect(screen.getByText("Aperto")).toBeVisible();
     expect(screen.getByText(/abc123/)).toBeVisible();
     expect(screen.getByText("Nessun commit")).toBeVisible();
     const rows = screen.getAllByRole("row").slice(1);

@@ -2,7 +2,7 @@ import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import CommitRoundedIcon from "@mui/icons-material/CommitRounded";
 import { alpha, Box, Button, ButtonBase, Paper, Stack, Typography } from "@mui/material";
 import { formatDate } from "../../utils/projects";
-import type { DashboardSnapshot } from "./dashboardInsights";
+import type { DashboardSnapshot } from "./dashboardSnapshot";
 import type { DashboardSection } from "./DashboardSidebar";
 
 type DashboardRecentActivityProps = {

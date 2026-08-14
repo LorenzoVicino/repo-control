@@ -1,5 +1,5 @@
 import path from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const workspaceRepositoryName = path.basename(process.cwd());
 const apiBaseUrl = process.env.E2E_API_URL ?? "http://127.0.0.1:3747";
@@ -46,7 +46,7 @@ test("loads live workspace data and opens a repository from the keyboard palette
   expect(projectsPayload.projects).toEqual(expect.arrayContaining([
     expect.objectContaining({ name: workspaceRepositoryName })
   ]));
-  await expect(page.getByRole("heading", { name: "Cosa vuoi fare oggi?" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
   await page.keyboard.press("Control+P");
   const palette = page.getByRole("dialog", { name: "Repository command palette" });
@@ -62,29 +62,19 @@ test("loads live workspace data and opens a repository from the keyboard palette
   await expect(page.getByRole("heading", { name: workspaceRepositoryName })).toBeVisible();
 });
 
-test("keeps application background motion lightweight and respects reduced motion", async ({ page }) => {
+test("keeps the application backdrop static and lightweight", async ({ page }) => {
   await page.goto("/");
 
   const backdrop = page.locator("[data-app-motion-backdrop]");
   await expect(backdrop).toBeAttached();
-  await expect(backdrop.locator("[data-app-motion-layer]")).toHaveCount(1);
-
-  await expect.poll(async () =>
-    backdrop.evaluate((element) => element.getAnimations({ subtree: true }).length)
-  ).toBeGreaterThan(0);
-  expect(
-    await backdrop.evaluate((element) => element.getAnimations({ subtree: true }).length)
-  ).toBeLessThanOrEqual(2);
+  await expect(backdrop.locator("[data-app-motion-layer]")).toHaveCount(0);
+  expect(await backdrop.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0);
 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect.poll(async () =>
     backdrop.evaluate((element) => element.getAnimations({ subtree: true }).length)
   ).toBe(0);
-  expect(
-    await backdrop.locator("[data-app-motion-layer]").evaluateAll((layers) =>
-      layers.every((layer) => getComputedStyle(layer).willChange === "auto")
-    )
-  ).toBe(true);
+  await expect(backdrop).toHaveCSS("pointer-events", "none");
 });
 
 test("shares one motion backdrop across every dashboard section", async ({ page }) => {
@@ -116,21 +106,22 @@ test("switches and persists all five dashboard color palettes", async ({ page })
     ["Blu", "blue"],
     ["Verde", "green"]
   ] as const;
-  const renderedBackgrounds: string[] = [];
+  const renderedAccents: string[] = [];
+  const activeNavigationItem = page.locator('[data-dashboard-section="overview"]').first();
 
   for (const [label, value] of palettes) {
     await palettePicker.click();
     await page.getByRole("menuitemradio", { name: label, exact: true }).click();
-    await expect(palettePicker).toHaveAttribute("aria-label", `Seleziona palette colori. Attiva: ${label}`);
+    await expect(palettePicker).toHaveAttribute("aria-label", `Seleziona palette colori. Palette attiva: ${label}`);
     expect(
       await page.evaluate(() => window.localStorage.getItem("repo-control-color-palette"))
     ).toBe(value);
-    renderedBackgrounds.push(
-      await page.evaluate(() => getComputedStyle(document.body).backgroundColor)
+    renderedAccents.push(
+      await activeNavigationItem.evaluate((element) => getComputedStyle(element, "::before").backgroundColor)
     );
   }
 
-  expect(new Set(renderedBackgrounds).size).toBe(palettes.length);
+  expect(new Set(renderedAccents).size).toBe(palettes.length);
 });
 
 test("navigates between lazy dashboard sections without browser errors", async ({ page }) => {
@@ -138,7 +129,7 @@ test("navigates between lazy dashboard sections without browser errors", async (
   page.on("pageerror", (error) => browserErrors.push(error.message));
 
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Cosa vuoi fare oggi?" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
   await page.getByRole("button", { name: "Automazioni", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Automazioni", exact: true })).toBeVisible();
@@ -147,6 +138,84 @@ test("navigates between lazy dashboard sections without browser errors", async (
   await page.getByRole("button", { name: /Repository/ }).first().click();
   await expect(page.getByRole("heading", { name: "Repository", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: `Apri ${workspaceRepositoryName}` })).toBeVisible();
+
+  expect(browserErrors).toEqual([]);
+});
+
+test("renders the refactored repository, favorites, task and Docker workspaces responsively", async ({ page }, testInfo) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  await page.route("**/api/docker/containers", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        checkedAt: new Date(0).toISOString(),
+        error: null,
+        containers: [{
+          id: "api-1",
+          name: "repo-control-api-1",
+          image: "repo-control:local",
+          status: "Up 2 minutes (healthy)",
+          ports: "0.0.0.0:3000->3000/tcp",
+          runningFor: "2 minutes",
+          composeProject: "repo-control",
+          composeService: "api",
+          composeWorkingDir: process.cwd()
+        }],
+        groups: [{
+          id: "repo-control",
+          name: "repo-control",
+          composeProject: "repo-control",
+          workingDir: process.cwd(),
+          containers: [{
+            id: "api-1",
+            name: "repo-control-api-1",
+            image: "repo-control:local",
+            status: "Up 2 minutes (healthy)",
+            ports: "0.0.0.0:3000->3000/tcp",
+            runningFor: "2 minutes",
+            composeProject: "repo-control",
+            composeService: "api",
+            composeWorkingDir: process.cwd()
+          }]
+        }]
+      })
+    });
+  });
+
+  await page.goto("/");
+
+  await page.locator('[data-dashboard-section="repositories"]').first().click();
+  await expect(page.getByRole("heading", { name: "Repository", exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Ordina repository" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Raggruppa repository" })).toBeVisible();
+  await page.getByRole("button", { name: "Densità compatta" }).click();
+  await waitForInterfaceMotion(page);
+  await page.screenshot({ path: testInfo.outputPath("repository-catalog.png"), fullPage: true });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  await page.locator('[data-dashboard-section="favorites"]').first().click();
+  await expect(page.getByRole("heading", { name: "Preferiti", exact: true })).toBeVisible();
+  await expect(page.getByText(/launchpad personale/)).toBeVisible();
+  await waitForInterfaceMotion(page);
+  await page.screenshot({ path: testInfo.outputPath("favorites-launchpad.png"), fullPage: true });
+
+  await page.locator('[data-dashboard-section="tasks"]').first().click();
+  await expect(page.getByRole("heading", { name: "Task engineering", exact: true })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Flusso Task engineering" })).toContainText("Verifiche");
+  await waitForInterfaceMotion(page);
+  await page.screenshot({ path: testInfo.outputPath("task-engineering.png"), fullPage: true });
+
+  await page.locator('[data-dashboard-section="docker"]').first().click();
+  await expect(page.getByRole("heading", { name: "Docker runtime", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Riepilogo Docker")).toContainText("Porte pubblicate");
+  await expect(page.getByRole("link", { name: /3000→3000\/tcp/ })).toHaveAttribute("href", "http://localhost:3000");
+  await waitForInterfaceMotion(page);
+  await page.screenshot({ path: testInfo.outputPath("docker-runtime.png"), fullPage: true });
 
   expect(browserErrors).toEqual([]);
 });
@@ -168,7 +237,7 @@ test("detects local coding agents and opens the unified session history", async 
   await expect(page.getByLabel("Agent rilevati")).toContainText("Claude Code");
   await expect(page.getByLabel("Agent rilevati")).toContainText("Codex");
   await expect(page.getByLabel("Agent rilevati")).toContainText("Gemini CLI");
-  await expect(page.getByText("Più recenti prima")).toBeVisible();
+  await expect(page.getByText(/più recenti/)).toBeVisible();
 
   const firstSession = sessionsPayload.sessions[0] as { title: string } | undefined;
 
@@ -187,10 +256,10 @@ test("detects local coding agents and opens the unified session history", async 
     expect(searchPayload.sessions).toEqual(expect.arrayContaining([
       expect.objectContaining({ title: firstSession.title })
     ]));
-    await expect(page.getByText("Nel titolo").first()).toBeVisible();
+    await expect(page.locator("mark").first()).toBeVisible();
 
     await sessionSearch.fill("");
-    await expect(page.getByText("Nel titolo")).toHaveCount(0);
+    await expect(page.locator("mark")).toHaveCount(0);
   }
 
   for (const label of ["Claude Code", "Codex", "Gemini CLI"]) {
@@ -230,6 +299,18 @@ test("detects local coding agents and opens the unified session history", async 
     await page.screenshot({ path: process.env.E2E_AGENT_SCREENSHOT_PATH, fullPage: true });
   }
 });
+
+async function waitForInterfaceMotion(page: Page): Promise<void> {
+  await page.locator("main").evaluate(async (main) => {
+    await Promise.all(main.getAnimations({ subtree: true }).map(async (animation) => {
+      try {
+        await animation.finished;
+      } catch {
+        // An animation can be cancelled when a lazy section swaps in.
+      }
+    }));
+  });
+}
 
 test("uses focused automation editor views and a searchable node library", async ({ page }) => {
   await page.goto("/");
@@ -341,7 +422,10 @@ test("collects workflow text inputs and resolves them safely in a dry run", asyn
     await expect(resultDialog).toContainText(workflowName);
     await expect(resultDialog).toContainText("Anteprima");
     await resultDialog.getByRole("button", { name: /Echo message/ }).first().click();
-    await expect(resultDialog).toContainText('echo "${REPO_CONTROL_INPUT_MESSAGE}"');
+    const expectedCommand = process.platform === "win32"
+      ? 'echo "$env:REPO_CONTROL_INPUT_MESSAGE"'
+      : 'echo "${REPO_CONTROL_INPUT_MESSAGE}"';
+    await expect(resultDialog).toContainText(expectedCommand);
     await expect(resultDialog).not.toContainText("release candidate");
   } finally {
     await request.delete(`${apiBaseUrl}/api/workflows/${workflow.id}`);

@@ -80,6 +80,9 @@ describe("ImplementationPanel", () => {
     const { onChanged } = renderPanel();
     expect(screen.getByText("Ultimo run · Riuscito")).toBeVisible();
     expect(screen.getByText("2/2 check")).toBeVisible();
+    await user.click(screen.getByText("npm test"));
+    expect(screen.getAllByText("Exit code: 0")[0]).toBeVisible();
+    expect(screen.getAllByText("output")[0]).toBeVisible();
     fireEvent.click(screen.getByText("Context pack").closest("button")!);
     expect(await screen.findByText("# Context pack")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Copia context pack" }));

@@ -1,10 +1,10 @@
 import AddIcon from "@mui/icons-material/Add";
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   FormControl,
   InputLabel,
@@ -18,6 +18,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import React from "react";
 import { fetchBrainTasks } from "../../api/brain";
+import type { BrainTaskStatus } from "../../types/brain";
 import type { ProjectSummary } from "../../types/projects";
 import { TaskList } from "./TaskList";
 import { TaskPlanningComposer } from "./TaskPlanningComposer";
@@ -27,11 +28,14 @@ type TaskEngineeringPageProps = {
   projects: ProjectSummary[];
 };
 
+type ComposerStage = "intent" | "planning" | "review";
+
 export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
   const queryClient = useQueryClient();
   const [projectId, setProjectId] = React.useState(projects[0]?.id ?? "");
   const [selectedTaskId, setSelectedTaskId] = React.useState<string | null>(null);
   const [creating, setCreating] = React.useState(false);
+  const [composerStage, setComposerStage] = React.useState<ComposerStage>("intent");
 
   React.useEffect(() => {
     if (!projects.some((project) => project.id === projectId)) {
@@ -62,7 +66,7 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
   }
 
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={1.5}>
       <Stack
         direction={{ xs: "column", md: "row" }}
         spacing={1.5}
@@ -70,12 +74,10 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
         alignItems={{ md: "flex-end" }}
       >
         <Box>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography component="h1" variant="h1">Task engineering</Typography>
-            <Chip size="small" color="primary" variant="outlined" label="AI assisted" />
-          </Stack>
+          <Typography variant="overline" color="primary.light" component="div">AI workbench</Typography>
+          <Typography component="h1" variant="h1">Task engineering</Typography>
           <Typography color="text.secondary" variant="body2" sx={{ mt: 0.4 }}>
-            Dal brief al piano verificabile, con il repository come fonte di verità.
+            Dall’intento alle verifiche, con approvazioni esplicite e il repository come fonte di verità.
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ width: { xs: "100%", md: "auto" } }}>
@@ -89,6 +91,7 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
                 setProjectId(event.target.value);
                 setSelectedTaskId(null);
                 setCreating(false);
+                setComposerStage("intent");
               }}
             >
               {projects.map((project) => (
@@ -112,7 +115,10 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
           <Button
             startIcon={<AddIcon />}
             variant="contained"
-            onClick={() => setCreating(true)}
+            onClick={() => {
+              setComposerStage("intent");
+              setCreating(true);
+            }}
             disabled={!projectId || creating}
           >
             Nuovo task
@@ -122,11 +128,13 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
 
       {tasksQuery.error instanceof Error ? <Alert severity="error">{tasksQuery.error.message}</Alert> : null}
 
+      <TaskFlow status={creating || !selectedTask ? null : selectedTask.status} composerStage={composerStage} />
+
       <Box
         sx={{
           display: "grid",
           gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "280px minmax(0, 1fr)" },
-          gap: 2,
+          gap: 1.5,
           alignItems: "start"
         }}
       >
@@ -138,6 +146,7 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
             onSelect={(taskId) => {
               setSelectedTaskId(taskId);
               setCreating(false);
+              setComposerStage("intent");
             }}
           />
         </Box>
@@ -147,11 +156,16 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
             projectId={projectId}
             projects={projects}
             canCancel={Boolean(selectedTask)}
-            onCancel={() => setCreating(false)}
+            onStageChange={setComposerStage}
+            onCancel={() => {
+              setCreating(false);
+              setComposerStage("intent");
+            }}
             onCreated={async (task) => {
               await refreshTasks();
               setSelectedTaskId(task.id);
               setCreating(false);
+              setComposerStage("intent");
             }}
           />
         ) : selectedTask ? (
@@ -163,11 +177,97 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
             onChanged={refreshTasks}
           />
         ) : (
-          <Paper variant="outlined" sx={{ minHeight: 420, display: "grid", placeItems: "center", p: 3 }}>
+          <Paper variant="outlined" sx={{ minHeight: 420, display: "grid", placeItems: "center", p: 3, bgcolor: "var(--rc-surface-1)" }}>
             <CircularProgress size={26} />
           </Paper>
         )}
       </Box>
     </Stack>
   );
+}
+
+const TASK_FLOW_STEPS = ["Intento", "Piano", "Review", "Gate", "Implementazione", "Verifiche"] as const;
+
+function TaskFlow({ status, composerStage }: { status: BrainTaskStatus | null; composerStage: ComposerStage }) {
+  const activeIndex = status === null ? getComposerFlowIndex(composerStage) : getTaskFlowIndex(status);
+
+  return (
+    <Box
+      component="nav"
+      aria-label="Flusso Task engineering"
+      sx={{
+        overflowX: "auto",
+        border: "1px solid var(--rc-border)",
+        borderRadius: "var(--rc-radius-panel)",
+        bgcolor: "var(--rc-surface-1)",
+        scrollbarWidth: "thin"
+      }}
+    >
+      <Stack direction="row" sx={{ minWidth: 650 }}>
+        {TASK_FLOW_STEPS.map((label, index) => {
+          const completed = index < activeIndex;
+          const active = index === activeIndex;
+          return (
+            <Stack
+              key={label}
+              direction="row"
+              alignItems="center"
+              spacing={0.75}
+              aria-current={active ? "step" : undefined}
+              sx={{
+                position: "relative",
+                minHeight: 38,
+                flex: 1,
+                px: 1.25,
+                color: active ? "text.primary" : completed ? "success.main" : "text.disabled",
+                bgcolor: active ? "var(--rc-accent-tint)" : "transparent",
+                borderRight: index < TASK_FLOW_STEPS.length - 1 ? "1px solid var(--rc-border)" : 0,
+                "&::after": {
+                  content: '""',
+                  position: "absolute",
+                  left: 10,
+                  right: 10,
+                  bottom: 0,
+                  height: 2,
+                  bgcolor: active ? "primary.main" : "transparent"
+                }
+              }}
+            >
+              <Box
+                aria-hidden="true"
+                sx={{
+                  width: 17,
+                  height: 17,
+                  display: "grid",
+                  placeItems: "center",
+                  border: "1px solid currentColor",
+                  borderRadius: "50%",
+                  fontFamily: "var(--rc-font-mono)",
+                  fontSize: 9
+                }}
+              >
+                {completed ? <CheckRoundedIcon sx={{ fontSize: 12 }} /> : index + 1}
+              </Box>
+              <Typography sx={{ fontSize: 10.5, fontWeight: active ? 600 : 500, whiteSpace: "nowrap" }}>
+                {label}
+              </Typography>
+            </Stack>
+          );
+        })}
+      </Stack>
+    </Box>
+  );
+}
+
+function getTaskFlowIndex(status: BrainTaskStatus | null): number {
+  if (status === null) return 0;
+  if (status === "definition" || status === "requirements" || status === "design" || status === "breakdown") return 3;
+  if (status === "implementation") return 4;
+  return 5;
+}
+
+function getComposerFlowIndex(stage: ComposerStage): number {
+  if (stage === "planning") return 1;
+  if (stage === "review") return 2;
+  return 0;
 }

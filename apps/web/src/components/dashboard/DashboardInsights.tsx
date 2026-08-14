@@ -1,7 +1,7 @@
 import CheckCircleOutlineRoundedIcon from "@mui/icons-material/CheckCircleOutlineRounded";
 import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import { alpha, Box, ButtonBase, Paper, Stack, Typography } from "@mui/material";
-import type { DashboardSnapshot } from "./dashboardInsights";
+import type { DashboardSnapshot } from "./dashboardSnapshot";
 
 type DashboardInsightsProps = {
   snapshot: DashboardSnapshot;

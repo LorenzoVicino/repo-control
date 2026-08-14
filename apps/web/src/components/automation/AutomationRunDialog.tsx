@@ -86,7 +86,7 @@ export function AutomationRunDialog({ run, onClose, onCancel, cancelling = false
                   <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, width: "100%" }}>
                     <StepStatusIcon step={step} />
                     <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-                      <Typography variant="body2" fontWeight={750} noWrap>{step.nodeName}</Typography>
+                      <Typography variant="body2" fontWeight={500} noWrap>{step.nodeName}</Typography>
                       <Typography variant="caption" color="text.secondary" noWrap component="div">
                         {step.projectName ?? step.message}
                       </Typography>

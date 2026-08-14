@@ -79,7 +79,9 @@ export function TaskPlanReview({
         sx={{
           px: { xs: 2, md: 3 },
           py: 2.5,
-          background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.12)}, ${alpha(theme.palette.background.paper, 0.2)})`
+          bgcolor: "var(--rc-surface-1)",
+          borderLeft: "3px solid",
+          borderColor: "primary.main"
         }}
       >
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="space-between">
@@ -160,8 +162,9 @@ export function TaskPlanReview({
         )}
 
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1fr) 300px" }, gap: 2 }}>
-          <Stack spacing={2}>
-            <Card variant="outlined">
+          <Paper variant="outlined" sx={{ overflow: "hidden", alignSelf: "start" }}>
+          <Stack spacing={0}>
+            <Card sx={reviewSectionSx}>
               <CardHeader title="Obiettivo" subheader="Il risultato che deve essere vero quando il task è completato." />
               <CardContent sx={{ pt: 0 }}>
                 <Stack spacing={2}>
@@ -219,7 +222,7 @@ export function TaskPlanReview({
               </CardContent>
             </Card>
 
-            <Card variant="outlined">
+            <Card sx={reviewSectionSx}>
               <CardHeader title="Requisiti e criteri di accettazione" subheader="Comportamenti osservabili e condizioni verificabili." />
               <CardContent sx={{ pt: 0 }}>
                 <TextField
@@ -234,7 +237,7 @@ export function TaskPlanReview({
               </CardContent>
             </Card>
 
-            <Card variant="outlined">
+            <Card sx={reviewSectionSx}>
               <CardHeader title="Approccio tecnico" subheader="Aree impattate, rischi e assunzioni emersi dall’analisi." />
               <CardContent sx={{ pt: 0 }}>
                 <TextField
@@ -249,7 +252,7 @@ export function TaskPlanReview({
               </CardContent>
             </Card>
 
-            <Card variant="outlined">
+            <Card sx={reviewSectionSx}>
               <CardHeader title="Passi di implementazione" subheader="Sequenza operativa che verrà consegnata all’agente." />
               <CardContent sx={{ pt: 0 }}>
                 <TextField
@@ -264,7 +267,7 @@ export function TaskPlanReview({
               </CardContent>
             </Card>
 
-            <Card variant="outlined">
+            <Card sx={reviewSectionSx}>
               <CardHeader title="Verifiche" subheader="Un comando sicuro per riga. Verranno eseguiti dopo l’implementazione." />
               <CardContent sx={{ pt: 0 }}>
                 <TextField
@@ -278,12 +281,13 @@ export function TaskPlanReview({
                   fullWidth
                   inputProps={{
                     "aria-label": "Comandi di verifica",
-                    style: { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }
+                    style: { fontFamily: "var(--rc-font-mono)" }
                   }}
                 />
               </CardContent>
             </Card>
           </Stack>
+          </Paper>
 
           <Stack spacing={2} sx={{ alignSelf: "start", position: { xl: "sticky" }, top: { xl: 92 } }}>
             <Paper variant="outlined" sx={{ p: 2 }}>
@@ -363,3 +367,13 @@ export function TaskPlanReview({
     </Paper>
   );
 }
+
+const reviewSectionSx = {
+  bgcolor: "transparent",
+  border: 0,
+  borderRadius: 0,
+  borderBottom: "1px solid",
+  borderColor: "divider",
+  boxShadow: "none",
+  "&:last-of-type": { borderBottom: 0 }
+} as const;

@@ -1,6 +1,5 @@
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PsychologyOutlinedIcon from "@mui/icons-material/PsychologyOutlined";
 import {
@@ -39,6 +38,7 @@ type TaskPlanningComposerProps = {
   projectId: string;
   projects: ProjectSummary[];
   canCancel: boolean;
+  onStageChange: (stage: "intent" | "planning" | "review") => void;
   onCancel: () => void;
   onCreated: (task: BrainTask) => Promise<void>;
 };
@@ -47,6 +47,7 @@ export function TaskPlanningComposer({
   projectId,
   projects,
   canCancel,
+  onStageChange,
   onCancel,
   onCreated
 }: TaskPlanningComposerProps) {
@@ -137,6 +138,10 @@ export function TaskPlanningComposer({
 
   const busy = planMutation.isPending || createMutation.isPending;
 
+  React.useEffect(() => {
+    onStageChange(draft ? "review" : planMutation.isPending ? "planning" : "intent");
+  }, [draft, onStageChange, planMutation.isPending]);
+
   function cancelPlanning(): void {
     const requestId = planningRequestId.current;
     planningAbortController.current?.abort();
@@ -182,7 +187,9 @@ export function TaskPlanningComposer({
         sx={{
           px: { xs: 2, md: 3.5 },
           py: { xs: 2.5, md: 3.5 },
-          background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.14)}, ${alpha(theme.palette.info.main, 0.035)})`
+          bgcolor: "var(--rc-surface-1)",
+          borderLeft: "3px solid",
+          borderColor: "primary.main"
         }}
       >
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="space-between" alignItems={{ sm: "flex-start" }}>
@@ -194,9 +201,10 @@ export function TaskPlanningComposer({
                 borderRadius: 2.5,
                 display: "grid",
                 placeItems: "center",
-                bgcolor: "primary.main",
-                color: "primary.contrastText",
-                boxShadow: 2,
+                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12),
+                color: "primary.main",
+                border: "1px solid",
+                borderColor: (theme) => alpha(theme.palette.primary.main, 0.28),
                 flexShrink: 0
               }}
             >
@@ -209,7 +217,7 @@ export function TaskPlanningComposer({
               </Typography>
             </Box>
           </Stack>
-          <Chip icon={<AutoAwesomeOutlinedIcon />} color="primary" variant="outlined" label="Claude Code · plan" />
+          <Chip icon={<AutoAwesomeOutlinedIcon />} color="primary" variant="outlined" label="Claude Code · sola lettura" />
         </Stack>
       </Box>
 
@@ -300,15 +308,32 @@ export function TaskPlanningComposer({
               <Stack direction="row" spacing={1} alignItems="center">
                 <AutoAwesomeOutlinedIcon color="primary" />
                 <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Claude sta preparando il piano</Typography>
-                  <Typography variant="caption" color="text.secondary">L’analisi può richiedere qualche minuto sui repository più grandi.</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Analisi in sola lettura</Typography>
+                  <Typography variant="caption" color="text.secondary">Claude sta raccogliendo contesto. Nessuna fase viene segnata come completata prima della review.</Typography>
                 </Box>
               </Stack>
               <LinearProgress />
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                {["Struttura del repository", "Aree e rischi", "Passi e verifiche"].map((label) => (
+                {["Struttura del repository", "Aree e rischi", "Passi e verifiche"].map((label, index) => (
                   <Stack key={label} direction="row" spacing={0.6} alignItems="center" sx={{ flex: 1 }}>
-                    <CheckCircleOutlineIcon color="primary" sx={{ fontSize: 17 }} />
+                    <Box
+                      aria-hidden="true"
+                      sx={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: "50%",
+                        display: "grid",
+                        placeItems: "center",
+                        border: "1px solid",
+                        borderColor: "divider",
+                        color: "text.secondary",
+                        fontFamily: "var(--rc-font-mono)",
+                        fontSize: 10,
+                        flexShrink: 0
+                      }}
+                    >
+                      {index + 1}
+                    </Box>
                     <Typography variant="caption" color="text.secondary">{label}</Typography>
                   </Stack>
                 ))}

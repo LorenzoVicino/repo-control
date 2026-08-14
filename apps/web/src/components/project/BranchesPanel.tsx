@@ -3,6 +3,7 @@ import AddIcon from "@mui/icons-material/Add";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SyncIcon from "@mui/icons-material/Sync";
+import SearchIcon from "@mui/icons-material/Search";
 import { Box, Button, Chip, CircularProgress, Stack, TextField, Typography } from "@mui/material";
 import React from "react";
 import { runProjectAction } from "../../api/projects";
@@ -12,6 +13,7 @@ import { LoadingPanel } from "../shared/LoadingPanel";
 import type { CommandResult } from "../../types/common";
 import type { GitBranchInfo, GitDetails } from "../../types/git";
 import { commandErrorResult } from "../../utils/commandResult";
+import { formatDate } from "../../utils/projects";
 
 const INITIAL_VISIBLE_BRANCHES = 12;
 const BRANCH_REVEAL_BATCH_SIZE = 24;
@@ -27,6 +29,7 @@ type BranchesPanelProps = {
 export function BranchesPanel({ projectId, details, isLoading, onResult, onCompleted }: BranchesPanelProps) {
   const [newBranchName, setNewBranchName] = React.useState("");
   const [runningBranchAction, setRunningBranchAction] = React.useState<string | null>(null);
+  const [search, setSearch] = React.useState("");
   const isDirty = details ? !details.status.isClean : false;
 
   async function runBranchAction(actionKey: string, label: string, actionPath: string, body?: unknown) {
@@ -72,6 +75,7 @@ export function BranchesPanel({ projectId, details, isLoading, onResult, onCompl
       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
         <Chip color="primary" label={details.status.current} />
         {details.status.tracking ? <Chip variant="outlined" label={details.status.tracking} /> : null}
+        {details.branches.defaultBranch ? <Chip variant="outlined" label={`default: ${details.branches.defaultBranch}`} /> : null}
         {details.status.ahead > 0 ? <Chip color="info" label={`ahead ${details.status.ahead}`} /> : null}
         {details.status.behind > 0 ? <Chip color="secondary" label={`behind ${details.status.behind}`} /> : null}
         {isDirty ? <Chip color="warning" label="checkout bloccato: dirty" /> : null}
@@ -97,6 +101,14 @@ export function BranchesPanel({ projectId, details, isLoading, onResult, onCompl
 
       <Box component="form" onSubmit={createBranch}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
+          <TextField
+            size="small"
+            label="Cerca branch"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            InputProps={{ startAdornment: <SearchIcon fontSize="small" sx={{ mr: 0.75, color: "text.secondary" }} /> }}
+            fullWidth
+          />
           <TextField
             size="small"
             label="Nuovo branch"
@@ -126,7 +138,7 @@ export function BranchesPanel({ projectId, details, isLoading, onResult, onCompl
       >
         <BranchGroup
           title="Local branches"
-          branches={details.branches.local}
+          branches={filterBranches(details.branches.local, search)}
           isDirty={isDirty}
           runningBranchAction={runningBranchAction}
           onCheckout={(branch) =>
@@ -138,7 +150,7 @@ export function BranchesPanel({ projectId, details, isLoading, onResult, onCompl
         />
         <BranchGroup
           title="Remote branches"
-          branches={details.branches.remote}
+          branches={filterBranches(details.branches.remote, search)}
           isDirty={isDirty}
           runningBranchAction={runningBranchAction}
           onCheckout={(branch) =>
@@ -167,6 +179,8 @@ function BranchGroup({ title, branches, isDirty, runningBranchAction, onCheckout
   const visibleBranches = branches.slice(0, visibleBranchCount);
   const hiddenBranchCount = branches.length - visibleBranches.length;
 
+  React.useEffect(() => setVisibleBranchCount(INITIAL_VISIBLE_BRANCHES), [branches]);
+
   return (
     <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, overflow: "hidden" }}>
       <Stack
@@ -176,7 +190,7 @@ function BranchGroup({ title, branches, isDirty, runningBranchAction, onCheckout
         sx={{ px: 1.25, py: 1, borderBottom: "1px solid", borderColor: "divider" }}
       >
         <AccountTreeIcon fontSize="small" color="primary" />
-        <Typography variant="body2" sx={{ fontWeight: 800, flexGrow: 1 }}>
+        <Typography variant="body2" sx={{ fontWeight: 500, flexGrow: 1 }}>
           {title}
         </Typography>
         <Chip size="small" label={branches.length} />
@@ -236,15 +250,21 @@ const BranchRow = React.memo(function BranchRow({ branch, isDirty, isRunning, on
     >
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
         <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-          <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
+          <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
             {branch.name}
           </Typography>
+          {branch.lastCommit ? (
+            <Typography variant="caption" color="text.secondary" noWrap component="div" title={branch.lastCommit.message}>
+              {branch.lastCommit.hash} · {branch.lastCommit.message} · {formatDate(branch.lastCommit.date)}
+            </Typography>
+          ) : null}
           <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 0.5 }}>
             {branch.current ? <Chip size="small" color="primary" label="current" /> : null}
             {branch.remote ? <Chip size="small" variant="outlined" label="remote" /> : null}
             {branch.upstream ? <Chip size="small" variant="outlined" label={branch.upstream} /> : null}
             {branch.ahead > 0 ? <Chip size="small" color="info" label={`ahead ${branch.ahead}`} /> : null}
             {branch.behind > 0 ? <Chip size="small" color="secondary" label={`behind ${branch.behind}`} /> : null}
+            {branch.merged && !branch.current ? <Chip size="small" color="success" variant="outlined" label="merged" /> : null}
           </Stack>
         </Box>
         <Button
@@ -261,3 +281,12 @@ const BranchRow = React.memo(function BranchRow({ branch, isDirty, isRunning, on
     </Box>
   );
 });
+
+function filterBranches(branches: GitBranchInfo[], search: string): GitBranchInfo[] {
+  const query = search.trim().toLocaleLowerCase();
+  if (!query) return branches;
+  return branches.filter((branch) =>
+    [branch.name, branch.upstream ?? "", branch.lastCommit?.message ?? "", branch.lastCommit?.author ?? ""]
+      .some((value) => value.toLocaleLowerCase().includes(query))
+  );
+}

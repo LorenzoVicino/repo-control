@@ -268,7 +268,7 @@ export function AutomationNodeInspector({
             minRows={4}
             inputProps={{
               maxLength: 2000,
-              style: { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13 }
+              style: { fontFamily: "var(--rc-font-mono)", fontSize: 11.5 }
             }}
           />
         ) : null}
@@ -318,7 +318,7 @@ function InspectorShell({
           position: "sticky",
           top: 0,
           zIndex: 1,
-          minHeight: 62,
+          minHeight: 50,
           px: 1.5,
           display: "flex",
           alignItems: "center",
@@ -331,7 +331,7 @@ function InspectorShell({
         <Stack direction="row" spacing={1.1} alignItems="center" sx={{ minWidth: 0 }}>
           {icon}
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle2" fontWeight={850} noWrap>{title}</Typography>
+            <Typography variant="subtitle2" fontWeight={500} noWrap>{title}</Typography>
             {subtitle ? (
               <Typography variant="caption" color="text.secondary" component="div" noWrap>
                 {subtitle}

@@ -6,10 +6,32 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.7.0] - 2026-08-14
+
+### Added
+
+- Add a repository Panoramica with attention signals, Git/Docker health, recent commits and contextual quick actions.
+- Add per-file staged, unstaged and untracked diff previews plus staged commit line summaries.
+- Add Compose service state, health, images, published ports, per-service logs and restart controls.
+- Add cancellable per-repository terminal commands while preserving the visible terminal session across tab navigation.
+- Add branch search, default and merged indicators, and latest-commit metadata for local and remote branches.
+
 ### Changed
 
 - Align the README, environment example, contributor guide, security model and architecture guide with Agent sessions, cancellable background automations, current navigation, supported configuration and local persistence.
 - Replace the outdated product walkthrough with a privacy-safe synthetic demo of the current Dashboard, Git workspace, Agent sessions and automation run flow.
+- Replace the duplicated repository-detail sidebar with a compact header and full-width capability tabs.
+- Redesign the repository Terminal as a responsive command workbench with status-block transcripts, context, repository suggestions, session history, wrapping, copy and confirmed clearing.
+- Replace the sidebar palette dropdown with a clearer Appearance control whose menu opens outside the sidebar on desktop, collapsed and mobile layouts.
+- Show the repository Docker tab only when a Compose file is detected, establishing the same capability-driven rule for a future CI/CD integration.
+- Rework Task Engineering around an explicit intent, review, approval-gate, implementation and verification flow with visible check output and failed-run recovery.
+- Turn the global Docker view into a runtime control surface with group scope, service health, published ports and confirmed stop actions.
+- Separate Favorites into a personal launchpad with empty and already-open states instead of reusing repository cards.
+- Add repository sorting, folder or operational-status grouping, compact and comfortable density, and already-open indicators to the catalog.
+
+### Removed
+
+- Remove the non-functional Deploy placeholder from repository details.
 
 ## [0.6.0] - 2026-08-04
 

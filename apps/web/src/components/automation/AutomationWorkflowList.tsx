@@ -60,7 +60,7 @@ export function AutomationWorkflowList({
     >
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1.5, py: 1.4 }}>
         <Box>
-          <Typography variant="subtitle2" fontWeight={800}>I tuoi workflow</Typography>
+          <Typography variant="subtitle2" fontWeight={500}>I tuoi workflow</Typography>
           <Typography variant="caption" color="text.secondary">{workflows.length} totali</Typography>
         </Box>
         <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={onCreateWorkflow}>Nuovo</Button>
@@ -89,7 +89,7 @@ export function AutomationWorkflowList({
         <Box sx={{ minHeight: 180, display: "grid", placeItems: "center" }}><CircularProgress size={24} /></Box>
       ) : workflows.length === 0 ? (
         <Stack spacing={0.5} sx={{ p: 2 }}>
-          <Typography variant="body2" fontWeight={750}>Nessun workflow</Typography>
+          <Typography variant="body2" fontWeight={500}>Nessun workflow</Typography>
           <Typography variant="caption" color="text.secondary">Parti da un template e personalizza il flusso.</Typography>
         </Stack>
       ) : visibleWorkflows.length === 0 ? (
@@ -129,7 +129,7 @@ export function AutomationWorkflowList({
                       ) : null}
                     </Stack>
                   }
-                  primaryTypographyProps={{ variant: "body2", fontWeight: 750, noWrap: true }}
+                  primaryTypographyProps={{ variant: "body2", fontWeight: 500, noWrap: true }}
                   secondaryTypographyProps={{ component: "div" }}
                 />
                 <Box

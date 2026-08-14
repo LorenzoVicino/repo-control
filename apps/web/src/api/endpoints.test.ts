@@ -11,10 +11,12 @@ import {
   runBrainTask,
   updateBrainTask
 } from "./brain";
-import { fetchDockerContainers, stopDockerContainers } from "./docker";
+import { fetchDockerComposeProject, fetchDockerContainers, fetchDockerServiceLogs, stopDockerContainers } from "./docker";
 import {
+  cancelTerminalCommand,
   fetchGitActivity,
   fetchGitDetails,
+  fetchGitFileDiff,
   fetchProjects,
   fetchProjectSummary,
   runProjectAction,
@@ -93,7 +95,11 @@ describe("API endpoint contracts", () => {
     await fetchProjectSummary("alpha");
     await fetchGitDetails("alpha");
     await fetchGitActivity("alpha", { offset: 20, limit: 10 });
+    await fetchGitFileDiff("alpha", { path: "src/new file.ts", previousPath: "src/old.ts" }, true);
     await runTerminalCommand("alpha", "npm test");
+    await cancelTerminalCommand("alpha");
+    await fetchDockerComposeProject("alpha");
+    await fetchDockerServiceLogs("alpha", "web", 100);
 
     fetchMock.mockResolvedValueOnce(jsonResponse({
       ok: true,
@@ -119,10 +125,17 @@ describe("API endpoint contracts", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("/api/projects/alpha/git/activity?offset=20&limit=10", undefined);
     expect(fetchMock).toHaveBeenCalledWith(
+      "/api/projects/alpha/git/diff?path=src%2Fnew+file.ts&staged=true&previousPath=src%2Fold.ts",
+      undefined
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
       "/api/projects/alpha/terminal/run",
       expect.objectContaining({ body: "{\"command\":\"npm test\"}" })
     );
     expect(fetchMock).toHaveBeenCalledWith("/api/projects/alpha/git/fetch", { method: "POST" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/projects/alpha/terminal/cancel", { method: "POST" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/projects/alpha/docker/compose", undefined);
+    expect(fetchMock).toHaveBeenCalledWith("/api/projects/alpha/docker/logs?service=web&tail=100", undefined);
   });
 
   it("covers every workflow endpoint and both execution modes", async () => {
