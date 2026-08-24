@@ -6,6 +6,12 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.8.1] - 2026-08-24
+
+### Changed
+
+- Extend the Dashboard continuous flow animation to staged, modified and untracked change-concentration bars, while preserving reduced-motion behavior.
+
 ## [0.8.0] - 2026-08-24
 
 ### Added
