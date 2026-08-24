@@ -252,10 +252,21 @@ function ChangeBar({ value, maxTotal, kind }: { value: number; maxTotal: number;
 
   return (
     <Box
+      data-change-kind={kind}
+      data-animation="continuous"
       sx={(theme) => ({
+        position: "relative",
         width: `${(value / maxTotal) * 100}%`,
         minWidth: 2,
-        background: getChangeFill(theme, kind)
+        overflow: "hidden",
+        bgcolor: getChangeColor(theme, kind),
+        backgroundImage: "repeating-linear-gradient(120deg, transparent 0 7px, rgba(255, 255, 255, 0.22) 7px 12px, transparent 12px 20px)",
+        backgroundSize: "28px 100%",
+        animation: `${flowSignal} 1100ms linear ${getChangeFlowDelay(kind)}ms infinite`,
+        "@media (prefers-reduced-motion: reduce)": {
+          animation: "none",
+          backgroundImage: "none"
+        }
       })}
     />
   );
@@ -264,16 +275,22 @@ function ChangeBar({ value, maxTotal, kind }: { value: number; maxTotal: number;
 function ChangeLegend({ kind, label }: { kind: ChangeKind; label: string }) {
   return (
     <Stack direction="row" spacing={0.55} alignItems="center">
-      <Box aria-hidden="true" sx={(theme) => ({ width: 9, height: 7, borderRadius: 0.4, background: getChangeFill(theme, kind) })} />
+      <Box aria-hidden="true" sx={(theme) => ({ width: 9, height: 7, borderRadius: 0.4, bgcolor: getChangeColor(theme, kind) })} />
       <Typography variant="caption" color="text.secondary">{label}</Typography>
     </Stack>
   );
 }
 
-function getChangeFill(theme: Theme, kind: ChangeKind): string {
+function getChangeColor(theme: Theme, kind: ChangeKind): string {
   if (kind === "staged") return theme.palette.primary.main;
   if (kind === "untracked") return theme.palette.error.main;
-  return `repeating-linear-gradient(135deg, ${theme.palette.warning.main} 0 3px, ${alpha(theme.palette.warning.main, 0.55)} 3px 6px)`;
+  return theme.palette.warning.main;
+}
+
+function getChangeFlowDelay(kind: ChangeKind): number {
+  if (kind === "modified") return -180;
+  if (kind === "untracked") return -360;
+  return 0;
 }
 
 function buildOperationalSignals(projects: ProjectSummary[]): OperationalSignal[] {

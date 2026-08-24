@@ -11,7 +11,7 @@ describe("DashboardPulse", () => {
     const user = userEvent.setup();
     const onOpenProject = vi.fn();
     const projects = [
-      createProjectFixture("blocked", { isClean: false, modified: 3, untracked: 1, behind: 2 }),
+      createProjectFixture("blocked", { isClean: false, staged: 2, modified: 3, untracked: 1, behind: 2 }),
       createProjectFixture("ahead", { ahead: 2 }),
       createProjectFixture("ready")
     ];
@@ -27,9 +27,16 @@ describe("DashboardPulse", () => {
     expect(distribution.querySelector('[data-signal-key="blocked"]')).toHaveAttribute("data-animation", "continuous");
     expect(distribution.querySelector('[data-signal-key="ready"]')).toHaveAttribute("data-animation", "continuous");
     expect(distribution.querySelector('[data-signal-key="ahead"]')).toHaveAttribute("data-animation", "static");
-    expect(screen.getByRole("img", { name: "0 staged, 3 modificati, 1 nuovi" })).toBeVisible();
+    const changeDistribution = screen.getByRole("img", { name: "2 staged, 3 modificati, 1 nuovi" });
+    expect(changeDistribution).toBeVisible();
+    for (const kind of ["staged", "modified", "untracked"]) {
+      expect(changeDistribution.querySelector(`[data-change-kind="${kind}"]`)).toHaveAttribute(
+        "data-animation",
+        "continuous"
+      );
+    }
 
-    await user.click(screen.getByRole("button", { name: "Apri blocked, 4 file modificati" }));
+    await user.click(screen.getByRole("button", { name: "Apri blocked, 6 file modificati" }));
     expect(onOpenProject).toHaveBeenCalledWith("blocked");
   });
 
