@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="repo-control">
+  <rect width="512" height="512" rx="112" fill="#161826"></rect>
+  <g fill="none" stroke="#9184d9" stroke-width="28" stroke-linecap="round">
+    <path d="M309 121.4 A140 140 0 0 1 394.7 269.9"></path>
+    <path d="M341.7 361.7 A140 140 0 0 1 170.3 361.7"></path>
+    <path d="M117.3 269.9 A140 140 0 0 1 203 121.4"></path>
+  </g>
+  <g fill="none" stroke="#9184d9" stroke-width="24" stroke-linecap="round">
+    <path d="M256 251 L256 111"></path>
+    <path d="M256 251 L377.2 321"></path>
+    <path d="M256 251 L134.8 321"></path>
+  </g>
+  <g fill="#9184d9">
+    <circle cx="256" cy="111" r="36"></circle>
+    <circle cx="377.2" cy="321" r="36"></circle>
+    <circle cx="134.8" cy="321" r="36"></circle>
+  </g>
+  <circle cx="256" cy="251" r="46" fill="#b5abfc"></circle>
+</svg>

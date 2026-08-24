@@ -1,6 +1,10 @@
-# repo-control
+<p align="center">
+  <img src="apps/web/public/icon/repo-control-icon.svg" alt="repo-control logo" width="96" height="96" />
+</p>
 
-**A local-first command center for multi-repository workspaces.**
+<h1 align="center">repo-control</h1>
+
+<p align="center"><strong>A local-first command center for multi-repository workspaces.</strong></p>
 
 When work spans several repositories, the important state is scattered across terminal tabs, Git clients, Docker commands and local AI-agent sessions. repo-control turns one workspace folder into a live operational view: what is clean, what is drifting, what needs attention and which action is safe to run next.
 

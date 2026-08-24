@@ -45,8 +45,8 @@ describe("WorkspaceMap", () => {
     expect(screen.getByText("3 modifiche")).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Apri dirty" }));
-    await user.click(screen.getByRole("button", { name: "Rimuovi dai preferiti" }));
-    await user.click(screen.getAllByRole("button", { name: "Aggiungi ai preferiti" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Rimuovi dirty dai preferiti" }));
+    await user.click(screen.getByRole("button", { name: "Aggiungi behind ai preferiti" }));
     expect(onSelectProject).toHaveBeenCalledWith("dirty");
     expect(onToggleFavorite).toHaveBeenCalledTimes(2);
 
@@ -65,16 +65,37 @@ describe("WorkspaceMap", () => {
     );
     expect(screen.getByText("Nessun repository trovato")).toBeVisible();
 
-    rerender(<FavoriteProjects projects={projects} favoriteProjectIds={[]} {...callbacks} />);
+    rerender(
+      <FavoriteProjects
+        projects={projects}
+        favoriteProjectIds={[]}
+        density="comfortable"
+        onDensityChange={vi.fn()}
+        {...callbacks}
+      />
+    );
     expect(screen.getByLabelText("Repository preferiti")).toBeVisible();
     expect(screen.getByText("Crea il tuo launchpad")).toBeVisible();
 
-    rerender(<FavoriteProjects projects={projects} favoriteProjectIds={["dirty"]} openProjectIds={["dirty"]} {...callbacks} />);
+    const onDensityChange = vi.fn();
+    rerender(
+      <FavoriteProjects
+        projects={projects}
+        favoriteProjectIds={["dirty"]}
+        openProjectIds={["dirty"]}
+        density="comfortable"
+        onDensityChange={onDensityChange}
+        {...callbacks}
+      />
+    );
     const section = screen.getByLabelText("Repository preferiti");
     expect(section).toBeVisible();
     expect(screen.getByText("Aperto")).toBeVisible();
+    expect(screen.getByRole("group", { name: "Densità repository preferiti" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Densità compatta" }));
     await user.click(screen.getByRole("button", { name: "Apri dirty" }));
     await user.click(screen.getByRole("button", { name: "Rimuovi dirty dai preferiti" }));
+    expect(onDensityChange).toHaveBeenCalledWith("compact");
     expect(callbacks.onSelectProject).toHaveBeenCalledWith("dirty");
     expect(callbacks.onToggleFavorite).toHaveBeenCalledWith("dirty");
   });

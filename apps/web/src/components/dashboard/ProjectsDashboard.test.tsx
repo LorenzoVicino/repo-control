@@ -147,15 +147,16 @@ vi.mock("./ControlCenter", () => ({
 }));
 vi.mock("./WorkspaceMap", () => ({
   WorkspaceMap: (props: Record<string, unknown>) => (
-    <div data-testid="workspace-map">
+    <div data-testid="workspace-map" data-density={String(props.density)}>
       <button onClick={() => (props.onSelectProject as (id: string) => void)("alpha")}>map-open-alpha</button>
       <button onClick={() => (props.onToggleFavorite as (id: string) => void)("beta")}>map-favorite-beta</button>
     </div>
   ),
   FavoriteProjects: (props: Record<string, unknown>) => (
-    <div data-testid="favorites">
+    <div data-testid="favorites" data-density={String(props.density)}>
       <button onClick={() => (props.onSelectProject as (id: string) => void)("alpha")}>favorite-open-alpha</button>
       <button onClick={() => (props.onToggleFavorite as (id: string) => void)("alpha")}>favorite-toggle-alpha</button>
+      <button onClick={() => (props.onDensityChange as (density: string) => void)("compact")}>favorite-density-compact</button>
     </div>
   )
 }));
@@ -307,11 +308,15 @@ describe("ProjectsDashboard orchestration", () => {
 
     await user.click(screen.getByText("nav-favorites"));
     expect(await screen.findByTestId("favorites")).toBeVisible();
+    expect(screen.getByTestId("favorites")).toHaveAttribute("data-density", "comfortable");
+    await user.click(screen.getByText("favorite-density-compact"));
+    expect(screen.getByTestId("favorites")).toHaveAttribute("data-density", "compact");
     await user.click(screen.getByText("favorite-toggle-alpha"));
     expect(updatePreferences).toHaveBeenCalled();
 
     await user.click(screen.getByText("nav-repositories"));
     expect(await screen.findByTestId("workspace-map")).toBeVisible();
+    expect(screen.getByTestId("workspace-map")).toHaveAttribute("data-density", "compact");
     await user.click(screen.getByText("map-favorite-beta"));
     await user.click(screen.getByText("view-table"));
     expect(await screen.findByTestId("project-table")).toBeVisible();

@@ -3,10 +3,9 @@ import CallSplitIcon from "@mui/icons-material/CallSplit";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
-import LaunchOutlinedIcon from "@mui/icons-material/LaunchOutlined";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
-import { alpha, Box, Button, ButtonBase, Chip, Collapse, Divider, IconButton, Paper, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { alpha, Box, Button, ButtonBase, Chip, Collapse, IconButton, Paper, Stack, ToggleButton, ToggleButtonGroup, Tooltip, Typography, useTheme } from "@mui/material";
 import React, { type ReactNode } from "react";
 import type { ProjectSummary } from "../../types/projects";
 import { formatDate, getProjectTone, groupProjects } from "../../utils/projects";
@@ -99,8 +98,10 @@ type FavoriteProjectsProps = {
   projects: ProjectSummary[];
   favoriteProjectIds: string[];
   openProjectIds?: string[];
+  density: "compact" | "comfortable";
   onSelectProject: (projectId: string) => void;
   onToggleFavorite: (projectId: string) => void;
+  onDensityChange: (density: "compact" | "comfortable") => void;
   onBrowseRepositories?: () => void;
 };
 
@@ -108,8 +109,10 @@ export const FavoriteProjects = React.memo(function FavoriteProjects({
   projects,
   favoriteProjectIds,
   openProjectIds = EMPTY_PROJECT_IDS,
+  density,
   onSelectProject,
   onToggleFavorite,
+  onDensityChange,
   onBrowseRepositories
 }: FavoriteProjectsProps) {
   const favoriteProjectIdSet = React.useMemo(() => new Set(favoriteProjectIds), [favoriteProjectIds]);
@@ -128,11 +131,27 @@ export const FavoriteProjects = React.memo(function FavoriteProjects({
             Il tuo launchpad personale: stato, attività recente e accesso rapido.
           </Typography>
         </Box>
-        <Chip
-          size="small"
-          variant="outlined"
-          label={`${favoriteProjects.length} ${favoriteProjects.length === 1 ? "salvato" : "salvati"}`}
-        />
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Chip
+            size="small"
+            variant="outlined"
+            label={`${favoriteProjects.length} ${favoriteProjects.length === 1 ? "salvato" : "salvati"}`}
+          />
+          {favoriteProjects.length > 0 ? (
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              value={density}
+              onChange={(_, value: "compact" | "comfortable" | null) => {
+                if (value) onDensityChange(value);
+              }}
+              aria-label="Densità repository preferiti"
+            >
+              <ToggleButton value="compact" aria-label="Densità compatta">Compatta</ToggleButton>
+              <ToggleButton value="comfortable" aria-label="Densità comoda">Comoda</ToggleButton>
+            </ToggleButtonGroup>
+          ) : null}
+        </Stack>
       </Stack>
 
       {favoriteProjects.length === 0 ? (
@@ -149,53 +168,19 @@ export const FavoriteProjects = React.memo(function FavoriteProjects({
           </Stack>
         </Paper>
       ) : (
-        <Paper variant="outlined" sx={{ overflow: "hidden" }}>
-          <Stack divider={<Divider flexItem />}>
-            {favoriteProjects.map((project) => {
-              const localChanges = project.modified + project.staged + project.untracked;
-              const isOpen = openProjectIdSet.has(project.id);
-              return (
-                <Box key={project.id} component="article" sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "stretch", bgcolor: isOpen ? (theme) => alpha(theme.palette.primary.main, 0.045) : "transparent" }}>
-                  <ButtonBase
-                    aria-label={`Apri ${project.name}`}
-                    onClick={() => onSelectProject(project.id)}
-                    sx={{ justifyContent: "flex-start", textAlign: "left", px: { xs: 1.25, sm: 1.75 }, py: 1.35, minWidth: 0 }}
-                  >
-                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(180px, 0.8fr) minmax(220px, 1fr)" }, gap: { xs: 0.9, md: 2 }, width: "100%", minWidth: 0, alignItems: "center" }}>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
-                          <Typography variant="subtitle1" fontWeight={650} noWrap>{project.name}</Typography>
-                          {isOpen ? <Chip size="small" color="primary" variant="outlined" label="Aperto" /> : null}
-                        </Stack>
-                        <Typography variant="caption" color="text.secondary" component="div" noWrap sx={{ fontFamily: "var(--rc-font-mono)" }}>
-                          {project.branch}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Stack direction="row" spacing={0.6} flexWrap="wrap" useFlexGap sx={{ mb: 0.45 }}>
-                          <Chip size="small" color={project.isClean ? "success" : "warning"} variant="outlined" label={project.isClean ? "Pulito" : `${localChanges} modifiche`} />
-                          {project.behind > 0 ? <Chip size="small" color="error" variant="outlined" label={`${project.behind} behind`} /> : null}
-                          {project.ahead > 0 ? <Chip size="small" color="info" variant="outlined" label={`+${project.ahead} ahead`} /> : null}
-                        </Stack>
-                        <Typography variant="caption" color="text.secondary" component="div" noWrap>
-                          {project.lastCommit ? `${project.lastCommit.message} · ${formatDate(project.lastCommit.date)}` : "Nessun commit recente"}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </ButtonBase>
-                  <Stack direction="row" alignItems="center" spacing={0.25} sx={{ pr: 1 }}>
-                    <LaunchOutlinedIcon color="action" sx={{ fontSize: 18 }} />
-                    <Tooltip title="Rimuovi dai preferiti">
-                      <IconButton aria-label={`Rimuovi ${project.name} dai preferiti`} size="small" color="warning" onClick={() => onToggleFavorite(project.id)}>
-                        <StarIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Stack>
-                </Box>
-              );
-            })}
-          </Stack>
-        </Paper>
+        <ProjectCardGrid>
+          {favoriteProjects.map((project) => (
+            <ProjectCard
+              key={project.id}
+              project={project}
+              isFavorite
+              isOpen={openProjectIdSet.has(project.id)}
+              density={density}
+              onSelectProject={onSelectProject}
+              onToggleFavorite={onToggleFavorite}
+            />
+          ))}
+        </ProjectCardGrid>
       )}
     </Box>
   );
@@ -390,7 +375,7 @@ const ProjectCard = React.memo(function ProjectCard({
             <IconButton
               size="small"
               color={isFavorite ? "warning" : "default"}
-              aria-label={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
+              aria-label={isFavorite ? `Rimuovi ${project.name} dai preferiti` : `Aggiungi ${project.name} ai preferiti`}
               onClick={(event) => {
                 event.stopPropagation();
                 onToggleFavorite(project.id);

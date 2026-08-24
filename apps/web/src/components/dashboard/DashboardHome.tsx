@@ -20,6 +20,7 @@ import React from "react";
 import type { DockerContainersResponse } from "../../types/docker";
 import type { ProjectSummary } from "../../types/projects";
 import { buildDashboardSnapshot } from "./dashboardSnapshot";
+import { DashboardPulse } from "./DashboardPulse";
 import type { DashboardSection } from "./DashboardSidebar";
 
 type DashboardHomeProps = {
@@ -59,11 +60,9 @@ export const DashboardHome = React.memo(function DashboardHome({
   );
   const attentionProjects = React.useMemo(
     () => projects
-      .filter((project) => !project.isClean || project.behind > 0)
-      .sort((left, right) => getAttentionScore(right) - getAttentionScore(left)),
+      .filter((project) => !project.isClean || project.behind > 0),
     [projects]
   );
-  const visibleAttentionProjects = attentionProjects.slice(0, 4);
   const favoriteProjectIdSet = React.useMemo(() => new Set(favoriteProjectIds), [favoriteProjectIds]);
 
   React.useEffect(() => {
@@ -102,6 +101,12 @@ export const DashboardHome = React.memo(function DashboardHome({
         </Stack>
       </Box>
 
+      <DashboardPulse
+        projects={projects}
+        snapshot={snapshot}
+        onOpenProject={onOpenProject}
+      />
+
       <Box
         sx={{
           display: "grid",
@@ -116,27 +121,6 @@ export const DashboardHome = React.memo(function DashboardHome({
         }}
       >
         <Stack spacing={1.5} sx={{ minWidth: 0 }}>
-          <WorkbenchPanel>
-            <PanelHeader
-              label="Attenzione"
-              meta={attentionProjects.length > 0 ? `${attentionProjects.length} priorità` : "nessuna priorità"}
-            />
-            {attentionProjects.length > 0 ? (
-              <Stack divider={<Box sx={{ borderBottom: "1px solid", borderColor: "divider" }} />}>
-                {visibleAttentionProjects.map((project) => (
-                  <AttentionRow key={project.id} project={project} onOpen={() => onOpenProject(project.id)} />
-                ))}
-              </Stack>
-            ) : (
-              <Box sx={{ px: 1.75, py: 2.25 }}>
-                <StatusLine tone="success.main" label="Tutto allineato" />
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.65 }}>
-                  Nessuna working tree sporca e nessun repository dietro al proprio upstream.
-                </Typography>
-              </Box>
-            )}
-          </WorkbenchPanel>
-
           <WorkbenchPanel>
             <PanelHeader
               label="Workspace ledger"
@@ -316,48 +300,6 @@ function HeaderFigure({ value, label, tone = "text.primary" }: { value: number; 
   );
 }
 
-function AttentionRow({ project, onOpen }: { project: ProjectSummary; onOpen: () => void }) {
-  const changes = getLocalChangeCount(project);
-  const issue = getProjectIssue(project);
-  const score = Math.min(100, Math.max(12, changes * 8 + project.behind * 14));
-
-  return (
-    <Box
-      sx={{
-        display: "grid",
-        gridTemplateColumns: {
-          xs: "1fr",
-          md: "minmax(150px, .8fr) minmax(180px, 1.2fr)",
-          xl: "minmax(170px, .85fr) minmax(230px, 1.25fr) 110px auto"
-        },
-        gap: { xs: 1, md: 1.5 },
-        alignItems: "center",
-        px: 1.5,
-        py: 1.25
-      }}
-    >
-      <Box sx={{ minWidth: 0 }}>
-        <Stack direction="row" spacing={0.75} alignItems="center">
-          <Box aria-hidden="true" sx={{ width: 3, height: 22, borderRadius: 1, bgcolor: issue.tone }} />
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>{project.name}</Typography>
-            <Typography noWrap component="div" color="text.secondary" sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 9.5 }}>{project.branch}</Typography>
-          </Box>
-        </Stack>
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="caption" noWrap component="div" sx={{ fontWeight: 500 }}>{issue.label}</Typography>
-        <Typography variant="caption" color="text.secondary" noWrap component="div">{issue.detail}</Typography>
-      </Box>
-      <Box>
-        <LinearProgress variant="determinate" value={score} color={issue.color} sx={{ height: 3, bgcolor: "var(--rc-surface-3)" }} />
-        <Typography color="text.secondary" sx={{ mt: 0.45, fontFamily: "var(--rc-font-mono)", fontSize: 9 }}>{changes} file · ↓{project.behind}</Typography>
-      </Box>
-      <Button size="small" variant="outlined" onClick={onOpen}>Apri</Button>
-    </Box>
-  );
-}
-
 function LedgerRow({ project, favorite, runtime, onOpen }: { project: ProjectSummary; favorite: boolean; runtime: string; onOpen: () => void }) {
   const changes = getLocalChangeCount(project);
   const treeTone = project.isClean ? "success.main" : "warning.main";
@@ -420,16 +362,6 @@ function MiniMetric({ label, value }: { label: string; value: number }) {
       <Typography variant="overline" color="text.secondary">{label}</Typography>
     </Box>
   );
-}
-
-function getProjectIssue(project: ProjectSummary): { label: string; detail: string; tone: string; color: "warning" | "error" } {
-  if (project.behind > 0 && !project.isClean) return { label: "Sync bloccata da modifiche locali", detail: `${project.behind} commit remoti da integrare`, tone: "error.main", color: "error" };
-  if (project.behind > 0) return { label: "Repository dietro all’upstream", detail: `${project.behind} commit disponibili in remoto`, tone: "warning.main", color: "warning" };
-  return { label: "Working tree con modifiche", detail: `${getLocalChangeCount(project)} file da revisionare`, tone: "warning.main", color: "warning" };
-}
-
-function getAttentionScore(project: ProjectSummary): number {
-  return project.behind * 20 + getLocalChangeCount(project) + (project.isClean ? 0 : 10);
 }
 
 function getLocalChangeCount(project: ProjectSummary): number {
