@@ -25,6 +25,12 @@ type ThemePaletteTokens = {
     contrastText: string;
     tint: string;
   };
+  secondary: {
+    main: string;
+    dark: string;
+    light: string;
+    contrastText: string;
+  };
 };
 
 const DARK_SURFACES = {
@@ -58,6 +64,12 @@ const COLOR_PALETTE_TOKENS: Record<ColorPalette, ThemePaletteTokens> = {
       light: "#796cbf",
       contrastText: "#fdfdff",
       tint: "#e7e5fe"
+    },
+    secondary: {
+      main: "#423a6a",
+      dark: "#2b2741",
+      light: "#796cbf",
+      contrastText: "#fdfdff"
     }
   },
   black: {
@@ -68,36 +80,87 @@ const COLOR_PALETTE_TOKENS: Record<ColorPalette, ThemePaletteTokens> = {
       light: "#b5abfc",
       contrastText: "#161826",
       tint: "#2b2741"
+    },
+    secondary: {
+      main: "#a7a1db",
+      dark: "#796cbf",
+      light: "#d2cefd",
+      contrastText: "#161826"
     }
   },
   red: {
-    ...DARK_SURFACES,
+    mode: "dark",
+    background: "#1b1618",
+    surface1: "#211a1d",
+    surface2: "#2a2024",
+    surface3: "#34272c",
+    divider: "rgba(244, 224, 230, 0.10)",
+    strongDivider: "rgba(244, 224, 230, 0.18)",
+    textPrimary: "#f0e8eb",
+    textSecondary: "#aa959c",
+    textTertiary: "#8c7880",
     primary: {
       main: "#e0836f",
       dark: "#b75f4c",
       light: "#f2a695",
-      contrastText: "#161826",
+      contrastText: "#1b1618",
       tint: "#3d292c"
+    },
+    secondary: {
+      main: "#d7a296",
+      dark: "#b66f60",
+      light: "#f5c1b5",
+      contrastText: "#1b1618"
     }
   },
   blue: {
-    ...DARK_SURFACES,
+    mode: "dark",
+    background: "#131a21",
+    surface1: "#182129",
+    surface2: "#1f2a34",
+    surface3: "#273541",
+    divider: "rgba(225, 238, 247, 0.10)",
+    strongDivider: "rgba(225, 238, 247, 0.18)",
+    textPrimary: "#e8eef2",
+    textSecondary: "#95a5b1",
+    textTertiary: "#788b98",
     primary: {
       main: "#74b3d9",
       dark: "#4b8db6",
       light: "#a2d1ed",
-      contrastText: "#161826",
+      contrastText: "#131a21",
       tint: "#223344"
+    },
+    secondary: {
+      main: "#91bfd8",
+      dark: "#5d94b2",
+      light: "#c1e0f1",
+      contrastText: "#131a21"
     }
   },
   green: {
-    ...DARK_SURFACES,
+    mode: "dark",
+    background: "#131b18",
+    surface1: "#18221e",
+    surface2: "#1f2b26",
+    surface3: "#27372f",
+    divider: "rgba(226, 241, 233, 0.10)",
+    strongDivider: "rgba(226, 241, 233, 0.18)",
+    textPrimary: "#e8f0ec",
+    textSecondary: "#94a79e",
+    textTertiary: "#778c82",
     primary: {
       main: "#6cc2a1",
       dark: "#489778",
       light: "#99dec3",
-      contrastText: "#161826",
+      contrastText: "#131b18",
       tint: "#213a36"
+    },
+    secondary: {
+      main: "#8bcab2",
+      dark: "#5a9b82",
+      light: "#b9e7d5",
+      contrastText: "#131b18"
     }
   }
 };
@@ -107,12 +170,13 @@ export const COLOR_PALETTE_OPTIONS: ReadonlyArray<{
   label: string;
   color: string;
   surface: string;
+  description: string;
 }> = [
-  { id: "white", label: "Bianco", color: "#5d5294", surface: "#fdfdff" },
-  { id: "black", label: "Nero", color: "#9184d9", surface: "#161826" },
-  { id: "red", label: "Rosso", color: "#e0836f", surface: "#161826" },
-  { id: "blue", label: "Blu", color: "#74b3d9", surface: "#161826" },
-  { id: "green", label: "Verde", color: "#6cc2a1", surface: "#161826" }
+  { id: "white", label: "Bianco", color: "#5d5294", surface: "#fdfdff", description: "Tema chiaro neutro" },
+  { id: "black", label: "Nero", color: "#9184d9", surface: "#161826", description: "Tema scuro neutro" },
+  { id: "red", label: "Rosso", color: "#e0836f", surface: "#1b1618", description: "Tema scuro caldo" },
+  { id: "blue", label: "Blu", color: "#74b3d9", surface: "#131a21", description: "Tema scuro freddo" },
+  { id: "green", label: "Verde", color: "#6cc2a1", surface: "#131b18", description: "Tema scuro naturale" }
 ];
 
 export function createAppTheme(colorPalette: ColorPalette) {
@@ -135,10 +199,10 @@ export function createAppTheme(colorPalette: ColorPalette) {
         contrastText: tokens.primary.contrastText
       },
       secondary: {
-        main: isLight ? "#423a6a" : "#a7a1db",
-        dark: isLight ? "#2b2741" : "#796cbf",
-        light: isLight ? "#796cbf" : "#d2cefd",
-        contrastText: isLight ? "#fdfdff" : "#161826"
+        main: tokens.secondary.main,
+        dark: tokens.secondary.dark,
+        light: tokens.secondary.light,
+        contrastText: tokens.secondary.contrastText
       },
       success: { main: semantic.success },
       warning: { main: semantic.warning },

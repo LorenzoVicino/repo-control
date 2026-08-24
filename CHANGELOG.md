@@ -6,6 +6,24 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.8.0] - 2026-08-24
+
+### Added
+
+- Add a compact operational snapshot to the Dashboard with workspace readiness, continuously animated status bars and a staged, modified and untracked change-load chart.
+- Add a complete repo-control icon suite for browser tabs, installed apps, Apple devices, maskable PWA surfaces, Safari and Windows tiles.
+
+### Changed
+
+- Reuse the repository card grid in Favorites and share the compact or comfortable density preference with the repository catalog.
+- Give every application palette its own background, surfaces, secondary colors and page chrome instead of changing only the accent color.
+- Refresh the sidebar, README header and GitHub social preview with the repo-control Orbit mark.
+- Remove the redundant Dashboard attention panel now that operational signals summarize the same workspace state.
+
+### Fixed
+
+- Correct the SVG favicon color definitions so the Orbit mark renders consistently across browsers.
+
 ## [0.7.0] - 2026-08-14
 
 ### Added

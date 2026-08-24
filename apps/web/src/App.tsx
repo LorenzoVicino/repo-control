@@ -28,6 +28,19 @@ export function App() {
     window.localStorage.setItem(COLOR_PALETTE_STORAGE_KEY, colorPalette);
   }, [colorPalette]);
 
+  React.useLayoutEffect(() => {
+    const backgroundColor = theme.palette.background.default;
+    const previousRootBackground = document.documentElement.style.backgroundColor;
+    const previousBodyBackground = document.body.style.backgroundColor;
+    document.documentElement.style.backgroundColor = backgroundColor;
+    document.body.style.backgroundColor = backgroundColor;
+
+    return () => {
+      document.documentElement.style.backgroundColor = previousRootBackground;
+      document.body.style.backgroundColor = previousBodyBackground;
+    };
+  }, [theme.palette.background.default]);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />

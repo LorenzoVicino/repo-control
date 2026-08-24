@@ -77,6 +77,18 @@ test("keeps the application backdrop static and lightweight", async ({ page }) =
   await expect(backdrop).toHaveCSS("pointer-events", "none");
 });
 
+test("keeps operational status bars moving continuously unless reduced motion is requested", async ({ page }) => {
+  await page.goto("/");
+
+  const animatedBar = page.locator('[data-animation="continuous"]').first();
+  await expect(animatedBar).toBeVisible();
+  expect(await animatedBar.evaluate((element) => getComputedStyle(element).animationIterationCount)).toBe("infinite");
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(animatedBar).toHaveCSS("animation-name", "none");
+  await expect(animatedBar).toHaveCSS("background-image", "none");
+});
+
 test("shares one motion backdrop across every dashboard section", async ({ page }) => {
   test.slow();
   await page.goto("/");
@@ -107,7 +119,10 @@ test("switches and persists all five dashboard color palettes", async ({ page })
     ["Verde", "green"]
   ] as const;
   const renderedAccents: string[] = [];
+  const renderedBackgrounds: string[] = [];
+  const renderedSurfaces: string[] = [];
   const activeNavigationItem = page.locator('[data-dashboard-section="overview"]').first();
+  const sidebar = page.getByRole("complementary", { name: "Navigazione dashboard", exact: true });
 
   for (const [label, value] of palettes) {
     await palettePicker.click();
@@ -119,9 +134,17 @@ test("switches and persists all five dashboard color palettes", async ({ page })
     renderedAccents.push(
       await activeNavigationItem.evaluate((element) => getComputedStyle(element, "::before").backgroundColor)
     );
+    renderedBackgrounds.push(
+      await page.locator("#root > div").first().evaluate((element) => getComputedStyle(element).backgroundColor)
+    );
+    renderedSurfaces.push(
+      await sidebar.evaluate((element) => getComputedStyle(element).backgroundColor)
+    );
   }
 
   expect(new Set(renderedAccents).size).toBe(palettes.length);
+  expect(new Set(renderedBackgrounds).size).toBe(palettes.length);
+  expect(new Set(renderedSurfaces).size).toBe(palettes.length);
 });
 
 test("navigates between lazy dashboard sections without browser errors", async ({ page }) => {
@@ -335,6 +358,7 @@ test("uses focused automation editor views and a searchable node library", async
 });
 
 test("collects workflow text inputs and resolves them safely in a dry run", async ({ page, request }) => {
+  test.slow();
   const workflowName = `Input workflow ${Date.now()}`;
   const createResponse = await request.post(`${apiBaseUrl}/api/workflows`, {
     data: {

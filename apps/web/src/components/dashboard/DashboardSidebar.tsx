@@ -179,22 +179,19 @@ function SidebarContent({
         sx={{ minHeight: 62, px: collapsed ? 1 : 1.5, flexShrink: 0 }}
       >
         <Box
+          component="img"
+          data-testid="repo-control-logo"
+          src="/icon/repo-control-icon-medium.svg"
+          alt=""
           aria-hidden="true"
           sx={{
             width: 30,
             height: 30,
-            display: collapsed ? "none" : "grid",
-            placeItems: "center",
+            display: collapsed ? "none" : "block",
             flexShrink: 0,
-            border: "1px solid",
-            borderColor: "primary.main",
-            borderRadius: 1,
-            color: "primary.light",
-            bgcolor: "var(--rc-accent-tint)"
+            borderRadius: 1
           }}
-        >
-          <AccountTreeOutlinedIcon sx={{ fontSize: 17 }} />
-        </Box>
+        />
         {collapsed ? null : (
           <Box sx={{ minWidth: 0, flexGrow: 1, overflow: "hidden", whiteSpace: "nowrap" }}>
             <Typography noWrap sx={{ fontSize: 13, fontWeight: 500, lineHeight: 1.25 }}>
@@ -514,7 +511,7 @@ function SidebarContent({
           >
             <Typography variant="overline" color="text.disabled" component="div">Aspetto interfaccia</Typography>
             <Typography color="text.secondary" sx={{ mt: 0.35, fontSize: 10.5, whiteSpace: "normal" }}>
-              Scegli superficie e colore accento.
+              Scegli una palette completa per superfici e accenti.
             </Typography>
           </ListSubheader>
           {COLOR_PALETTE_OPTIONS.map((option) => {
@@ -549,7 +546,7 @@ function SidebarContent({
                 <Box sx={{ minWidth: 0, flexGrow: 1 }}>
                   <Typography variant="body2" fontWeight={isSelected ? 600 : 500}>{option.label}</Typography>
                   <Typography component="div" color="text.disabled" sx={{ mt: 0.1, fontSize: 10 }}>
-                    {option.id === "white" ? "Tema chiaro" : "Tema scuro"}
+                    {option.description}
                   </Typography>
                 </Box>
                 {isSelected ? <CheckRoundedIcon color="primary" fontSize="small" /> : null}

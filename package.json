@@ -1,6 +1,6 @@
 {
   "name": "repo-control",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "license": "MIT",
   "description": "Local-first command center for inspecting, operating and automating multi-repository workspaces.",
@@ -20,7 +20,7 @@
     "test:server": "node scripts/run-tests.cjs",
     "test:server:coverage": "c8 --all --include=apps/server/src/**/*.ts --exclude=apps/server/src/**/*.test.ts --exclude=apps/server/src/**/types.ts --check-coverage --lines=80 --branches=80 --functions=80 --statements=80 npm run test:server",
     "test:web": "vitest run --config vitest.config.ts",
-    "test:web:coverage": "vitest run --config vitest.config.ts --coverage",
+    "test:web:coverage": "vitest run --config vitest.config.ts --coverage --maxWorkers=1",
     "test:coverage": "npm run test:server:coverage && npm run test:web:coverage",
     "test:e2e": "playwright test",
     "check": "npm run lint && npm run typecheck",

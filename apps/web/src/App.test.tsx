@@ -33,8 +33,10 @@ describe("application theme bootstrap", () => {
     render(<App />);
 
     const paletteButton = screen.getByRole("button", { name: "palette-red" });
+    expect(document.body).toHaveStyle({ backgroundColor: createAppTheme("red").palette.background.default });
     await user.click(paletteButton);
     expect(screen.getByRole("button", { name: "palette-blue" })).toBeVisible();
+    expect(document.body).toHaveStyle({ backgroundColor: createAppTheme("blue").palette.background.default });
     expect(window.localStorage.getItem(COLOR_PALETTE_STORAGE_KEY)).toBe("blue");
   });
 
@@ -66,5 +68,8 @@ describe("application theme bootstrap", () => {
       "dark"
     ]);
     expect(themes.every((theme) => theme.palette.primary.main.length > 0)).toBe(true);
+    expect(new Set(themes.map((theme) => theme.palette.background.default)).size).toBe(themes.length);
+    expect(new Set(themes.map((theme) => theme.palette.background.paper)).size).toBe(themes.length);
+    expect(new Set(themes.map((theme) => theme.palette.secondary.main)).size).toBe(themes.length);
   });
 });

@@ -34,6 +34,10 @@ describe("DashboardSidebar", () => {
     );
 
     const navigation = within(screen.getByLabelText("Navigazione dashboard"));
+    expect(navigation.getByTestId("repo-control-logo")).toHaveAttribute(
+      "src",
+      "/icon/repo-control-icon-medium.svg"
+    );
     expect(navigation.getByText("4")).toBeVisible();
     expect(navigation.getByText("2")).toBeVisible();
     expect(navigation.getByText("1")).toBeVisible();

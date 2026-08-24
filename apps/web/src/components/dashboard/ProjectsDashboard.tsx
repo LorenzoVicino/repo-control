@@ -640,8 +640,10 @@ export function ProjectsDashboard({
                 projects={projects}
                 favoriteProjectIds={favoriteProjectIds}
                 openProjectIds={openProjectIds}
+                density={repositoryDensity}
                 onSelectProject={openProject}
                 onToggleFavorite={toggleFavoriteProject}
+                onDensityChange={setRepositoryDensity}
                 onBrowseRepositories={() => navigateToSection("repositories")}
               />
             </ViewEntrance>
