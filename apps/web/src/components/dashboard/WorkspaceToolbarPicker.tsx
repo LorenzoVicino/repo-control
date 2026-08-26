@@ -1,19 +1,37 @@
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import { CircularProgress, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import { useTranslation } from "react-i18next";
 
 type WorkspaceToolbarPickerProps = {
   root: string;
   error: string | null;
   isPicking: boolean;
+  isScanning?: boolean;
   onPick: () => void;
 };
 
-export function WorkspaceToolbarPicker({ root, error, isPicking, onPick }: WorkspaceToolbarPickerProps) {
-  const displayPath = root || "Seleziona workspace";
+export function WorkspaceToolbarPicker({
+  root,
+  error,
+  isPicking,
+  isScanning = false,
+  onPick
+}: WorkspaceToolbarPickerProps) {
+  const { t } = useTranslation();
+  const displayPath = root || t("navigation.selectWorkspace");
+  const isBusy = isPicking || isScanning;
+  const statusText = isPicking
+    ? t("navigation.openingFolderPicker")
+    : isScanning
+      ? t("navigation.scanningWorkspace")
+      : displayPath;
+  const accessibleLabel = isBusy ? statusText : t("navigation.changeWorkspace");
 
   return (
-    <Tooltip title={error ?? `${displayPath} · Ctrl+O`} disableInteractive>
+    <Tooltip title={error ?? (isBusy ? statusText : `${displayPath} · Ctrl+O`)} disableInteractive>
       <Stack
+        aria-busy={isBusy}
+        aria-live="polite"
         direction="row"
         spacing={0.75}
         alignItems="center"
@@ -24,7 +42,7 @@ export function WorkspaceToolbarPicker({ root, error, isPicking, onPick }: Works
           px: 1,
           minHeight: 38,
           border: "1px solid",
-          borderColor: error ? "error.main" : "divider",
+          borderColor: error ? "error.main" : isScanning ? "primary.main" : "divider",
           borderRadius: 0.875,
           bgcolor: "background.paper",
           transition: "border-color 160ms ease",
@@ -41,7 +59,7 @@ export function WorkspaceToolbarPicker({ root, error, isPicking, onPick }: Works
             color: error ? "error.main" : "text.secondary"
           }}
         >
-          {displayPath}
+          {statusText}
         </Typography>
 
         <Typography
@@ -49,7 +67,7 @@ export function WorkspaceToolbarPicker({ root, error, isPicking, onPick }: Works
           variant="caption"
           color="text.secondary"
           sx={{
-            display: { xs: "none", lg: "inline" },
+            display: isBusy ? "none" : { xs: "none", lg: "inline" },
             px: 0.65,
             py: 0.15,
             border: "1px solid",
@@ -68,11 +86,11 @@ export function WorkspaceToolbarPicker({ root, error, isPicking, onPick }: Works
           size="small"
           color={error ? "error" : "primary"}
           onClick={onPick}
-          disabled={isPicking}
-          aria-label="Cambia workspace folder, scorciatoia Ctrl+O"
+          disabled={isBusy}
+          aria-label={accessibleLabel}
           sx={{ width: 28, height: 28, flexShrink: 0 }}
         >
-          {isPicking ? <CircularProgress color="inherit" size={15} /> : <FolderOpenIcon fontSize="small" />}
+          {isBusy ? <CircularProgress color="inherit" size={15} /> : <FolderOpenIcon fontSize="small" />}
         </IconButton>
       </Stack>
     </Tooltip>

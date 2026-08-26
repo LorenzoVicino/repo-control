@@ -10,6 +10,7 @@ import LanOutlinedIcon from "@mui/icons-material/LanOutlined";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import StarBorderOutlinedIcon from "@mui/icons-material/StarBorderOutlined";
 import StorageOutlinedIcon from "@mui/icons-material/StorageOutlined";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import {
   alpha,
   Box,
@@ -27,6 +28,7 @@ import {
   Typography
 } from "@mui/material";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { APP_VERSION } from "../../config";
 import { COLOR_PALETTE_OPTIONS } from "../../theme";
 import type { ColorPalette } from "../../types/common";
@@ -40,7 +42,8 @@ export type DashboardSection =
   | "automations"
   | "docker"
   | "favorites"
-  | "repositories";
+  | "repositories"
+  | "settings";
 
 const DESKTOP_SIDEBAR_WIDTH = 236;
 const COLLAPSED_SIDEBAR_WIDTH = 64;
@@ -48,16 +51,17 @@ const MOBILE_SIDEBAR_WIDTH = 276;
 
 const NAV_ITEMS: Array<{
   id: DashboardSection;
-  label: string;
+  labelKey: `navigation.sections.${DashboardSection}`;
   icon: React.ReactElement;
 }> = [
-  { id: "overview", label: "Dashboard", icon: <DashboardOutlinedIcon /> },
-  { id: "repositories", label: "Repository", icon: <AccountTreeOutlinedIcon /> },
-  { id: "favorites", label: "Preferiti", icon: <StarBorderOutlinedIcon /> },
-  { id: "docker", label: "Docker", icon: <StorageOutlinedIcon /> },
-  { id: "agents", label: "Agent sessions", icon: <SmartToyOutlinedIcon /> },
-  { id: "automations", label: "Automazioni", icon: <HubOutlinedIcon /> },
-  { id: "tasks", label: "Task engineering", icon: <LanOutlinedIcon /> }
+  { id: "overview", labelKey: "navigation.sections.overview", icon: <DashboardOutlinedIcon /> },
+  { id: "repositories", labelKey: "navigation.sections.repositories", icon: <AccountTreeOutlinedIcon /> },
+  { id: "favorites", labelKey: "navigation.sections.favorites", icon: <StarBorderOutlinedIcon /> },
+  { id: "docker", labelKey: "navigation.sections.docker", icon: <StorageOutlinedIcon /> },
+  { id: "agents", labelKey: "navigation.sections.agents", icon: <SmartToyOutlinedIcon /> },
+  { id: "automations", labelKey: "navigation.sections.automations", icon: <HubOutlinedIcon /> },
+  { id: "tasks", labelKey: "navigation.sections.tasks", icon: <LanOutlinedIcon /> },
+  { id: "settings", labelKey: "navigation.sections.settings", icon: <SettingsOutlinedIcon /> }
 ];
 
 type DashboardSidebarProps = {
@@ -72,6 +76,7 @@ type DashboardSidebarProps = {
   workspaceRoot: string;
   rootError: string | null;
   isPickingRoot: boolean;
+  isScanningRoot?: boolean;
   openProjects?: ProjectSummary[];
   activeProjectId?: string | null;
   onNavigate: (section: DashboardSection) => void;
@@ -83,11 +88,13 @@ type DashboardSidebarProps = {
 };
 
 export function DashboardSidebar(props: DashboardSidebarProps) {
+  const { t } = useTranslation();
+
   return (
     <>
       <Box
         component="aside"
-        aria-label="Navigazione dashboard"
+        aria-label={t("navigation.ariaLabel")}
         sx={{
           display: { xs: "none", md: "flex" },
           position: "sticky",
@@ -113,7 +120,7 @@ export function DashboardSidebar(props: DashboardSidebarProps) {
         ModalProps={{ keepMounted: true }}
         PaperProps={{
           component: "aside",
-          "aria-label": "Navigazione dashboard mobile",
+          "aria-label": t("navigation.mobileAriaLabel"),
           sx: {
             width: MOBILE_SIDEBAR_WIDTH,
             maxWidth: "calc(100vw - 32px)",
@@ -145,6 +152,7 @@ function SidebarContent({
   workspaceRoot,
   rootError,
   isPickingRoot,
+  isScanningRoot = false,
   openProjects = [],
   activeProjectId = null,
   onNavigate,
@@ -155,8 +163,15 @@ function SidebarContent({
   onColorPaletteChange,
   isMobile
 }: SidebarContentProps) {
+  const { t } = useTranslation();
   const [paletteMenuAnchor, setPaletteMenuAnchor] = React.useState<HTMLElement | null>(null);
   const paletteMenuId = React.useId();
+  const isWorkspaceBusy = isPickingRoot || isScanningRoot;
+  const workspacePickerLabel = isPickingRoot
+    ? t("navigation.openingFolderPicker")
+    : isScanningRoot
+      ? t("navigation.scanningWorkspace")
+      : t("navigation.changeWorkspace");
   const activePalette = COLOR_PALETTE_OPTIONS.find((option) => option.id === colorPalette)
     ?? COLOR_PALETTE_OPTIONS[0];
   const counts: Record<DashboardSection, number | null> = {
@@ -166,7 +181,8 @@ function SidebarContent({
     automations: null,
     repositories: repositoryCount,
     favorites: favoriteCount,
-    docker: dockerCount
+    docker: dockerCount,
+    settings: null
   };
 
   return (
@@ -208,11 +224,11 @@ function SidebarContent({
           </Box>
         )}
         {isMobile ? null : (
-          <Tooltip title={collapsed ? "Espandi sidebar" : "Comprimi sidebar"} placement="right">
+          <Tooltip title={collapsed ? t("navigation.expandSidebar") : t("navigation.collapseSidebar")} placement="right">
             <IconButton
               size="small"
               onClick={onToggleCollapsed}
-              aria-label={collapsed ? "Espandi sidebar" : "Comprimi sidebar"}
+              aria-label={collapsed ? t("navigation.expandSidebar") : t("navigation.collapseSidebar")}
               sx={{ flexShrink: 0 }}
             >
               {collapsed ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
@@ -225,7 +241,7 @@ function SidebarContent({
 
       <Box
         component="nav"
-        aria-label="Sezioni dashboard"
+        aria-label={t("navigation.sectionsAriaLabel")}
         sx={{ flexGrow: 1, minHeight: 0, overflowY: "auto", px: 1, py: 1.25 }}
       >
         <Typography
@@ -240,15 +256,16 @@ function SidebarContent({
             transition: "opacity 140ms ease, height 180ms ease"
           }}
         >
-          Spazio di lavoro
+          {t("navigation.workspaceGroup")}
         </Typography>
         <Stack spacing={0.25}>
           {NAV_ITEMS.filter((item) => item.id !== "docker" || dockerAvailable).map((item) => {
             const count = counts[item.id];
             const isActive = activeSection === item.id;
+            const label = t(item.labelKey);
 
             return (
-              <Tooltip key={item.id} title={collapsed ? item.label : ""} placement="right">
+              <Tooltip key={item.id} title={collapsed ? label : ""} placement="right">
                 <ButtonBase
                   data-dashboard-section={item.id}
                   onClick={() => {
@@ -309,7 +326,7 @@ function SidebarContent({
                       transition: "opacity 140ms ease, max-width 220ms ease"
                     }}
                   >
-                    {item.label}
+                    {label}
                   </Typography>
                   {!collapsed && count !== null ? (
                     <Chip
@@ -329,7 +346,7 @@ function SidebarContent({
         {!collapsed && openProjects.length > 0 ? (
           <Box sx={{ mt: 2 }}>
             <Typography variant="overline" color="text.secondary" sx={{ display: "block", px: 1, mb: 0.5 }}>
-              Aperti
+              {t("navigation.openProjects")}
             </Typography>
             <Stack spacing={0.25}>
               {openProjects.slice(0, 5).map((project) => {
@@ -396,19 +413,21 @@ function SidebarContent({
       >
         {collapsed ? (
           <Tooltip
-            title={`${workspaceRoot || "Seleziona workspace"} · Ctrl+O`}
+            title={isWorkspaceBusy
+              ? workspacePickerLabel
+              : `${workspaceRoot || t("navigation.selectWorkspace")} · Ctrl+O`}
             placement="right"
             disableInteractive
           >
             <span>
               <IconButton
                 onClick={onPickWorkspace}
-                disabled={isPickingRoot}
+                disabled={isWorkspaceBusy}
                 color={rootError ? "error" : "primary"}
-                aria-label="Cambia workspace folder, scorciatoia Ctrl+O"
+                aria-label={workspacePickerLabel}
                 sx={{ display: "flex", mx: "auto" }}
               >
-                {isPickingRoot ? <CircularProgress color="inherit" size={17} /> : <FolderOpenOutlinedIcon />}
+                {isWorkspaceBusy ? <CircularProgress color="inherit" size={17} /> : <FolderOpenOutlinedIcon />}
               </IconButton>
             </span>
           </Tooltip>
@@ -417,16 +436,24 @@ function SidebarContent({
             root={workspaceRoot}
             error={rootError}
             isPicking={isPickingRoot}
+            isScanning={isScanningRoot}
             onPick={onPickWorkspace}
           />
         )}
       </Box>
 
       <Box sx={{ px: 1, pb: 1, flexShrink: 0, bgcolor: "var(--rc-surface-2)" }}>
-        <Tooltip title={collapsed ? `Aspetto: ${activePalette.label}` : ""} placement="right">
+        <Tooltip
+          title={collapsed
+            ? t("navigation.appearanceActive", { palette: t(`appearance.palettes.${activePalette.id}.label`) })
+            : ""}
+          placement="right"
+        >
           <ButtonBase
             onClick={(event) => setPaletteMenuAnchor(event.currentTarget)}
-            aria-label={`Seleziona palette colori. Palette attiva: ${activePalette.label}`}
+            aria-label={t("navigation.selectPalette", {
+              palette: t(`appearance.palettes.${activePalette.id}.label`)
+            })}
             aria-haspopup="menu"
             aria-controls={paletteMenuAnchor ? paletteMenuId : undefined}
             aria-expanded={Boolean(paletteMenuAnchor)}
@@ -464,10 +491,10 @@ function SidebarContent({
             {collapsed ? null : (
               <Box sx={{ minWidth: 0, textAlign: "left" }}>
                 <Typography component="div" variant="overline" color="text.disabled" sx={{ lineHeight: 1.15 }}>
-                  Aspetto
+                  {t("navigation.appearance")}
                 </Typography>
                 <Typography component="div" variant="body2" noWrap sx={{ mt: 0.2, fontWeight: 500, color: "text.primary" }}>
-                  {activePalette.label}
+                  {t(`appearance.palettes.${activePalette.id}.label`)}
                 </Typography>
               </Box>
             )}
@@ -492,7 +519,7 @@ function SidebarContent({
           transformOrigin={{ vertical: "bottom", horizontal: "left" }}
           slotProps={{
             list: {
-              "aria-label": "Palette colori",
+              "aria-label": t("navigation.paletteMenu"),
               sx: { p: 0.75, minWidth: 224 }
             },
             paper: {
@@ -509,9 +536,11 @@ function SidebarContent({
             disableSticky
             sx={{ px: 1.25, py: 0.75, bgcolor: "transparent", lineHeight: 1.25 }}
           >
-            <Typography variant="overline" color="text.disabled" component="div">Aspetto interfaccia</Typography>
+            <Typography variant="overline" color="text.disabled" component="div">
+              {t("navigation.appearanceMenuTitle")}
+            </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.35, fontSize: 10.5, whiteSpace: "normal" }}>
-              Scegli una palette completa per superfici e accenti.
+              {t("navigation.appearanceMenuDescription")}
             </Typography>
           </ListSubheader>
           {COLOR_PALETTE_OPTIONS.map((option) => {
@@ -521,7 +550,7 @@ function SidebarContent({
               <MenuItem
                 key={option.id}
                 role="menuitemradio"
-                aria-label={option.label}
+                aria-label={t(`appearance.palettes.${option.id}.label`)}
                 aria-checked={isSelected}
                 selected={isSelected}
                 onClick={() => {
@@ -544,9 +573,11 @@ function SidebarContent({
                   }}
                 />
                 <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-                  <Typography variant="body2" fontWeight={isSelected ? 600 : 500}>{option.label}</Typography>
+                  <Typography variant="body2" fontWeight={isSelected ? 600 : 500}>
+                    {t(`appearance.palettes.${option.id}.label`)}
+                  </Typography>
                   <Typography component="div" color="text.disabled" sx={{ mt: 0.1, fontSize: 10 }}>
-                    {option.description}
+                    {t(`appearance.palettes.${option.id}.description`)}
                   </Typography>
                 </Box>
                 {isSelected ? <CheckRoundedIcon color="primary" fontSize="small" /> : null}

@@ -3,8 +3,12 @@ import type { GitActivity, GitDetails, GitFileDiff } from "../types/git";
 import type { ProjectSummary, ProjectsResponse } from "../types/projects";
 import { isRecord, jsonRequest, requestJson } from "./http";
 
-export function fetchProjects(): Promise<ProjectsResponse> {
-  return requestJson("/api/projects", "Unable to load projects");
+export function fetchProjects(signal?: AbortSignal): Promise<ProjectsResponse> {
+  return requestJson(
+    "/api/projects",
+    "Unable to load projects",
+    signal ? { signal } : undefined
+  );
 }
 
 export function fetchProjectSummary(projectId: string): Promise<ProjectSummary> {

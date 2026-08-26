@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createProjectFixture } from "../../test/projectFixture";
@@ -100,8 +100,13 @@ vi.mock("../../api/brain", () => ({
 vi.mock("./AppMotionBackdrop", () => ({ AppMotionBackdrop: () => <div data-testid="motion" /> }));
 vi.mock("./DashboardSidebar", () => ({
   DashboardSidebar: (props: Record<string, unknown>) => (
-    <div data-testid="sidebar" data-collapsed={String(props.collapsed)} data-root-error={String(props.rootError)}>
-      {["overview", "tasks", "agents", "automations", "docker", "favorites", "repositories"].map((section) => (
+    <div
+      data-testid="sidebar"
+      data-collapsed={String(props.collapsed)}
+      data-root-error={String(props.rootError)}
+      data-scanning={String(props.isScanningRoot)}
+    >
+      {["overview", "tasks", "agents", "automations", "docker", "favorites", "repositories", "settings"].map((section) => (
         <button key={section} onClick={() => (props.onNavigate as (value: string) => void)(section)}>
           nav-{section}
         </button>
@@ -202,6 +207,7 @@ vi.mock("../project/ProjectDetailPanel", () => ({
 vi.mock("../agents/AgentSessionsPage", () => ({ AgentSessionsPage: () => <div data-testid="agents-page" /> }));
 vi.mock("../automation/AutomationPage", () => ({ AutomationPage: () => <div data-testid="automation-page" /> }));
 vi.mock("../task/TaskEngineeringPage", () => ({ TaskEngineeringPage: () => <div data-testid="tasks-page" /> }));
+vi.mock("../settings/SettingsPage", () => ({ SettingsPage: () => <div data-testid="settings-page" /> }));
 vi.mock("./AppUpdateDialog", () => ({
   AppUpdateDialog: (props: Record<string, unknown>) => (
     <div data-testid="update-dialog" data-open={String(props.open)} data-result={String(Boolean(props.result))}>
@@ -344,6 +350,8 @@ describe("ProjectsDashboard orchestration", () => {
     expect(screen.getByTestId("appbar")).toHaveAttribute("data-section", "automations");
     await user.click(screen.getByText("nav-tasks"));
     expect(screen.getByTestId("appbar")).toHaveAttribute("data-section", "tasks");
+    await user.click(screen.getByText("nav-settings"));
+    expect(screen.getByTestId("settings-page")).toBeVisible();
 
     await user.click(screen.getByText("nav-docker"));
     expect(await screen.findByTestId("control-center")).toBeVisible();
@@ -410,4 +418,60 @@ describe("ProjectsDashboard orchestration", () => {
     await user.click(await screen.findByText("docker-stop"));
     expect(screen.getByTestId("control-center")).toHaveAttribute("data-error", "Unable to stop Docker containers");
   }, 20_000);
+
+  it("reports the workspace scan phase and cancels stale project data", async () => {
+    const user = userEvent.setup();
+    let finishScan: ((value: { root: string; projects: [] }) => void) | undefined;
+
+    renderDashboard();
+    expect(await screen.findByTestId("home")).toBeVisible();
+
+    vi.mocked(pickWorkspaceFolder).mockResolvedValueOnce("/new-workspace");
+    vi.mocked(fetchProjects).mockImplementationOnce(() => new Promise((resolve) => {
+      finishScan = resolve;
+    }));
+
+    await user.click(screen.getByText("pick-workspace"));
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar")).toHaveAttribute("data-scanning", "true");
+    });
+    expect(screen.queryByTestId("home")).not.toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Scanning workspace…" })).toBeVisible();
+
+    await act(async () => {
+      finishScan?.({ root: "/new-workspace", projects: [] });
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar")).toHaveAttribute("data-scanning", "false");
+    });
+    expect(setRootPath).toHaveBeenCalledWith("/new-workspace");
+    expect(await screen.findByTestId("home")).toBeVisible();
+    expect(screen.queryByRole("status", { name: "Scanning workspace…" })).not.toBeInTheDocument();
+  });
+
+  it("shows a shimmering skeleton in place of the repository grid while a scan is in flight", async () => {
+    const user = userEvent.setup();
+    let finishScan: ((value: { root: string; projects: [] }) => void) | undefined;
+
+    renderDashboard();
+    await user.click(screen.getByText("nav-repositories"));
+    expect(await screen.findByTestId("workspace-map")).toBeVisible();
+
+    vi.mocked(pickWorkspaceFolder).mockResolvedValueOnce("/new-workspace");
+    vi.mocked(fetchProjects).mockImplementationOnce(() => new Promise((resolve) => {
+      finishScan = resolve;
+    }));
+
+    await user.click(screen.getByText("pick-workspace"));
+    await waitFor(() => {
+      expect(screen.queryByTestId("workspace-map")).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole("status", { name: "Scanning workspace…" })).toBeVisible();
+
+    await act(async () => {
+      finishScan?.({ root: "/new-workspace", projects: [] });
+    });
+    expect(await screen.findByTestId("workspace-map")).toBeVisible();
+    expect(screen.queryByRole("status", { name: "Scanning workspace…" })).not.toBeInTheDocument();
+  });
 });
