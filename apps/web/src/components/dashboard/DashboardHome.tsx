@@ -17,6 +17,7 @@ import {
   Typography
 } from "@mui/material";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { DockerContainersResponse } from "../../types/docker";
 import type { ProjectSummary } from "../../types/projects";
 import { buildDashboardSnapshot } from "./dashboardSnapshot";
@@ -34,6 +35,14 @@ type DashboardHomeProps = {
 type Quote = { text: string; author: string };
 
 const LAST_QUOTE_STORAGE_KEY = "repo-control-last-dashboard-quote";
+const LEDGER_COLUMN_KEYS = [
+  "dashboard.home.columns.repository",
+  "dashboard.home.columns.branch",
+  "dashboard.home.columns.tree",
+  "dashboard.home.columns.sync",
+  "dashboard.home.columns.runtime",
+  "dashboard.home.columns.lastCommit"
+] as const;
 const QUOTES: Quote[] = [
   { text: "We can only see a short distance ahead, but we can see plenty there that needs to be done.", author: "Alan Turing" },
   { text: "The Analytical Engine has no pretensions whatever to originate anything.", author: "Ada Lovelace" },
@@ -53,6 +62,7 @@ export const DashboardHome = React.memo(function DashboardHome({
   onNavigate,
   onOpenProject
 }: DashboardHomeProps) {
+  const { t } = useTranslation();
   const [quote, setQuote] = React.useState<Quote>(pickLocalQuote);
   const snapshot = React.useMemo(
     () => buildDashboardSnapshot(projects, favoriteProjectIds, dockerStatus),
@@ -84,20 +94,23 @@ export const DashboardHome = React.memo(function DashboardHome({
         }}
       >
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="overline" color="text.secondary">Triage workspace</Typography>
+          <Typography variant="overline" color="text.secondary">{t("dashboard.home.triage")}</Typography>
           <Typography id="dashboard-home-title" component="h1" variant="h1" sx={{ mt: 0.35 }}>
             {snapshot.total === 0
-              ? "Workspace pronto per la scansione"
-              : `${attentionProjects.length} di ${snapshot.total} repository richiedono attenzione`}
+              ? t("dashboard.home.readyForScan")
+              : t("dashboard.home.attentionSummary", {
+                  attention: attentionProjects.length,
+                  total: snapshot.total
+                })}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.7, maxWidth: 620 }}>
-            Stato operativo locale: modifiche, sincronizzazione, runtime e attività recente in un solo passaggio.
+            {t("dashboard.home.description")}
           </Typography>
         </Box>
         <Stack direction="row" spacing={{ xs: 2, sm: 3.5 }} sx={{ overflowX: "auto" }}>
-          <HeaderFigure value={snapshot.total} label="repository" />
-          <HeaderFigure value={snapshot.healthy} label="pronti" tone="success.main" />
-          <HeaderFigure value={snapshot.localChanges} label="modifiche" tone={snapshot.localChanges > 0 ? "warning.main" : undefined} />
+          <HeaderFigure value={snapshot.total} label={t("dashboard.home.repositories")} />
+          <HeaderFigure value={snapshot.healthy} label={t("dashboard.home.ready")} tone="success.main" />
+          <HeaderFigure value={snapshot.localChanges} label={t("dashboard.home.changes")} tone={snapshot.localChanges > 0 ? "warning.main" : undefined} />
         </Stack>
       </Box>
 
@@ -123,11 +136,11 @@ export const DashboardHome = React.memo(function DashboardHome({
         <Stack spacing={1.5} sx={{ minWidth: 0 }}>
           <WorkbenchPanel>
             <PanelHeader
-              label="Workspace ledger"
-              meta={`${projects.length} repository`}
+              label={t("dashboard.home.workspaceLedger")}
+              meta={t("dashboard.home.repositoryCount", { count: projects.length })}
               action={(
                 <Button size="small" variant="text" endIcon={<ArrowForwardRoundedIcon />} onClick={() => onNavigate("repositories")}>
-                  Esplora
+                  {t("dashboard.home.explore")}
                 </Button>
               )}
             />
@@ -145,8 +158,8 @@ export const DashboardHome = React.memo(function DashboardHome({
                     borderColor: "divider"
                   }}
                 >
-                  {['Repository', 'Branch', 'Albero', 'Sync', 'Runtime', 'Ultimo commit'].map((label) => (
-                    <Typography key={label} variant="overline" color="text.secondary">{label}</Typography>
+                  {LEDGER_COLUMN_KEYS.map((labelKey) => (
+                    <Typography key={labelKey} variant="overline" color="text.secondary">{t(labelKey)}</Typography>
                   ))}
                 </Box>
                 {projects.length > 0 ? projects.map((project) => (
@@ -159,7 +172,7 @@ export const DashboardHome = React.memo(function DashboardHome({
                   />
                 )) : (
                   <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-                    Seleziona una cartella workspace per popolare il ledger.
+                    {t("dashboard.home.selectFolder")}
                   </Typography>
                 )}
               </Box>
@@ -169,11 +182,16 @@ export const DashboardHome = React.memo(function DashboardHome({
 
         <Stack spacing={1.5} sx={{ minWidth: 0 }}>
           <WorkbenchPanel>
-            <PanelHeader label="Stato operativo" meta={`${snapshot.healthPercentage}% pronto`} />
+            <PanelHeader
+              label={t("dashboard.home.operationalStatus")}
+              meta={t("dashboard.home.readyPercentage", { percentage: snapshot.healthPercentage })}
+            />
             <Box sx={{ px: 1.5, py: 1.4 }}>
               <StatusLine
                 tone={attentionProjects.length > 0 ? "warning.main" : "success.main"}
-                label={attentionProjects.length > 0 ? "Intervento richiesto" : "Workspace stabile"}
+                label={attentionProjects.length > 0
+                  ? t("dashboard.home.actionRequired")
+                  : t("dashboard.home.workspaceStable")}
               />
               <LinearProgress
                 variant="determinate"
@@ -182,36 +200,44 @@ export const DashboardHome = React.memo(function DashboardHome({
                 sx={{ height: 3, mt: 1.4, bgcolor: "var(--rc-surface-3)" }}
               />
               <Stack direction="row" spacing={2} sx={{ mt: 1.25 }}>
-                <MiniMetric label="sporchi" value={snapshot.dirty} />
-                <MiniMetric label="behind" value={snapshot.behind} />
-                <MiniMetric label="ahead" value={snapshot.ahead} />
+                <MiniMetric label={t("dashboard.home.dirty")} value={snapshot.dirty} />
+                <MiniMetric label={t("dashboard.home.behind")} value={snapshot.behind} />
+                <MiniMetric label={t("dashboard.home.ahead")} value={snapshot.ahead} />
               </Stack>
             </Box>
           </WorkbenchPanel>
 
           <WorkbenchPanel>
-            <PanelHeader label="Runtime" meta={snapshot.dockerAvailable ? "Docker online" : "non disponibile"} />
+            <PanelHeader
+              label={t("dashboard.home.runtime")}
+              meta={snapshot.dockerAvailable ? t("dashboard.home.dockerOnline") : t("dashboard.home.unavailable")}
+            />
             <Box sx={{ px: 1.5, py: 1.35 }}>
               <StatusLine
                 tone={snapshot.dockerAvailable ? "success.main" : "text.disabled"}
-                label={snapshot.dockerAvailable ? `${snapshot.runningContainers} container in esecuzione` : "Runtime non rilevato"}
+                label={snapshot.dockerAvailable
+                  ? t("dashboard.home.containersRunning", { count: snapshot.runningContainers })
+                  : t("dashboard.home.runtimeNotDetected")}
               />
               {snapshot.dockerAvailable ? (
                 <Stack direction="row" spacing={2} sx={{ mt: 1.15 }}>
-                  <MiniMetric label="gruppi" value={snapshot.dockerGroups} />
-                  <MiniMetric label="container" value={snapshot.runningContainers} />
+                  <MiniMetric label={t("dashboard.home.groups")} value={snapshot.dockerGroups} />
+                  <MiniMetric label={t("dashboard.home.containers")} value={snapshot.runningContainers} />
                 </Stack>
               ) : null}
               {snapshot.dockerAvailable ? (
                 <Button size="small" variant="text" sx={{ mt: 1, px: 0 }} onClick={() => onNavigate("docker")}>
-                  Apri runtime
+                  {t("dashboard.home.openRuntime")}
                 </Button>
               ) : null}
             </Box>
           </WorkbenchPanel>
 
           <WorkbenchPanel>
-            <PanelHeader label="Commit recenti" meta={`${snapshot.recentProjects.length} attività`} />
+            <PanelHeader
+              label={t("dashboard.home.recentCommits")}
+              meta={t("dashboard.home.activityCount", { count: snapshot.recentProjects.length })}
+            />
             <Stack divider={<Box sx={{ borderBottom: "1px solid", borderColor: "divider" }} />}>
               {snapshot.recentProjects.length > 0 ? snapshot.recentProjects.map((project) => (
                 <ButtonBase
@@ -222,7 +248,7 @@ export const DashboardHome = React.memo(function DashboardHome({
                   <CommitRoundedIcon sx={{ fontSize: 16, color: "text.disabled", flexShrink: 0 }} />
                   <Box sx={{ minWidth: 0 }}>
                     <Typography variant="caption" noWrap component="div" sx={{ fontWeight: 500 }}>
-                      {project.lastCommit?.message ?? "Nessun commit"}
+                      {project.lastCommit?.message ?? t("dashboard.home.noCommit")}
                     </Typography>
                     <Typography noWrap component="div" color="text.secondary" sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 9.5 }}>
                       {project.name} · {project.lastCommit?.hash ?? "—"}
@@ -230,7 +256,9 @@ export const DashboardHome = React.memo(function DashboardHome({
                   </Box>
                 </ButtonBase>
               )) : (
-                <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>Nessun commit rilevato.</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>
+                  {t("dashboard.home.noCommitsDetected")}
+                </Typography>
               )}
             </Stack>
           </WorkbenchPanel>
@@ -248,13 +276,13 @@ export const DashboardHome = React.memo(function DashboardHome({
           >
             <Stack direction="row" alignItems="center" spacing={0.75} sx={{ pr: 3.5 }}>
               <AutoAwesomeOutlinedIcon sx={{ fontSize: 14, color: "primary.light" }} />
-              <Typography variant="overline" color="primary.light">Prospettiva</Typography>
+              <Typography variant="overline" color="primary.light">{t("dashboard.home.perspective")}</Typography>
             </Stack>
-            <Tooltip title="Mostra un'altra citazione">
+            <Tooltip title={t("dashboard.home.anotherQuote")}>
               <IconButton
                 size="small"
                 onClick={() => setQuote((currentQuote) => pickLocalQuote(currentQuote.text))}
-                aria-label="Mostra un'altra citazione"
+                aria-label={t("dashboard.home.anotherQuote")}
                 sx={{ position: "absolute", top: 8, right: 8 }}
               >
                 <ArrowForwardRoundedIcon sx={{ fontSize: 16 }} />
@@ -300,7 +328,10 @@ function HeaderFigure({ value, label, tone = "text.primary" }: { value: number; 
   );
 }
 
-function LedgerRow({ project, favorite, runtime, onOpen }: { project: ProjectSummary; favorite: boolean; runtime: string; onOpen: () => void }) {
+type RuntimeStatus = "offline" | "running" | "stopped";
+
+function LedgerRow({ project, favorite, runtime, onOpen }: { project: ProjectSummary; favorite: boolean; runtime: RuntimeStatus | null; onOpen: () => void }) {
+  const { t } = useTranslation();
   const changes = getLocalChangeCount(project);
   const treeTone = project.isClean ? "success.main" : "warning.main";
 
@@ -330,16 +361,26 @@ function LedgerRow({ project, favorite, runtime, onOpen }: { project: ProjectSum
         <CallSplitRoundedIcon sx={{ fontSize: 13, color: "text.disabled", flexShrink: 0 }} />
         <Typography noWrap sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 10.5 }}>{project.branch}</Typography>
       </Stack>
-      <StatusLine tone={treeTone} label={project.isClean ? "pulito" : `${changes} mod.`} compact />
+      <StatusLine
+        tone={treeTone}
+        label={project.isClean
+          ? t("dashboard.home.clean")
+          : t("dashboard.home.modifiedShort", { count: changes })}
+        compact
+      />
       <Typography sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 10, color: project.behind > 0 ? "warning.main" : "text.secondary" }}>
         ↑{project.ahead} · ↓{project.behind}
       </Typography>
       <Stack direction="row" spacing={0.55} alignItems="center">
         <Inventory2OutlinedIcon sx={{ fontSize: 13, color: runtime === "running" ? "success.main" : "text.disabled" }} />
-        <Typography sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 9.5, color: "text.secondary" }}>{runtime}</Typography>
+        <Typography sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 9.5, color: "text.secondary" }}>
+          {runtime ? t(`dashboard.home.runtimeStatus.${runtime}`) : "—"}
+        </Typography>
       </Stack>
       <Box sx={{ minWidth: 0 }}>
-        <Typography variant="caption" noWrap component="div">{project.lastCommit?.message ?? "Nessun commit"}</Typography>
+        <Typography variant="caption" noWrap component="div">
+          {project.lastCommit?.message ?? t("dashboard.home.noCommit")}
+        </Typography>
         <Typography noWrap component="div" color="text.secondary" sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 9 }}>{project.lastCommit?.hash ?? "—"}</Typography>
       </Box>
     </ButtonBase>
@@ -368,8 +409,8 @@ function getLocalChangeCount(project: ProjectSummary): number {
   return project.staged + project.modified + project.untracked;
 }
 
-function getProjectRuntime(project: ProjectSummary, dockerStatus: DockerContainersResponse | undefined): string {
-  if (!project.hasDockerCompose) return "—";
+function getProjectRuntime(project: ProjectSummary, dockerStatus: DockerContainersResponse | undefined): RuntimeStatus | null {
+  if (!project.hasDockerCompose) return null;
   if (!dockerStatus?.ok) return "offline";
   const normalizedPath = project.path.toLocaleLowerCase();
   const hasRunningGroup = dockerStatus.groups.some((group) => group.workingDir?.toLocaleLowerCase() === normalizedPath && group.containers.length > 0);

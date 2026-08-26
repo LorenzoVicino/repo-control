@@ -21,13 +21,13 @@ describe("DashboardPulse", () => {
       <DashboardPulse projects={projects} snapshot={snapshot} onOpenProject={onOpenProject} />
     );
 
-    expect(screen.getByRole("heading", { name: "Segnali workspace" })).toBeVisible();
-    const distribution = screen.getByRole("img", { name: /1 bloccati, 1 ahead, 1 pronti/i });
+    expect(screen.getByRole("heading", { name: "Workspace signals" })).toBeVisible();
+    const distribution = screen.getByRole("img", { name: /1 blocked, 1 ahead, 1 ready/i });
     expect(distribution).toBeVisible();
     expect(distribution.querySelector('[data-signal-key="blocked"]')).toHaveAttribute("data-animation", "continuous");
     expect(distribution.querySelector('[data-signal-key="ready"]')).toHaveAttribute("data-animation", "continuous");
     expect(distribution.querySelector('[data-signal-key="ahead"]')).toHaveAttribute("data-animation", "static");
-    const changeDistribution = screen.getByRole("img", { name: "2 staged, 3 modificati, 1 nuovi" });
+    const changeDistribution = screen.getByRole("img", { name: "2 staged, 3 modified, 1 new" });
     expect(changeDistribution).toBeVisible();
     for (const kind of ["staged", "modified", "untracked"]) {
       expect(changeDistribution.querySelector(`[data-change-kind="${kind}"]`)).toHaveAttribute(
@@ -36,7 +36,7 @@ describe("DashboardPulse", () => {
       );
     }
 
-    await user.click(screen.getByRole("button", { name: "Apri blocked, 6 file modificati" }));
+    await user.click(screen.getByRole("button", { name: "Open blocked, 6 changed files" }));
     expect(onOpenProject).toHaveBeenCalledWith("blocked");
   });
 
@@ -47,7 +47,7 @@ describe("DashboardPulse", () => {
       <DashboardPulse projects={[]} snapshot={snapshot} onOpenProject={vi.fn()} />
     );
 
-    expect(screen.getByText(/prima scansione del workspace/i)).toBeVisible();
-    expect(screen.getByText("Working tree allineati")).toBeVisible();
+    expect(screen.getByText(/first workspace scan/i)).toBeVisible();
+    expect(screen.getByText("Working trees aligned")).toBeVisible();
   });
 });
