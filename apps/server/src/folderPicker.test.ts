@@ -34,16 +34,16 @@ test("normalizes native picker output and reports all platform candidates", asyn
     });
     assert.deepEqual(selected, { ok: true, path: "/workspace/selected" });
     const firstPicker = calls[0]!;
-    assert.ok(firstPicker.command === "powershell.exe" || firstPicker.command === "zenity");
+    assert.ok(firstPicker.command.endsWith("powershell.exe") || firstPicker.command === "zenity");
     assert.ok(firstPicker.args.some((arg) => arg.includes("/workspace/start")));
-    assert.equal(calls[0]?.timeout, 300_000);
+    assert.equal(calls[0]?.timeout, 120_000);
 
     let attempts = 0;
     const failed = await openNativeFolderPicker("/workspace", async (_cwd, command) => {
       attempts += 1;
       return result({ ok: false, command, exitCode: null, output: `${command} unavailable` });
     });
-    assert.equal(attempts, firstPicker.command === "zenity" ? 2 : 4);
+    assert.equal(attempts, 2);
     assert.equal(failed.ok, false);
     assert.match(failed.message ?? "", /Unable to open/);
     assert.ok((failed.message ?? "").includes(firstPicker.command));
@@ -91,7 +91,7 @@ test("builds WSL PowerShell candidates and converts Windows and WSL share paths"
       return result({ command, stdout: "C:\\Users\\developer\\project\n" });
     });
     assert.deepEqual(drive, { ok: true, path: "/mnt/c/Users/developer/project" });
-    assert.equal(calls[0]?.command, "powershell.exe");
+    assert.match(calls[0]?.command ?? "", /powershell\.exe$/);
     assert.ok(calls[0]?.args.at(-1)?.includes("C:\\Users\\O''Brien\\work"));
 
     const share = await openNativeFolderPicker("/home/developer/project", async () =>
@@ -102,6 +102,30 @@ test("builds WSL PowerShell candidates and converts Windows and WSL share paths"
     restorePlatform();
     if (previousDistro === undefined) delete process.env.WSL_DISTRO_NAME;
     else process.env.WSL_DISTRO_NAME = previousDistro;
+  }
+});
+
+test("stops after a picker timeout instead of opening another dialog", async () => {
+  const restorePlatform = setPlatform("win32");
+
+  try {
+    let attempts = 0;
+    const timedOut = await openNativeFolderPicker("C:\\work", async (_cwd, command) => {
+      attempts += 1;
+      return result({
+        ok: false,
+        command,
+        exitCode: null,
+        stderr: "Command timed out after 120000ms",
+        output: "Command timed out after 120000ms"
+      });
+    });
+
+    assert.equal(attempts, 1);
+    assert.equal(timedOut.ok, false);
+    assert.match(timedOut.message ?? "", /timed out after 2 minutes/);
+  } finally {
+    restorePlatform();
   }
 });
 

@@ -33,7 +33,7 @@ describe("DashboardSidebar", () => {
       />
     );
 
-    const navigation = within(screen.getByLabelText("Navigazione dashboard"));
+    const navigation = within(screen.getByLabelText("Dashboard navigation"));
     expect(navigation.getByTestId("repo-control-logo")).toHaveAttribute(
       "src",
       "/icon/repo-control-icon-medium.svg"
@@ -44,13 +44,13 @@ describe("DashboardSidebar", () => {
     await user.click(navigation.getByRole("button", { name: /Docker/ }));
     expect(onNavigate).toHaveBeenCalledWith("docker");
 
-    await user.click(navigation.getByRole("button", { name: "Comprimi sidebar" }));
+    await user.click(navigation.getByRole("button", { name: "Collapse sidebar" }));
     expect(onToggleCollapsed).toHaveBeenCalledOnce();
-    await user.click(navigation.getByRole("button", { name: /Cambia workspace/ }));
+    await user.click(navigation.getByRole("button", { name: /Change workspace/ }));
     expect(onPickWorkspace).toHaveBeenCalledOnce();
 
-    await user.click(navigation.getByRole("button", { name: /Seleziona palette colori/ }));
-    await user.click(screen.getByRole("menuitemradio", { name: "Blu" }));
+    await user.click(navigation.getByRole("button", { name: /Select color palette/ }));
+    await user.click(screen.getByRole("menuitemradio", { name: "Blue" }));
     expect(onColorPaletteChange).toHaveBeenCalledWith("blue");
   });
 
@@ -81,15 +81,15 @@ describe("DashboardSidebar", () => {
       />
     );
 
-    const mobile = within(screen.getByLabelText("Navigazione dashboard mobile"));
+    const mobile = within(screen.getByLabelText("Mobile dashboard navigation"));
     expect(mobile.queryByText("Docker")).not.toBeInTheDocument();
-    await user.click(mobile.getByRole("button", { name: /Repository/ }));
+    await user.click(mobile.getByRole("button", { name: /Repositories/ }));
     expect(onNavigate).toHaveBeenCalledWith("repositories");
     expect(onCloseMobile).toHaveBeenCalledOnce();
-    const mobilePaletteButton = mobile.getByRole("button", { name: /Seleziona palette colori/ });
+    const mobilePaletteButton = mobile.getByRole("button", { name: /Select color palette/ });
     await user.click(mobilePaletteButton);
     expect(mobilePaletteButton).toHaveAttribute("aria-expanded", "true");
-    await user.click(screen.getByRole("menuitemradio", { name: "Verde" }));
+    await user.click(screen.getByRole("menuitemradio", { name: "Green" }));
     expect(onColorPaletteChange).toHaveBeenCalledWith("green");
 
     rerender(
@@ -112,10 +112,10 @@ describe("DashboardSidebar", () => {
         onColorPaletteChange={vi.fn()}
       />
     );
-    const desktop = within(screen.getByLabelText("Navigazione dashboard"));
+    const desktop = within(screen.getByLabelText("Dashboard navigation"));
     expect(desktop.queryByText("Docker")).not.toBeInTheDocument();
-    expect(desktop.getByRole("button", { name: "Espandi sidebar" })).toBeVisible();
-    expect(desktop.getByRole("button", { name: /Cambia workspace/ })).toBeDisabled();
+    expect(desktop.getByRole("button", { name: "Expand sidebar" })).toBeVisible();
+    expect(desktop.getByRole("button", { name: /Opening folder picker/ })).toBeDisabled();
 
     rerender(
       <DashboardSidebar
@@ -137,8 +137,8 @@ describe("DashboardSidebar", () => {
         onColorPaletteChange={vi.fn()}
       />
     );
-    await user.click(within(screen.getByLabelText("Navigazione dashboard")).getByRole("button", {
-      name: /Cambia workspace/
+    await user.click(within(screen.getByLabelText("Dashboard navigation")).getByRole("button", {
+      name: /Change workspace/
     }));
     expect(onPickWorkspace).toHaveBeenCalledOnce();
   });

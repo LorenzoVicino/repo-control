@@ -3,6 +3,7 @@ import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import { keyframes } from "@emotion/react";
 import { alpha, Box, ButtonBase, Stack, Typography } from "@mui/material";
 import type { Theme } from "@mui/material/styles";
+import { useTranslation } from "react-i18next";
 import type { ProjectSummary } from "../../types/projects";
 import type { DashboardSnapshot } from "./dashboardSnapshot";
 
@@ -14,7 +15,11 @@ type DashboardPulseProps = {
 
 type OperationalSignal = {
   key: "blocked" | "action" | "ahead" | "ready";
-  label: string;
+  labelKey:
+    | "dashboard.pulse.blocked"
+    | "dashboard.pulse.action"
+    | "dashboard.pulse.ahead"
+    | "dashboard.pulse.readySignal";
   count: number;
   tone: "error.main" | "warning.main" | "info.main" | "success.main";
 };
@@ -25,10 +30,11 @@ const flowSignal = keyframes`
 `;
 
 export function DashboardPulse({ projects, snapshot, onOpenProject }: DashboardPulseProps) {
+  const { t, i18n } = useTranslation();
   const signals = buildOperationalSignals(projects);
   const signalDescription = signals
     .filter((signal) => signal.count > 0)
-    .map((signal) => `${signal.count} ${signal.label.toLocaleLowerCase()}`)
+    .map((signal) => `${signal.count} ${t(signal.labelKey).toLocaleLowerCase(i18n.resolvedLanguage)}`)
     .join(", ");
   const maxChangeLoad = Math.max(1, ...snapshot.changeLoad.map((entry) => entry.total));
 
@@ -59,16 +65,16 @@ export function DashboardPulse({ projects, snapshot, onOpenProject }: DashboardP
       >
         <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
           <Box>
-            <Typography variant="overline" color="primary.light">Snapshot operativo</Typography>
+            <Typography variant="overline" color="primary.light">{t("dashboard.pulse.snapshot")}</Typography>
             <Typography id="workspace-pulse-title" component="h2" variant="h2" sx={{ mt: 0.2 }}>
-              Segnali workspace
+              {t("dashboard.pulse.title")}
             </Typography>
           </Box>
           <Box sx={{ textAlign: "right", flexShrink: 0 }}>
             <Typography sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 28, fontWeight: 500, lineHeight: 1 }}>
               {snapshot.healthPercentage}%
             </Typography>
-            <Typography variant="overline" color="text.secondary">pronto</Typography>
+            <Typography variant="overline" color="text.secondary">{t("dashboard.pulse.ready")}</Typography>
           </Box>
         </Stack>
 
@@ -76,7 +82,7 @@ export function DashboardPulse({ projects, snapshot, onOpenProject }: DashboardP
           <>
             <Box
               role="img"
-              aria-label={`Distribuzione operativa: ${signalDescription}`}
+              aria-label={t("dashboard.pulse.distribution", { description: signalDescription })}
               sx={{
                 display: "flex",
                 gap: "2px",
@@ -129,7 +135,7 @@ export function DashboardPulse({ projects, snapshot, onOpenProject }: DashboardP
           </>
         ) : (
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            I segnali compariranno dopo la prima scansione del workspace.
+            {t("dashboard.pulse.emptySignals")}
           </Typography>
         )}
       </Box>
@@ -137,15 +143,15 @@ export function DashboardPulse({ projects, snapshot, onOpenProject }: DashboardP
       <Box sx={{ minWidth: 0, p: { xs: 1.5, sm: 1.75 } }}>
         <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={0.8}>
           <Box>
-            <Typography component="h3" variant="h2">Concentrazione modifiche</Typography>
+            <Typography component="h3" variant="h2">{t("dashboard.pulse.changeConcentration")}</Typography>
             <Typography variant="caption" color="text.secondary">
-              Dove si trova il carico locale, ordinato per volume
+              {t("dashboard.pulse.changeDescription")}
             </Typography>
           </Box>
-          <Stack direction="row" spacing={1.4} alignItems="center" aria-label="Legenda tipi di modifica">
-            <ChangeLegend kind="staged" label="Staged" />
-            <ChangeLegend kind="modified" label="Modificati" />
-            <ChangeLegend kind="untracked" label="Nuovi" />
+          <Stack direction="row" spacing={1.4} alignItems="center" aria-label={t("dashboard.pulse.changeLegend")}>
+            <ChangeLegend kind="staged" label={t("dashboard.pulse.staged")} />
+            <ChangeLegend kind="modified" label={t("dashboard.pulse.modified")} />
+            <ChangeLegend kind="untracked" label={t("dashboard.pulse.untracked")} />
           </Stack>
         </Stack>
 
@@ -153,8 +159,8 @@ export function DashboardPulse({ projects, snapshot, onOpenProject }: DashboardP
           <Stack direction="row" alignItems="center" spacing={0.9} sx={{ minHeight: 98, color: "success.main" }}>
             <CheckCircleOutlineRoundedIcon sx={{ fontSize: 18 }} />
             <Box>
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>Working tree allineati</Typography>
-              <Typography variant="caption" color="text.secondary">Nessuna modifica locale da distribuire.</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>{t("dashboard.pulse.treesAligned")}</Typography>
+              <Typography variant="caption" color="text.secondary">{t("dashboard.pulse.noLocalChanges")}</Typography>
             </Box>
           </Stack>
         ) : (
@@ -176,11 +182,13 @@ export function DashboardPulse({ projects, snapshot, onOpenProject }: DashboardP
 }
 
 function SignalLegendItem({ signal }: { signal: OperationalSignal }) {
+  const { t } = useTranslation();
+
   return (
     <Stack direction="row" alignItems="center" spacing={0.8} sx={{ minWidth: 0 }}>
       <Box aria-hidden="true" sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: signal.tone, flexShrink: 0 }} />
       <Typography variant="caption" color="text.secondary" noWrap sx={{ minWidth: 0, flexGrow: 1 }}>
-        {signal.label}
+        {t(signal.labelKey)}
       </Typography>
       <Typography sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 11, fontWeight: 600 }}>
         {signal.count}
@@ -200,10 +208,12 @@ function ChangeLoadRow({
   maxTotal: number;
   onOpen: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <ButtonBase
       onClick={onOpen}
-      aria-label={`Apri ${project.name}, ${total} file modificati`}
+      aria-label={t("dashboard.pulse.openProject", { name: project.name, count: total })}
       sx={(theme) => ({
         width: "100%",
         minWidth: 0,
@@ -225,12 +235,16 @@ function ChangeLoadRow({
           {project.name}
         </Typography>
         <Typography noWrap component="div" color="text.secondary" sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 9 }}>
-          {project.branch || "branch non rilevata"}
+          {project.branch || t("dashboard.pulse.branchNotDetected")}
         </Typography>
       </Box>
       <Box
         role="img"
-        aria-label={`${project.staged} staged, ${project.modified} modificati, ${project.untracked} nuovi`}
+        aria-label={t("dashboard.pulse.changesAria", {
+          staged: project.staged,
+          modified: project.modified,
+          untracked: project.untracked
+        })}
         sx={{ height: 8, display: "flex", overflow: "hidden", borderRadius: 999, bgcolor: "var(--rc-surface-3)" }}
       >
         <ChangeBar value={project.staged} maxTotal={maxTotal} kind="staged" />
@@ -306,9 +320,9 @@ function buildOperationalSignals(projects: ProjectSummary[]): OperationalSignal[
   );
 
   return [
-    { key: "blocked", label: "Bloccati", count: counts.blocked, tone: "error.main" },
-    { key: "action", label: "Da gestire", count: counts.action, tone: "warning.main" },
-    { key: "ahead", label: "Ahead", count: counts.ahead, tone: "info.main" },
-    { key: "ready", label: "Pronti", count: counts.ready, tone: "success.main" }
+    { key: "blocked", labelKey: "dashboard.pulse.blocked", count: counts.blocked, tone: "error.main" },
+    { key: "action", labelKey: "dashboard.pulse.action", count: counts.action, tone: "warning.main" },
+    { key: "ahead", labelKey: "dashboard.pulse.ahead", count: counts.ahead, tone: "info.main" },
+    { key: "ready", labelKey: "dashboard.pulse.readySignal", count: counts.ready, tone: "success.main" }
   ];
 }

@@ -22,11 +22,11 @@ describe("DashboardHome", () => {
     );
 
     expect(screen.getByText(/We can only see a short distance ahead/)).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "Attenzione" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Container attivi")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Docker: Controlla i servizi" }))
+    expect(screen.queryByRole("heading", { name: "Attention" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Active containers")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Docker: Check services" }))
       .not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Mostra un'altra citazione" }));
+    await user.click(screen.getByRole("button", { name: "Show another quote" }));
     expect(screen.getByText(/Analytical Engine/)).toBeVisible();
     expect(fetchMock).not.toHaveBeenCalled();
   });

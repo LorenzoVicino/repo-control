@@ -1,5 +1,8 @@
 import { promises as fs } from "node:fs";
 
+const WINDOWS_POWERSHELL_PATH = "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe";
+const FOLDER_PICKER_TIMEOUT_MS = 120_000;
+
 type CommandResult = {
   ok: boolean;
   command: string;
@@ -32,7 +35,12 @@ export async function openNativeFolderPicker(
   const failures: string[] = [];
 
   for (const candidate of candidates) {
-    const result = await runCommand(process.cwd(), candidate.command, candidate.args, 1000 * 60 * 5);
+    const result = await runCommand(
+      process.cwd(),
+      candidate.command,
+      candidate.args,
+      FOLDER_PICKER_TIMEOUT_MS
+    );
     const selectedPath = result.stdout.trim();
 
     if (result.ok && selectedPath) {
@@ -53,6 +61,13 @@ export async function openNativeFolderPicker(
       return {
         ok: false,
         cancelled: true
+      };
+    }
+
+    if (isFolderPickerTimeout(result)) {
+      return {
+        ok: false,
+        message: "Folder picker timed out after 2 minutes. Press Ctrl+O to try again."
       };
     }
 
@@ -86,7 +101,10 @@ async function getFolderPickerCandidates(initialPath: string): Promise<Array<{ c
   }
 
   if (await isWsl()) {
-    return getPowerShellFolderPickerCandidates(toWindowsPickerPath(initialPath));
+    const powerShellCommand = await fs.access(WINDOWS_POWERSHELL_PATH)
+      .then(() => WINDOWS_POWERSHELL_PATH)
+      .catch(() => "powershell.exe");
+    return getPowerShellFolderPickerCandidates(toWindowsPickerPath(initialPath), powerShellCommand);
   }
 
   return [
@@ -101,25 +119,20 @@ async function getFolderPickerCandidates(initialPath: string): Promise<Array<{ c
   ];
 }
 
-function getPowerShellFolderPickerCandidates(initialPath: string): Array<{ command: string; args: string[] }> {
+function getPowerShellFolderPickerCandidates(
+  initialPath: string,
+  command = "powershell.exe"
+): Array<{ command: string; args: string[] }> {
   const modernScript = getModernWindowsFolderPickerScript(initialPath);
   const legacyScript = getLegacyWindowsFolderPickerScript(initialPath);
 
   return [
     {
-      command: "powershell.exe",
+      command,
       args: ["-NoProfile", "-STA", "-Command", modernScript]
     },
     {
-      command: "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
-      args: ["-NoProfile", "-STA", "-Command", modernScript]
-    },
-    {
-      command: "powershell.exe",
-      args: ["-NoProfile", "-STA", "-Command", legacyScript]
-    },
-    {
-      command: "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+      command,
       args: ["-NoProfile", "-STA", "-Command", legacyScript]
     }
   ];
@@ -272,6 +285,10 @@ function isFolderPickerCancel(result: CommandResult): boolean {
   const output = result.output.toLowerCase();
 
   return result.exitCode !== null && !result.stdout.trim() && (output.includes("cancel") || output.trim().length === 0);
+}
+
+function isFolderPickerTimeout(result: CommandResult): boolean {
+  return result.output.toLowerCase().includes("timed out");
 }
 
 async function isWsl(): Promise<boolean> {

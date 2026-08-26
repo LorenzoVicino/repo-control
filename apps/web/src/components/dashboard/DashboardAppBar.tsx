@@ -22,19 +22,21 @@ import {
   Tooltip,
   Typography
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { APP_VERSION } from "../../config";
 import type { AppUpdateStatus } from "../../types/app";
 import type { ViewMode } from "../../types/common";
 import type { DashboardSection } from "./DashboardSidebar";
 
-const SECTION_LABELS: Record<DashboardSection, string> = {
-  overview: "Dashboard",
-  tasks: "Task engineering",
-  agents: "Agent sessions",
-  automations: "Automazioni",
-  docker: "Docker runtime",
-  favorites: "Preferiti",
-  repositories: "Repository"
+const SECTION_LABEL_KEYS: Record<DashboardSection, `navigation.sections.${DashboardSection}`> = {
+  overview: "navigation.sections.overview",
+  tasks: "navigation.sections.tasks",
+  agents: "navigation.sections.agents",
+  automations: "navigation.sections.automations",
+  docker: "navigation.sections.docker",
+  favorites: "navigation.sections.favorites",
+  repositories: "navigation.sections.repositories",
+  settings: "navigation.sections.settings"
 };
 
 type DashboardAppBarProps = {
@@ -72,13 +74,23 @@ export function DashboardAppBar({
   onViewModeChange,
   onRefreshProjects
 }: DashboardAppBarProps) {
+  const { t } = useTranslation();
   const canUpdateApp = Boolean(appUpdateStatus?.updateAvailable) && !isUpdatingApp;
-  const updateTooltip = getUpdateTooltip(
-    appUpdateStatus,
-    isLoadingAppUpdateStatus || (isCheckingAppUpdate && !appUpdateStatus),
-    appUpdateStatusError,
-    isUpdatingApp
-  );
+  const isLoadingUpdateStatus = isLoadingAppUpdateStatus || (isCheckingAppUpdate && !appUpdateStatus);
+  const updateTooltip = isUpdatingApp
+    ? t("appBar.updateStatus.updating")
+    : isLoadingUpdateStatus
+      ? t("appBar.updateStatus.checking")
+      : appUpdateStatus?.updateAvailable && appUpdateStatus.latestVersion
+        ? t("appBar.updateStatus.available", { version: appUpdateStatus.latestVersion })
+        : appUpdateStatus?.error
+          ? t("appBar.updateStatus.unavailable", { error: appUpdateStatus.error })
+          : appUpdateStatusError instanceof Error
+            ? t("appBar.updateStatus.failed", { error: appUpdateStatusError.message })
+            : t("appBar.updateStatus.current");
+  const updateAriaLabel = canUpdateApp && appUpdateStatus?.latestVersion
+    ? t("appBar.updateStatus.updateTo", { version: appUpdateStatus.latestVersion })
+    : t("appBar.updateStatus.updateApp");
 
   return (
     <AppBar
@@ -122,28 +134,28 @@ export function DashboardAppBar({
         >
           <IconButton
             onClick={onOpenMobileNavigation}
-            aria-label="Apri navigazione"
+            aria-label={t("appBar.openNavigation")}
             sx={{ display: { xs: "inline-flex", md: "none" }, flexShrink: 0 }}
           >
             <MenuIcon />
           </IconButton>
           <Typography variant="caption" color="text.secondary" noWrap>
-            Workspace
+            {t("common.workspace")}
           </Typography>
           <Typography aria-hidden="true" variant="caption" color="text.disabled">/</Typography>
           {activeProjectName ? (
             <>
-              <Typography variant="caption" color="text.secondary" noWrap>Repository</Typography>
+              <Typography variant="caption" color="text.secondary" noWrap>{t("common.repository")}</Typography>
               <Typography aria-hidden="true" variant="caption" color="text.disabled">/</Typography>
             </>
           ) : null}
           <Typography variant="caption" color="text.primary" noWrap sx={{ fontWeight: 500 }}>
-            {activeProjectName ?? SECTION_LABELS[activeSection]}
+            {activeProjectName ?? t(SECTION_LABEL_KEYS[activeSection])}
           </Typography>
         </Stack>
 
         <Box sx={{ gridArea: "search", justifySelf: "center", width: "100%", maxWidth: 560 }}>
-          <Tooltip title="Cerca repository (Ctrl+P)" placement="bottom">
+          <Tooltip title={t("appBar.searchTooltip")} placement="bottom">
             <TextField
               fullWidth
               size="small"
@@ -155,9 +167,9 @@ export function DashboardAppBar({
                   onOpenSearch();
                 }
               }}
-              placeholder="Cerca repository"
+              placeholder={t("appBar.searchPlaceholder")}
               variant="outlined"
-              inputProps={{ "aria-label": "Apri ricerca repository, scorciatoia Ctrl+P" }}
+              inputProps={{ "aria-label": t("appBar.searchAriaLabel") }}
               InputProps={{
                 readOnly: true,
                 startAdornment: (
@@ -223,7 +235,7 @@ export function DashboardAppBar({
               }}
             />
             <Typography noWrap sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 9.5 }}>
-              {isFetchingProjects ? "scansione…" : "workspace aggiornato"}
+              {isFetchingProjects ? t("appBar.scanning") : t("appBar.workspaceUpdated")}
             </Typography>
           </Stack>
           <Chip
@@ -240,7 +252,7 @@ export function DashboardAppBar({
                   size="small"
                   variant="outlined"
                   color={canUpdateApp ? "primary" : "inherit"}
-                  aria-label={getUpdateAriaLabel(appUpdateStatus, canUpdateApp)}
+                  aria-label={updateAriaLabel}
                   startIcon={
                     isUpdatingApp || (isCheckingAppUpdate && !appUpdateStatus)
                       ? <CircularProgress color="inherit" size={14} />
@@ -254,7 +266,9 @@ export function DashboardAppBar({
                     "& .MuiButton-startIcon": { ml: 0, mr: { xs: 0, sm: 0.65 } }
                   }}
                 >
-                  <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Aggiorna</Box>
+                  <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                    {t("appBar.update")}
+                  </Box>
                 </Button>
               </Badge>
             </span>
@@ -267,23 +281,23 @@ export function DashboardAppBar({
               onChange={(_, nextMode: ViewMode | null) => {
                 if (nextMode) onViewModeChange(nextMode);
               }}
-              aria-label="Modalità vista"
+              aria-label={t("appBar.viewMode")}
             >
-              <ToggleButton value="map" aria-label="Griglia repository">
+              <ToggleButton value="map" aria-label={t("appBar.repositoryGrid")}>
                 <ViewModuleIcon fontSize="small" />
               </ToggleButton>
-              <ToggleButton value="table" aria-label="Vista tabella">
+              <ToggleButton value="table" aria-label={t("appBar.tableView")}>
                 <TableRowsIcon fontSize="small" />
               </ToggleButton>
             </ToggleButtonGroup>
           ) : null}
           {activeSection === "repositories" || activeSection === "favorites" ? (
-            <Tooltip title="Aggiorna repository">
+            <Tooltip title={t("appBar.refreshRepositories")}>
               <span>
                 <IconButton
                   onClick={onRefreshProjects}
                   disabled={isFetchingProjects}
-                  aria-label="Aggiorna repository"
+                  aria-label={t("appBar.refreshRepositories")}
                   size="small"
                 >
                   {isFetchingProjects ? <CircularProgress size={17} /> : <RefreshIcon fontSize="small" />}
@@ -295,23 +309,4 @@ export function DashboardAppBar({
       </Toolbar>
     </AppBar>
   );
-}
-
-function getUpdateTooltip(
-  status: AppUpdateStatus | undefined,
-  isLoading: boolean,
-  error: unknown,
-  isUpdating: boolean
-): string {
-  if (isUpdating) return "Aggiornamento in corso";
-  if (isLoading) return "Controllo nuove release in corso";
-  if (status?.updateAvailable && status.latestVersion) return `Nuova release disponibile: v${status.latestVersion}`;
-  if (status?.error) return `Controllo release non disponibile: ${status.error}`;
-  if (error instanceof Error) return `Controllo release non riuscito: ${error.message}`;
-  return "Nessuna nuova release disponibile";
-}
-
-function getUpdateAriaLabel(status: AppUpdateStatus | undefined, canUpdate: boolean): string {
-  if (canUpdate && status?.latestVersion) return `Aggiorna repo-control alla versione ${status.latestVersion}`;
-  return "Aggiorna repo-control";
 }

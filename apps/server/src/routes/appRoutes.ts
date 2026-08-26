@@ -18,16 +18,53 @@ type AppRoutesContext = ProjectResolver & {
   scheduleServerRestart: () => void;
 };
 
+const PROJECT_SCAN_TIMEOUT_MS = 30_000;
+const SLOW_PROJECT_SCAN_MS = 2_000;
+
 export async function registerAppRoutes(app: FastifyInstance, context: AppRoutesContext): Promise<void> {
   app.get("/api/health", async () => ({
     ok: true,
     root: context.getActiveRootPath()
   }));
 
-  app.get("/api/projects", async () => ({
-    root: context.getActiveRootPath(),
-    projects: await scanProjects(context.getActiveRootPath())
-  }));
+  app.get("/api/projects", async (request, reply) => {
+    const rootPath = context.getActiveRootPath();
+    const scanController = new AbortController();
+    const startedAt = performance.now();
+    let timedOut = false;
+    const abortScan = () => scanController.abort(new Error("Project scan request cancelled"));
+    const scanTimeout = setTimeout(() => {
+      timedOut = true;
+      scanController.abort(new Error("Project scan timed out"));
+    }, PROJECT_SCAN_TIMEOUT_MS);
+    scanTimeout.unref();
+    request.raw.once("aborted", abortScan);
+
+    try {
+      const projects = await scanProjects(rootPath, { signal: scanController.signal });
+      const durationMs = Math.round(performance.now() - startedAt);
+
+      if (request.raw.aborted) return reply;
+
+      if (timedOut) {
+        request.log.warn({ durationMs, rootPath }, "Project scan timed out");
+        return reply.code(504).send({
+          ok: false,
+          code: "PROJECT_SCAN_TIMEOUT",
+          message: "Project scan timed out. Choose a narrower workspace folder and try again."
+        });
+      }
+
+      if (durationMs >= SLOW_PROJECT_SCAN_MS) {
+        request.log.warn({ durationMs, projectCount: projects.length, rootPath }, "Slow project scan");
+      }
+
+      return { root: rootPath, projects };
+    } finally {
+      clearTimeout(scanTimeout);
+      request.raw.removeListener("aborted", abortScan);
+    }
+  });
 
   app.get("/api/projects/:id/summary", async (request, reply) => {
     const params = z.object({ id: z.string() }).parse(request.params);

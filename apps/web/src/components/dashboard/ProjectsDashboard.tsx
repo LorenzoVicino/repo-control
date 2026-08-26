@@ -14,6 +14,7 @@ import {
 } from "@mui/material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { fetchAppUpdateStatus, updateRepoControl } from "../../api/app";
 import { fetchDockerContainers, stopDockerContainers } from "../../api/docker";
 import { fetchProjects, fetchProjectSummary } from "../../api/projects";
@@ -28,6 +29,11 @@ import { ControlCenter } from "./ControlCenter";
 import { DashboardAppBar } from "./DashboardAppBar";
 import { DashboardHome } from "./DashboardHome";
 import {
+  DashboardHomeSkeleton,
+  RepositoryGridSkeleton,
+  RepositoryTableSkeleton
+} from "./DashboardScanSkeleton";
+import {
   DashboardSidebar,
   type DashboardSection
 } from "./DashboardSidebar";
@@ -36,6 +42,7 @@ import { RepositoryCommandPalette } from "./RepositoryCommandPalette";
 import { FavoriteProjects, WorkspaceMap } from "./WorkspaceMap";
 import { ProjectWorkspaceTabs } from "../project/ProjectWorkspaceTabs";
 import { getProjectPanelId } from "../project/projectWorkspaceIds";
+import { SettingsPage } from "../settings/SettingsPage";
 import type { AppUpdateResult } from "../../types/app";
 import type { ColorPalette, ViewMode } from "../../types/common";
 import type { DockerContainerGroup } from "../../types/docker";
@@ -98,6 +105,7 @@ export function ProjectsDashboard({
   colorPalette,
   onColorPaletteChange
 }: ProjectsDashboardProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [isNavigating, startNavigationTransition] = React.useTransition();
   const [viewMode, setViewMode] = React.useState<ViewMode>("map");
@@ -112,6 +120,7 @@ export function ProjectsDashboard({
   const [search, setSearch] = React.useState("");
   const [rootError, setRootError] = React.useState<string | null>(null);
   const [isPickingRoot, setIsPickingRoot] = React.useState(false);
+  const [isScanningRoot, setIsScanningRoot] = React.useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = React.useState(false);
   const [appUpdateResult, setAppUpdateResult] = React.useState<AppUpdateResult | null>(null);
   const [isAppUpdateDialogOpen, setIsAppUpdateDialogOpen] = React.useState(false);
@@ -125,7 +134,7 @@ export function ProjectsDashboard({
 
   const { data, isFetching, isLoading, refetch } = useQuery({
     queryKey: ["projects"],
-    queryFn: fetchProjects
+    queryFn: ({ signal }) => fetchProjects(signal)
   });
   const {
     data: dockerStatus,
@@ -252,32 +261,47 @@ export function ProjectsDashboard({
   }, [preferences]);
 
   const applyRootPath = React.useCallback(async (root: string) => {
-    await setRootPath(root);
+    await queryClient.cancelQueries({ queryKey: ["projects"] });
+    const { root: nextRoot } = await setRootPath(root);
+    queryClient.setQueryData<ProjectsResponse>(["projects"], {
+      root: nextRoot,
+      projects: []
+    });
     setOpenProjectIds([]);
     setWarmProjectIds([]);
     setActiveProjectId(null);
     setSearch("");
-    await refetch();
-  }, [refetch]);
+    await refetch({ throwOnError: true });
+  }, [queryClient, refetch]);
 
   const handleFolderPick = React.useCallback(async () => {
-    if (isPickingRoot) return;
+    if (isPickingRoot || isScanningRoot) return;
 
     setIsPickingRoot(true);
     setRootError(null);
+    let pickedPath: string | null;
 
     try {
-      const pickedPath = await pickWorkspaceFolder(workspaceRoot);
-
-      if (pickedPath && pickedPath !== workspaceRoot) {
-        await applyRootPath(pickedPath);
-      }
+      pickedPath = await pickWorkspaceFolder(workspaceRoot);
     } catch (error) {
-      setRootError(error instanceof Error ? error.message : "Unable to pick folder");
+      setRootError(error instanceof Error ? error.message : t("errors.pickFolder"));
+      return;
     } finally {
       setIsPickingRoot(false);
     }
-  }, [applyRootPath, isPickingRoot, workspaceRoot]);
+
+    if (!pickedPath || pickedPath === workspaceRoot) return;
+
+    setIsScanningRoot(true);
+
+    try {
+      await applyRootPath(pickedPath);
+    } catch (error) {
+      setRootError(error instanceof Error ? error.message : t("errors.scanWorkspace"));
+    } finally {
+      setIsScanningRoot(false);
+    }
+  }, [applyRootPath, isPickingRoot, isScanningRoot, t, workspaceRoot]);
 
   React.useEffect(() => {
     function handleGlobalKeyDown(event: KeyboardEvent) {
@@ -436,7 +460,7 @@ export function ProjectsDashboard({
       await stopDockerContainers(group.containers.map((container) => container.id));
       await refetchDockerContainers();
     } catch (error) {
-      setDockerActionError(error instanceof Error ? error.message : "Unable to stop Docker containers");
+      setDockerActionError(error instanceof Error ? error.message : t("errors.stopDocker"));
     } finally {
       setStoppingDockerGroupId(null);
     }
@@ -473,6 +497,7 @@ export function ProjectsDashboard({
         workspaceRoot={workspaceRoot}
         rootError={rootError}
         isPickingRoot={isPickingRoot}
+        isScanningRoot={isScanningRoot}
         openProjects={openProjects}
         activeProjectId={activeProjectId}
         onNavigate={navigateToSection}
@@ -554,7 +579,7 @@ export function ProjectsDashboard({
                     key={project.id}
                     id={getProjectPanelId(project.id)}
                     role="tabpanel"
-                    aria-label={`Repository ${project.name}`}
+                    aria-label={t("repositories.projectAriaLabel", { name: project.name })}
                     hidden={project.id !== activeProject.id}
                     sx={{ minHeight: "100%", height: "100%" }}
                   >
@@ -578,21 +603,28 @@ export function ProjectsDashboard({
 
           {!activeProject && activeSection === "overview" ? (
             <ViewEntrance>
-              <Box component="section" aria-labelledby="dashboard-home-title">
-                <DashboardHome
-                  projects={projects}
-                  favoriteProjectIds={favoriteProjectIds}
-                  dockerStatus={dockerStatus}
-                  onNavigate={navigateToSection}
-                  onOpenProject={openProject}
-                />
+              <Box
+                component="section"
+                aria-labelledby={isScanningRoot ? undefined : "dashboard-home-title"}
+              >
+                {isScanningRoot ? (
+                  <DashboardHomeSkeleton />
+                ) : (
+                  <DashboardHome
+                    projects={projects}
+                    favoriteProjectIds={favoriteProjectIds}
+                    dockerStatus={dockerStatus}
+                    onNavigate={navigateToSection}
+                    onOpenProject={openProject}
+                  />
+                )}
               </Box>
             </ViewEntrance>
           ) : null}
 
           {!activeProject && activeSection === "tasks" ? (
             <ViewEntrance>
-              <React.Suspense fallback={<SectionLoading label="Caricamento task engineering" />}>
+              <React.Suspense fallback={<SectionLoading label={t("loading.tasks")} />}>
                 <TaskEngineeringPage projects={projects} />
               </React.Suspense>
             </ViewEntrance>
@@ -600,7 +632,7 @@ export function ProjectsDashboard({
 
           {!activeProject && activeSection === "agents" ? (
             <ViewEntrance>
-              <React.Suspense fallback={<SectionLoading label="Rilevamento sessioni agent" />}>
+              <React.Suspense fallback={<SectionLoading label={t("loading.agents")} />}>
                 <AgentSessionsPage />
               </React.Suspense>
             </ViewEntrance>
@@ -609,7 +641,7 @@ export function ProjectsDashboard({
           {!activeProject && activeSection === "automations" ? (
             <ViewEntrance fill>
               <React.Suspense
-                fallback={<SectionLoading label="Caricamento automazioni" fill />}
+                fallback={<SectionLoading label={t("loading.automations")} fill />}
               >
                 <AutomationPage projects={projects} />
               </React.Suspense>
@@ -636,16 +668,26 @@ export function ProjectsDashboard({
 
           {!activeProject && activeSection === "favorites" ? (
             <ViewEntrance>
-              <FavoriteProjects
-                projects={projects}
-                favoriteProjectIds={favoriteProjectIds}
-                openProjectIds={openProjectIds}
-                density={repositoryDensity}
-                onSelectProject={openProject}
-                onToggleFavorite={toggleFavoriteProject}
-                onDensityChange={setRepositoryDensity}
-                onBrowseRepositories={() => navigateToSection("repositories")}
-              />
+              {isScanningRoot ? (
+                <RepositoryGridSkeleton />
+              ) : (
+                <FavoriteProjects
+                  projects={projects}
+                  favoriteProjectIds={favoriteProjectIds}
+                  openProjectIds={openProjectIds}
+                  density={repositoryDensity}
+                  onSelectProject={openProject}
+                  onToggleFavorite={toggleFavoriteProject}
+                  onDensityChange={setRepositoryDensity}
+                  onBrowseRepositories={() => navigateToSection("repositories")}
+                />
+              )}
+            </ViewEntrance>
+          ) : null}
+
+          {!activeProject && activeSection === "settings" ? (
+            <ViewEntrance>
+              <SettingsPage />
             </ViewEntrance>
           ) : null}
 
@@ -660,9 +702,13 @@ export function ProjectsDashboard({
                   sx={{ mb: 1.5 }}
                 >
                   <Box>
-                    <Typography id="repository-list-title" component="h1" variant="h1">Repository</Typography>
+                    <Typography id="repository-list-title" component="h1" variant="h1">
+                      {t("repositories.title")}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {search ? `${filteredProjects.length} risultati per “${search}”` : "Organizzati per cartella di lavoro"}
+                      {search
+                        ? t("repositories.searchResults", { count: filteredProjects.length, search })
+                        : t("repositories.organizedByFolder")}
                     </Typography>
                   </Box>
                   <Chip size="small" variant="outlined" label={filteredProjects.length} />
@@ -678,22 +724,22 @@ export function ProjectsDashboard({
                     <Select
                       value={repositorySort}
                       onChange={(event) => setRepositorySort(event.target.value as RepositorySort)}
-                      inputProps={{ "aria-label": "Ordina repository" }}
+                      inputProps={{ "aria-label": t("repositories.sortAriaLabel") }}
                     >
-                      <MenuItem value="attention">Prima quelli da controllare</MenuItem>
-                      <MenuItem value="recent">Commit più recente</MenuItem>
-                      <MenuItem value="changes">Più modifiche locali</MenuItem>
-                      <MenuItem value="name">Nome A–Z</MenuItem>
+                      <MenuItem value="attention">{t("repositories.sort.attention")}</MenuItem>
+                      <MenuItem value="recent">{t("repositories.sort.recent")}</MenuItem>
+                      <MenuItem value="changes">{t("repositories.sort.changes")}</MenuItem>
+                      <MenuItem value="name">{t("repositories.sort.name")}</MenuItem>
                     </Select>
                   </FormControl>
                   <FormControl size="small" sx={{ minWidth: 160 }} disabled={viewMode !== "map"}>
                     <Select
                       value={repositoryGrouping}
                       onChange={(event) => setRepositoryGrouping(event.target.value as RepositoryGrouping)}
-                      inputProps={{ "aria-label": "Raggruppa repository" }}
+                      inputProps={{ "aria-label": t("repositories.groupAriaLabel") }}
                     >
-                      <MenuItem value="folder">Per cartella</MenuItem>
-                      <MenuItem value="status">Per stato operativo</MenuItem>
+                      <MenuItem value="folder">{t("repositories.group.folder")}</MenuItem>
+                      <MenuItem value="status">{t("repositories.group.status")}</MenuItem>
                     </Select>
                   </FormControl>
                   <Box sx={{ flex: 1 }} />
@@ -704,27 +750,23 @@ export function ProjectsDashboard({
                     onChange={(_, value: RepositoryDensity | null) => {
                       if (value) setRepositoryDensity(value);
                     }}
-                    aria-label="Densità repository"
+                    aria-label={t("repositories.densityAriaLabel")}
                   >
-                    <ToggleButton value="compact" aria-label="Densità compatta">Compatta</ToggleButton>
-                    <ToggleButton value="comfortable" aria-label="Densità comoda">Comoda</ToggleButton>
+                    <ToggleButton value="compact" aria-label={t("repositories.densityCompactAriaLabel")}>
+                      {t("repositories.densityCompact")}
+                    </ToggleButton>
+                    <ToggleButton value="comfortable" aria-label={t("repositories.densityComfortableAriaLabel")}>
+                      {t("repositories.densityComfortable")}
+                    </ToggleButton>
                   </ToggleButtonGroup>
                 </Stack>
 
-                {isLoading ? (
-                  <Box
-                    sx={{
-                      display: "grid",
-                      placeItems: "center",
-                      minHeight: 320,
-                      border: "1px solid",
-                      borderColor: "divider",
-                      borderRadius: 1,
-                      bgcolor: "background.paper"
-                    }}
-                  >
-                    <CircularProgress />
-                  </Box>
+                {isLoading || isScanningRoot ? (
+                  viewMode === "map" ? (
+                    <RepositoryGridSkeleton />
+                  ) : (
+                    <RepositoryTableSkeleton />
+                  )
                 ) : viewMode === "map" ? (
                   <WorkspaceMap
                     root={data?.root ?? ""}
@@ -781,7 +823,8 @@ export function ProjectsDashboard({
 }
 
 function ProjectDetailLoading() {
-  return <SectionLoading label="Caricamento repository" minHeight={620} />;
+  const { t } = useTranslation();
+  return <SectionLoading label={t("repositories.loading")} minHeight={620} />;
 }
 
 type SectionLoadingProps = {

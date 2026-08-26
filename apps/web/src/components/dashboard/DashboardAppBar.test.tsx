@@ -39,17 +39,17 @@ describe("DashboardAppBar", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Apri navigazione" }));
-    await user.click(screen.getByRole("textbox", { name: /Apri ricerca repository/ }));
-    fireEvent.keyDown(screen.getByRole("textbox", { name: /Apri ricerca repository/ }), { key: "Enter" });
-    fireEvent.keyDown(screen.getByRole("textbox", { name: /Apri ricerca repository/ }), { key: " " });
+    await user.click(screen.getByRole("button", { name: "Open navigation" }));
+    await user.click(screen.getByRole("textbox", { name: /Open repository search/ }));
+    fireEvent.keyDown(screen.getByRole("textbox", { name: /Open repository search/ }), { key: "Enter" });
+    fireEvent.keyDown(screen.getByRole("textbox", { name: /Open repository search/ }), { key: " " });
     expect(handlers.onOpenMobileNavigation).toHaveBeenCalledOnce();
     expect(handlers.onOpenSearch).toHaveBeenCalledTimes(3);
 
-    await user.click(screen.getByRole("button", { name: /Aggiorna repo-control alla versione 0.6.0/ }));
-    await user.click(screen.getByRole("button", { name: "Vista tabella" }));
-    await user.click(screen.getByRole("button", { name: "Griglia repository" }));
-    await user.click(screen.getByRole("button", { name: "Aggiorna repository" }));
+    await user.click(screen.getByRole("button", { name: /Update repo-control to version 0.6.0/ }));
+    await user.click(screen.getByRole("button", { name: "Table view" }));
+    await user.click(screen.getByRole("button", { name: "Repository grid" }));
+    await user.click(screen.getByRole("button", { name: "Refresh repositories" }));
     expect(handlers.onUpdateApp).toHaveBeenCalledOnce();
     expect(handlers.onViewModeChange).toHaveBeenCalledWith("table");
     expect(handlers.onRefreshProjects).toHaveBeenCalledOnce();
@@ -75,18 +75,18 @@ describe("DashboardAppBar", () => {
     };
     const { rerender } = renderWithTheme(<DashboardAppBar {...baseProps} />);
     expect(screen.getByText("alpha")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Aggiorna repo-control" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Update repo-control" })).toBeDisabled();
 
     rerender(<DashboardAppBar {...baseProps} appUpdateStatus={{ ...AVAILABLE_UPDATE, updateAvailable: false, error: "offline" }} isCheckingAppUpdate={false} isLoadingAppUpdateStatus={false} />);
-    expect(screen.getByRole("button", { name: "Aggiorna repo-control" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Update repo-control" })).toBeDisabled();
 
     rerender(<DashboardAppBar {...baseProps} appUpdateStatus={undefined} appUpdateStatusError={new Error("rete")} isCheckingAppUpdate={false} isLoadingAppUpdateStatus={false} />);
-    expect(screen.getByRole("button", { name: "Aggiorna repo-control" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Update repo-control" })).toBeDisabled();
 
     rerender(<DashboardAppBar {...baseProps} appUpdateStatus={AVAILABLE_UPDATE} isUpdatingApp isCheckingAppUpdate={false} isLoadingAppUpdateStatus={false} />);
-    expect(screen.getByRole("button", { name: "Aggiorna repo-control" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Update repo-control" })).toBeDisabled();
 
     rerender(<DashboardAppBar {...baseProps} appUpdateStatus={{ ...AVAILABLE_UPDATE, updateAvailable: false, latestVersion: null }} appUpdateStatusError={null} isUpdatingApp={false} isCheckingAppUpdate={false} isLoadingAppUpdateStatus={false} />);
-    expect(screen.getByRole("button", { name: "Aggiorna repo-control" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Update repo-control" })).toBeDisabled();
   });
 });

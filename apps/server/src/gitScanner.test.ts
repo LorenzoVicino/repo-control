@@ -75,3 +75,15 @@ test("returns an empty result for a workspace without repositories", async () =>
     await fs.rm(temporaryRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
+
+test("stops a project scan that has already been cancelled", async () => {
+  const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "repo-control-cancelled-scanner-test-"));
+  const controller = new AbortController();
+  controller.abort(new Error("test cancellation"));
+
+  try {
+    assert.deepEqual(await scanProjects(temporaryRoot, { signal: controller.signal }), []);
+  } finally {
+    await fs.rm(temporaryRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
+});

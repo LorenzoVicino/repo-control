@@ -1,5 +1,4 @@
 import { promises as fs } from "node:fs";
-import type { Dirent } from "node:fs";
 import path from "node:path";
 import { simpleGit } from "simple-git";
 
@@ -39,14 +38,26 @@ const IGNORED_DIRS = new Set([
   "target"
 ]);
 const PROJECT_SCAN_CONCURRENCY = 8;
+const DEFAULT_GIT_COMMAND_TIMEOUT_MS = 12_000;
+const DEFAULT_DIRECTORY_READ_TIMEOUT_MS = 4_000;
 
-export async function scanProjects(rootPath: string): Promise<ProjectSummary[]> {
+export type ProjectScanOptions = {
+  signal?: AbortSignal;
+  gitCommandTimeoutMs?: number;
+  directoryReadTimeoutMs?: number;
+};
+
+export async function scanProjects(
+  rootPath: string,
+  options: ProjectScanOptions = {}
+): Promise<ProjectSummary[]> {
   const resolvedRoot = path.resolve(rootPath);
-  const repoPaths = await findGitRepos(resolvedRoot);
+  const repoPaths = await findGitRepos(resolvedRoot, options);
   const projects = await mapWithConcurrency(
     repoPaths,
     PROJECT_SCAN_CONCURRENCY,
-    (repoPath) => readProjectSummary(repoPath, resolvedRoot)
+    (repoPath) => readProjectSummary(repoPath, resolvedRoot, options),
+    options.signal
   );
 
   return projects
@@ -54,17 +65,23 @@ export async function scanProjects(rootPath: string): Promise<ProjectSummary[]> 
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-async function findGitRepos(rootPath: string): Promise<string[]> {
+async function findGitRepos(
+  rootPath: string,
+  options: ProjectScanOptions
+): Promise<string[]> {
   const repositories: string[] = [];
+  const directoryReadTimeoutMs = options.directoryReadTimeoutMs
+    ?? DEFAULT_DIRECTORY_READ_TIMEOUT_MS;
 
   async function visit(currentPath: string): Promise<void> {
-    let entries: Dirent[];
+    if (options.signal?.aborted) return;
 
-    try {
-      entries = await fs.readdir(currentPath, { withFileTypes: true });
-    } catch {
-      return;
-    }
+    const entries = await settleWithin(
+      fs.readdir(currentPath, { withFileTypes: true }),
+      directoryReadTimeoutMs,
+      options.signal
+    ).catch(() => null);
+    if (!entries || options.signal?.aborted) return;
 
     if (entries.some((entry) => entry.name === ".git")) {
       repositories.push(currentPath);
@@ -81,8 +98,21 @@ async function findGitRepos(rootPath: string): Promise<string[]> {
   return repositories;
 }
 
-export async function readProjectSummary(repoPath: string, rootPath: string): Promise<ProjectSummary | null> {
-  const git = simpleGit(repoPath);
+export async function readProjectSummary(
+  repoPath: string,
+  rootPath: string,
+  options: ProjectScanOptions = {}
+): Promise<ProjectSummary | null> {
+  if (options.signal?.aborted) return null;
+
+  const git = simpleGit(repoPath, {
+    timeout: {
+      block: options.gitCommandTimeoutMs ?? DEFAULT_GIT_COMMAND_TIMEOUT_MS,
+      stdErr: false,
+      stdOut: false
+    },
+    ...(options.signal ? { abort: options.signal } : {})
+  });
 
   try {
     const [status, log, composeFiles] = await Promise.all([
@@ -125,13 +155,14 @@ export async function readProjectSummary(repoPath: string, rootPath: string): Pr
 async function mapWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
-  mapItem: (item: T) => Promise<R>
+  mapItem: (item: T) => Promise<R>,
+  signal?: AbortSignal
 ): Promise<R[]> {
   const results = new Array<R>(items.length);
   let nextIndex = 0;
 
   async function runWorker(): Promise<void> {
-    while (nextIndex < items.length) {
+    while (nextIndex < items.length && !signal?.aborted) {
       const itemIndex = nextIndex;
       nextIndex += 1;
       results[itemIndex] = await mapItem(items[itemIndex]);
@@ -140,7 +171,43 @@ async function mapWithConcurrency<T, R>(
 
   const workerCount = Math.min(concurrency, items.length);
   await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
-  return results;
+  return signal?.aborted
+    ? results.slice(0, nextIndex).filter((result): result is R => result !== undefined)
+    : results;
+}
+
+function settleWithin<T>(
+  operation: Promise<T>,
+  timeoutMs: number,
+  signal?: AbortSignal
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason ?? new Error("Project scan cancelled"));
+      return;
+    }
+
+    let settled = false;
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      signal?.removeEventListener("abort", onAbort);
+      callback();
+    };
+    const onAbort = () => finish(() => reject(signal?.reason ?? new Error("Project scan cancelled")));
+    const timeout = setTimeout(
+      () => finish(() => reject(new Error("Filesystem operation timed out"))),
+      timeoutMs
+    );
+    timeout.unref();
+
+    signal?.addEventListener("abort", onAbort, { once: true });
+    operation.then(
+      (value) => finish(() => resolve(value)),
+      (error) => finish(() => reject(error))
+    );
+  });
 }
 
 async function findComposeFiles(repoPath: string): Promise<string[]> {
