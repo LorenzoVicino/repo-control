@@ -98,4 +98,26 @@ describe("RepositoryOverviewPanel", () => {
     expect(screen.getByRole("button", { name: "Apri in VS Code" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Ferma stack" })).toBeVisible();
   });
+
+  it("uses the workspace snapshot for attention signals when live Git details are unavailable", () => {
+    renderWithTheme(
+      <RepositoryOverviewPanel
+        project={project}
+        details={undefined}
+        commits={[]}
+        dockerProject={undefined}
+        isLoading={false}
+        isLoadingMore={false}
+        hasMore={false}
+        onLoadMore={vi.fn()}
+        onResult={vi.fn()}
+        onCompleted={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Richiede attenzione")).toBeVisible();
+    expect(screen.getByText(/2 commit behind/)).toBeVisible();
+    expect(screen.getByText(/2 modifiche non sono ancora staged/)).toBeVisible();
+    expect(screen.queryByText("Repository in ordine")).not.toBeInTheDocument();
+  });
 });

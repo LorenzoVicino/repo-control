@@ -182,6 +182,20 @@ export const en = {
     unknownError: "The workspace request failed for an unknown reason.",
     unknownUpdateTime: "an unknown time"
   },
+  projectDataState: {
+    unavailableTitle: "{{resource}} unavailable",
+    unavailableDescription: "repo-control could not load the live data required by this repository view.",
+    partialTitle: "Some live project data is unavailable",
+    partialDescription: "Available repository information remains visible; affected data may be missing or stale.",
+    retry: "Retry",
+    retrying: "Retrying…",
+    unknownError: "The project data request failed for an unknown reason.",
+    resources: {
+      gitDetails: "Git details",
+      gitActivity: "Git activity",
+      dockerCompose: "Docker Compose status"
+    }
+  },
   operations: {
     title: "Operation history",
     history: "Operations",
@@ -420,6 +434,20 @@ export const it: TranslationSchema<typeof en> = {
     changeWorkspace: "Cambia workspace",
     unknownError: "La richiesta del workspace non è riuscita per un motivo sconosciuto.",
     unknownUpdateTime: "un momento sconosciuto"
+  },
+  projectDataState: {
+    unavailableTitle: "Dati non disponibili: {{resource}}",
+    unavailableDescription: "repo-control non è riuscito a caricare i dati live richiesti da questa vista del repository.",
+    partialTitle: "Alcuni dati live del progetto non sono disponibili",
+    partialDescription: "Le informazioni disponibili restano visibili; i dati interessati potrebbero essere mancanti o non aggiornati.",
+    retry: "Riprova",
+    retrying: "Nuovo tentativo…",
+    unknownError: "La richiesta dei dati del progetto non è riuscita per un motivo sconosciuto.",
+    resources: {
+      gitDetails: "Dettagli Git",
+      gitActivity: "Attività Git",
+      dockerCompose: "Stato Docker Compose"
+    }
   },
   operations: {
     title: "Cronologia operazioni",

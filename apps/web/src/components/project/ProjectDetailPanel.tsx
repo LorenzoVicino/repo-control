@@ -9,6 +9,7 @@ import TerminalIcon from "@mui/icons-material/Terminal";
 import { Badge, Box, Chip, CircularProgress, Divider, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { fetchDockerComposeProject } from "../../api/docker";
 import { fetchGitActivity, fetchGitDetails } from "../../api/projects";
 import type { CommandResult, ProjectOperationSource } from "../../types/common";
@@ -16,6 +17,11 @@ import type { ProjectDetailTab, ProjectSummary } from "../../types/projects";
 import { BranchesPanel } from "./BranchesPanel";
 import { ChangesPanel } from "./ChangesPanel";
 import { DockerDetailPanel } from "./DockerDetailPanel";
+import {
+  ProjectDataStaleNotice,
+  ProjectDataUnavailable,
+  type ProjectDataFailure
+} from "./ProjectDataQueryState";
 import { RepositoryOverviewPanel } from "./RepositoryOverviewPanel";
 import { TerminalPanel } from "./TerminalPanel";
 
@@ -41,6 +47,7 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
   onResult,
   onRefresh
 }: ProjectDetailPanelProps) {
+  const { t } = useTranslation();
   const [detailTab, setDetailTab] = React.useState<ProjectDetailTab>("overview");
   const [mountedTabs, setMountedTabs] = React.useState<Set<ProjectDetailTab>>(() => new Set(["overview"]));
   const needsGitDetails = detailTab === "overview" || detailTab === "git" || detailTab === "branches";
@@ -72,6 +79,7 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
 
   const {
     data: gitDetails,
+    error: gitDetailsError,
     isFetching: isFetchingGitDetails,
     refetch: refetchGitDetails
   } = useQuery({
@@ -82,6 +90,7 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
   });
   const {
     data: gitActivityPages,
+    error: gitActivityError,
     isFetching: isFetchingGitActivity,
     isFetchingNextPage: isFetchingNextGitActivityPage,
     hasNextPage: hasNextGitActivityPage,
@@ -97,6 +106,7 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
   });
   const {
     data: dockerProject,
+    error: dockerQueryError,
     isFetching: isFetchingDocker,
     refetch: refetchDocker
   } = useQuery({
@@ -107,6 +117,30 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
     refetchInterval: isActive && needsDocker ? 30_000 : false,
     refetchIntervalInBackground: false
   });
+
+  const dockerResponseError = dockerProject && !dockerProject.ok
+    ? dockerProject.error ?? t("projectDataState.unknownError")
+    : null;
+  const dockerFailure = dockerQueryError ?? dockerResponseError;
+  const gitDetailsFailure: ProjectDataFailure | null = gitDetailsError
+    ? { resource: t("projectDataState.resources.gitDetails"), error: gitDetailsError }
+    : null;
+  const gitActivityFailure: ProjectDataFailure | null = gitActivityError
+    ? { resource: t("projectDataState.resources.gitActivity"), error: gitActivityError }
+    : null;
+  const dockerDataFailure: ProjectDataFailure | null = dockerFailure
+    ? { resource: t("projectDataState.resources.dockerCompose"), error: dockerFailure }
+    : null;
+  const overviewFailures: ProjectDataFailure[] = [
+    ...(gitDetailsFailure ? [gitDetailsFailure] : []),
+    ...(gitActivityFailure ? [gitActivityFailure] : []),
+    ...(project.hasDockerCompose && dockerDataFailure ? [dockerDataFailure] : [])
+  ];
+  const isRetryingOverviewData = Boolean(
+    (gitDetailsFailure && isFetchingGitDetails)
+    || (gitActivityFailure && isFetchingGitActivity)
+    || (dockerDataFailure && isFetchingDocker)
+  );
 
   const commits = React.useMemo(
     () => gitActivityPages?.pages.flatMap((page) => page.commits) ?? [],
@@ -135,6 +169,20 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
     if (detailTab === "overview") void refetchGitActivity();
     if (needsDocker) void refetchDocker();
     onRefresh(project.id);
+  }
+
+  function retryOverviewData() {
+    if (gitDetailsFailure) void refetchGitDetails();
+    if (gitActivityFailure) void refetchGitActivity();
+    if (project.hasDockerCompose && dockerDataFailure) void refetchDocker();
+  }
+
+  function retryGitDetails() {
+    void refetchGitDetails();
+  }
+
+  function retryDockerData() {
+    void refetchDocker();
   }
 
   return (
@@ -194,7 +242,7 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
             {project.path}
           </Typography>
         </Box>
-        {(isFetchingGitDetails || isFetchingDocker) ? <CircularProgress size={17} /> : null}
+        {(isFetchingGitDetails || isFetchingGitActivity || isFetchingDocker) ? <CircularProgress size={17} /> : null}
         <Tooltip title="Aggiorna repository">
           <IconButton onClick={refreshCurrentTab} aria-label="Aggiorna repository"><RefreshIcon /></IconButton>
         </Tooltip>
@@ -223,38 +271,75 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
 
       <Box sx={{ minHeight: 0, flexGrow: 1, overflow: "auto", p: { xs: 1, md: 1.25 } }}>
         {detailTab === "overview" ? (
-          <RepositoryOverviewPanel
-            project={project}
-            details={gitDetails}
-            commits={commits}
-            dockerProject={dockerProject}
-            isLoading={isFetchingGitActivity && commits.length === 0}
-            isLoadingMore={isFetchingNextGitActivityPage}
-            hasMore={Boolean(hasNextGitActivityPage)}
-            onLoadMore={() => void fetchNextGitActivityPage()}
-            onResult={reportOverviewResult}
-            onCompleted={refreshAfterProjectAction}
-          />
+          <Stack spacing={1.25}>
+            <ProjectDataStaleNotice
+              failures={overviewFailures}
+              isRetrying={isRetryingOverviewData}
+              onRetry={retryOverviewData}
+            />
+            <RepositoryOverviewPanel
+              project={project}
+              details={gitDetails}
+              commits={commits}
+              dockerProject={dockerProject}
+              isLoading={isFetchingGitActivity && commits.length === 0}
+              isLoadingMore={isFetchingNextGitActivityPage}
+              hasMore={Boolean(hasNextGitActivityPage)}
+              onLoadMore={() => void fetchNextGitActivityPage()}
+              onResult={reportOverviewResult}
+              onCompleted={refreshAfterProjectAction}
+            />
+          </Stack>
         ) : null}
 
         {detailTab === "git" ? (
-          <ChangesPanel
-            projectId={project.id}
-            details={gitDetails}
-            isLoading={isFetchingGitDetails && !gitDetails}
-            onResult={reportChangesResult}
-            onCompleted={refreshAfterProjectAction}
-          />
+          gitDetailsFailure && !gitDetails ? (
+            <ProjectDataUnavailable
+              {...gitDetailsFailure}
+              isRetrying={isFetchingGitDetails}
+              onRetry={retryGitDetails}
+            />
+          ) : (
+            <Stack spacing={1.25}>
+              <ProjectDataStaleNotice
+                failures={gitDetailsFailure ? [gitDetailsFailure] : []}
+                isRetrying={isFetchingGitDetails}
+                onRetry={retryGitDetails}
+              />
+              <ChangesPanel
+                projectId={project.id}
+                details={gitDetails}
+                isLoading={isFetchingGitDetails && !gitDetails}
+                onResult={reportChangesResult}
+                onCompleted={refreshAfterProjectAction}
+              />
+            </Stack>
+          )
         ) : null}
 
         {detailTab === "branches" ? (
-          <BranchesPanel
-            projectId={project.id}
-            details={gitDetails}
-            isLoading={isFetchingGitDetails && !gitDetails}
-            onResult={reportBranchesResult}
-            onCompleted={refreshAfterProjectAction}
-          />
+          gitDetailsFailure && !gitDetails ? (
+            <ProjectDataUnavailable
+              {...gitDetailsFailure}
+              isRetrying={isFetchingGitDetails}
+              onRetry={retryGitDetails}
+            />
+          ) : (
+            <Stack spacing={1.25}>
+              <ProjectDataStaleNotice
+                failures={gitDetailsFailure ? [gitDetailsFailure] : []}
+                isRetrying={isFetchingGitDetails}
+                onRetry={retryGitDetails}
+              />
+              <BranchesPanel
+                projectId={project.id}
+                details={gitDetails}
+                isLoading={isFetchingGitDetails && !gitDetails}
+                onResult={reportBranchesResult}
+                onCompleted={refreshAfterProjectAction}
+              />
+            </Stack>
+          )
         ) : null}
 
         {mountedTabs.has("terminal") ? (
@@ -273,13 +358,28 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
         ) : null}
 
         {detailTab === "docker" && project.hasDockerCompose ? (
-          <DockerDetailPanel
-            projectId={project.id}
-            compose={dockerProject}
-            isLoading={isFetchingDocker}
-            onResult={reportDockerResult}
-            onCompleted={refreshAfterProjectAction}
-          />
+          dockerDataFailure && (!dockerProject || !dockerProject.ok) ? (
+            <ProjectDataUnavailable
+              {...dockerDataFailure}
+              isRetrying={isFetchingDocker}
+              onRetry={retryDockerData}
+            />
+          ) : (
+            <Stack spacing={1.25}>
+              <ProjectDataStaleNotice
+                failures={dockerDataFailure ? [dockerDataFailure] : []}
+                isRetrying={isFetchingDocker}
+                onRetry={retryDockerData}
+              />
+              <DockerDetailPanel
+                projectId={project.id}
+                compose={dockerProject}
+                isLoading={isFetchingDocker}
+                onResult={reportDockerResult}
+                onCompleted={refreshAfterProjectAction}
+              />
+            </Stack>
+          )
         ) : null}
       </Box>
     </Stack>
