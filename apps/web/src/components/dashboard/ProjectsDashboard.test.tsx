@@ -10,7 +10,7 @@ import {
   updateRepoControl
 } from "../../api/app";
 import { fetchDockerContainers, stopDockerContainers } from "../../api/docker";
-import { fetchProjects, fetchProjectSummary } from "../../api/projects";
+import { fetchProjects, fetchProjectSummary, runProjectAction } from "../../api/projects";
 import {
   fetchPreferences,
   pickWorkspaceFolder,
@@ -191,19 +191,6 @@ vi.mock("../project/ProjectWorkspaceTabs", () => ({
     </div>
   )
 }));
-vi.mock("../project/ProjectDetailPanel", () => ({
-  ProjectDetailPanel: (props: Record<string, unknown>) => (
-    <div data-testid={`detail-${(props.project as { id: string }).id}`} data-active={String(props.isActive)}>
-      <button onClick={() => (props.onToggleFavorite as (id: string) => void)((props.project as { id: string }).id)}>
-        detail-favorite
-      </button>
-      <button onClick={() => (props.onRefresh as (id: string) => void)((props.project as { id: string }).id)}>
-        detail-refresh
-      </button>
-      <button onClick={props.onResult as () => void}>detail-result</button>
-    </div>
-  )
-}));
 vi.mock("../agents/AgentSessionsPage", () => ({ AgentSessionsPage: () => <div data-testid="agents-page" /> }));
 vi.mock("../automation/AutomationPage", () => ({ AutomationPage: () => <div data-testid="automation-page" /> }));
 vi.mock("../task/TaskEngineeringPage", () => ({ TaskEngineeringPage: () => <div data-testid="tasks-page" /> }));
@@ -267,6 +254,15 @@ describe("ProjectsDashboard orchestration", () => {
     });
     vi.mocked(fetchProjects).mockResolvedValue({ root: "/workspace", projects: [alpha, beta] });
     vi.mocked(fetchProjectSummary).mockImplementation(async (id) => id === "alpha" ? { ...alpha, ahead: 1 } : beta);
+    vi.mocked(runProjectAction).mockResolvedValue({
+      ok: true,
+      command: "git fetch",
+      exitCode: 0,
+      stdout: "",
+      stderr: "",
+      output: "",
+      durationMs: 1
+    });
     vi.mocked(fetchDockerContainers).mockResolvedValue(dockerStatus);
     vi.mocked(fetchPreferences).mockResolvedValue({ favoriteProjectIds: ["alpha"] });
     vi.mocked(fetchAppUpdateStatus).mockResolvedValue({
@@ -418,6 +414,122 @@ describe("ProjectsDashboard orchestration", () => {
     await user.click(await screen.findByText("docker-stop"));
     expect(screen.getByTestId("control-center")).toHaveAttribute("data-error", "Unable to stop Docker containers");
   }, 20_000);
+
+  it("shows a busy workspace skeleton until the initial project scan completes", async () => {
+    let finishScan: ((value: { root: string; projects: [typeof alpha, typeof beta] }) => void) | undefined;
+    vi.mocked(fetchProjects).mockImplementationOnce(() => new Promise((resolve) => {
+      finishScan = resolve;
+    }));
+
+    renderDashboard();
+
+    expect(await screen.findByRole("status", { name: /Scanning workspace|Scansione workspace/i })).toBeVisible();
+    expect(screen.queryByTestId("home")).not.toBeInTheDocument();
+    expect(screen.getByRole("main")).toHaveAttribute("aria-busy", "true");
+
+    await act(async () => {
+      finishScan?.({ root: "/workspace", projects: [alpha, beta] });
+    });
+
+    expect(await screen.findByTestId("home")).toBeVisible();
+    expect(screen.getByRole("main")).toHaveAttribute("aria-busy", "false");
+  });
+
+  it("blocks false healthy content when the initial workspace request fails and recovers on retry", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchProjects).mockRejectedValueOnce(new Error("workspace offline"));
+
+    renderDashboard();
+
+    const failure = await screen.findByRole("alert");
+    expect(failure).toHaveTextContent(/Workspace data is unavailable|Dati del workspace non disponibili/i);
+    expect(failure).toHaveTextContent("workspace offline");
+    expect(screen.queryByTestId("home")).not.toBeInTheDocument();
+
+    await user.click(within(failure).getByRole("button", { name: /Retry|Riprova/i }));
+
+    expect(await screen.findByTestId("home")).toBeVisible();
+    expect(screen.queryByText("workspace offline")).not.toBeInTheDocument();
+  });
+
+  it("keeps the last valid workspace visible when a refresh fails and clears the stale warning on retry", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+    expect(await screen.findByTestId("home")).toBeVisible();
+
+    vi.mocked(fetchProjects).mockRejectedValueOnce(new Error("refresh offline"));
+    await user.click(screen.getByText("refresh-projects"));
+
+    await screen.findByText(/Workspace refresh failed|Aggiornamento workspace non riuscito/i);
+    const staleNotice = screen.getByRole("status");
+    expect(staleNotice).toHaveTextContent("refresh offline");
+    expect(screen.getByTestId("home")).toBeVisible();
+
+    await user.click(within(staleNotice).getByRole("button", { name: /Retry|Riprova/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("refresh offline")).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId("home")).toBeVisible();
+  });
+
+  it("keeps a newly selected workspace blocked until one of its retries succeeds", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+    expect(await screen.findByTestId("home")).toBeVisible();
+
+    vi.mocked(pickWorkspaceFolder).mockResolvedValueOnce("/new-workspace");
+    vi.mocked(fetchProjects)
+      .mockRejectedValueOnce(new Error("new workspace offline"))
+      .mockRejectedValueOnce(new Error("new workspace still offline"));
+    await user.click(screen.getByText("pick-workspace"));
+
+    const failure = await screen.findByRole("alert");
+    expect(failure).toHaveTextContent("new workspace offline");
+    expect(screen.queryByTestId("home")).not.toBeInTheDocument();
+
+    await user.click(within(failure).getByRole("button", { name: /Retry|Riprova/i }));
+    await waitFor(() => {
+      expect(failure).toHaveTextContent("new workspace still offline");
+    });
+    expect(screen.queryByTestId("home")).not.toBeInTheDocument();
+
+    await user.click(within(failure).getByRole("button", { name: /Retry|Riprova/i }));
+    expect(await screen.findByTestId("home")).toBeVisible();
+  });
+
+  it("announces project action failures and retains their command output in operation history", async () => {
+    const user = userEvent.setup();
+    vi.mocked(runProjectAction).mockResolvedValueOnce({
+      ok: false,
+      command: "git fetch",
+      exitCode: 1,
+      stdout: "",
+      stderr: "network offline",
+      output: "network offline",
+      durationMs: 42
+    });
+    renderDashboard();
+    expect(await screen.findByTestId("home")).toBeVisible();
+
+    await user.click(screen.getByText("nav-repositories"));
+    await user.click(await screen.findByText("map-open-alpha"));
+    await user.click(await screen.findByRole("tab", { name: /^Branch/i }));
+    await user.click(await screen.findByRole("button", { name: "Fetch" }));
+
+    const notification = await screen.findByRole("alert");
+    expect(notification).toHaveTextContent(/Failed|non riuscita/i);
+    expect(notification).toHaveTextContent("Alpha");
+    expect(notification).toHaveTextContent("git fetch");
+    expect(screen.getByRole("button", { name: /Open operation history|Apri cronologia operazioni/i })).toBeVisible();
+
+    await user.click(within(notification).getByRole("button", { name: /Details|Dettagli/i }));
+
+    const dialog = await screen.findByRole("dialog", { name: /Operation history|Cronologia operazioni/i });
+    expect(dialog).toHaveTextContent("network offline");
+    expect(dialog).toHaveTextContent("git fetch");
+    expect(dialog).toHaveTextContent("1");
+  });
 
   it("reports the workspace scan phase and cancels stale project data", async () => {
     const user = userEvent.setup();

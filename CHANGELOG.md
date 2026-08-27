@@ -6,6 +6,15 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.8.2] - 2026-08-27
+
+### Fixed
+
+- Surface initial workspace failures with accessible retry controls, and preserve the last successful workspace snapshot when a refresh fails.
+- Keep failed repository operations visible in immediate feedback and operation history instead of losing their error context.
+- Report Git details, Git activity and Docker Compose query failures in repository views, while retaining usable stale data and retrying only affected sources.
+- Fall back to the workspace snapshot for repository attention signals when live Git details are unavailable, avoiding a false healthy state.
+
 ## [0.8.1] - 2026-08-24
 
 ### Changed

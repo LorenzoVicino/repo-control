@@ -47,7 +47,7 @@ export function RepositoryOverviewPanel({
   const runningServices = dockerProject?.services.filter((service) => service.state.toLowerCase() === "running").length ?? 0;
   const unhealthyServices = dockerProject?.services.filter((service) => service.health === "unhealthy").length ?? 0;
   const totalServices = dockerProject?.services.length ?? 0;
-  const attentionItems = getAttentionItems(details, conflicts, unhealthyServices);
+  const attentionItems = getAttentionItems(project, details, conflicts, unhealthyServices);
   const canStartDocker = project.hasDockerCompose && dockerProject?.ok === true && runningServices === 0;
   const canStopDocker = project.hasDockerCompose && dockerProject?.ok === true && runningServices > 0;
 
@@ -254,12 +254,22 @@ function RecentCommitRow({ commit, isLast }: { commit: GitActivityCommit; isLast
   );
 }
 
-function getAttentionItems(details: GitDetails | undefined, conflicts: number, unhealthyServices: number): string[] {
+function getAttentionItems(
+  project: ProjectSummary,
+  details: GitDetails | undefined,
+  conflicts: number,
+  unhealthyServices: number
+): string[] {
   const items: string[] = [];
+  const behind = details?.status.behind ?? project.behind;
+  const unstaged = details
+    ? details.status.files.unstaged.length
+    : project.modified + project.untracked;
+  const tracking = details ? details.status.tracking : project.upstream;
   if (conflicts > 0) items.push(`${conflicts} file in conflitto bloccano le operazioni Git.`);
-  if ((details?.status.behind ?? 0) > 0) items.push(`Il branch è ${details?.status.behind} commit behind rispetto all'upstream.`);
-  if ((details?.status.files.unstaged.length ?? 0) > 0) items.push(`${details?.status.files.unstaged.length} modifiche non sono ancora staged.`);
+  if (behind > 0) items.push(`Il branch è ${behind} commit behind rispetto all'upstream.`);
+  if (unstaged > 0) items.push(`${unstaged} modifiche non sono ancora staged.`);
   if (unhealthyServices > 0) items.push(`${unhealthyServices} servizi Docker risultano unhealthy.`);
-  if (details && !details.status.tracking) items.push("Il branch corrente non ha un upstream configurato.");
+  if (!tracking) items.push("Il branch corrente non ha un upstream configurato.");
   return items;
 }
