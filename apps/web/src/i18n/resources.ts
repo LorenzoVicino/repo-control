@@ -171,6 +171,46 @@ export const en = {
     scanWorkspace: "Unable to scan workspace. Choose a narrower folder and try again.",
     stopDocker: "Unable to stop Docker containers"
   },
+  workspaceState: {
+    unavailableTitle: "Workspace data is unavailable",
+    unavailableDescription: "repo-control could not read this workspace, so no repository health assessment is being shown.",
+    staleTitle: "Workspace refresh failed",
+    staleDescription: "Showing the last successful snapshot from {{lastUpdated}}.",
+    retry: "Retry",
+    retrying: "Retrying…",
+    changeWorkspace: "Change workspace",
+    unknownError: "The workspace request failed for an unknown reason.",
+    unknownUpdateTime: "an unknown time"
+  },
+  operations: {
+    title: "Operation history",
+    history: "Operations",
+    historyAria: "Recent project operations",
+    openHistoryAria: "Open operation history, {{count}} operations",
+    details: "Details",
+    dismiss: "Dismiss operation notification",
+    completed: "{{source}} completed",
+    failed: "{{source}} failed",
+    success: "Success",
+    failure: "Failed",
+    scope: "Scope",
+    command: "Command",
+    exitCode: "Exit code",
+    duration: "Duration",
+    output: "Output",
+    noOutput: "The operation returned no output.",
+    clear: "Clear history",
+    copy: "Copy details",
+    copied: "Copied",
+    copyFailed: "Copy failed",
+    close: "Close",
+    sources: {
+      overview: "Repository action",
+      changes: "Git changes",
+      branches: "Git branches",
+      docker: "Docker action"
+    }
+  },
   settings: {
     eyebrow: "Workspace preferences",
     title: "Settings",
@@ -369,6 +409,46 @@ export const it: TranslationSchema<typeof en> = {
     pickFolder: "Impossibile selezionare la cartella",
     scanWorkspace: "Impossibile scansionare il workspace. Scegli una cartella più specifica e riprova.",
     stopDocker: "Impossibile arrestare i container Docker"
+  },
+  workspaceState: {
+    unavailableTitle: "Dati del workspace non disponibili",
+    unavailableDescription: "repo-control non è riuscito a leggere questo workspace, quindi non viene mostrata alcuna valutazione sullo stato dei repository.",
+    staleTitle: "Aggiornamento workspace non riuscito",
+    staleDescription: "Viene mostrata l’ultima snapshot riuscita del {{lastUpdated}}.",
+    retry: "Riprova",
+    retrying: "Nuovo tentativo…",
+    changeWorkspace: "Cambia workspace",
+    unknownError: "La richiesta del workspace non è riuscita per un motivo sconosciuto.",
+    unknownUpdateTime: "un momento sconosciuto"
+  },
+  operations: {
+    title: "Cronologia operazioni",
+    history: "Operazioni",
+    historyAria: "Operazioni recenti sui repository",
+    openHistoryAria: "Apri cronologia operazioni, {{count}} operazioni",
+    details: "Dettagli",
+    dismiss: "Chiudi notifica operazione",
+    completed: "{{source}} completata",
+    failed: "{{source}} non riuscita",
+    success: "Riuscita",
+    failure: "Non riuscita",
+    scope: "Ambito",
+    command: "Comando",
+    exitCode: "Codice di uscita",
+    duration: "Durata",
+    output: "Output",
+    noOutput: "L’operazione non ha restituito output.",
+    clear: "Svuota cronologia",
+    copy: "Copia dettagli",
+    copied: "Copiati",
+    copyFailed: "Copia non riuscita",
+    close: "Chiudi",
+    sources: {
+      overview: "Azione repository",
+      changes: "Modifiche Git",
+      branches: "Branch Git",
+      docker: "Azione Docker"
+    }
   },
   settings: {
     eyebrow: "Preferenze workspace",

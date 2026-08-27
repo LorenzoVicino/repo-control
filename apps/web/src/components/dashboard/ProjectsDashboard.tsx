@@ -43,17 +43,23 @@ import { FavoriteProjects, WorkspaceMap } from "./WorkspaceMap";
 import { ProjectWorkspaceTabs } from "../project/ProjectWorkspaceTabs";
 import { getProjectPanelId } from "../project/projectWorkspaceIds";
 import { SettingsPage } from "../settings/SettingsPage";
+import {
+  OperationFeedback,
+  type OperationRecord
+} from "../shared/OperationFeedback";
 import type { AppUpdateResult } from "../../types/app";
-import type { ColorPalette, ViewMode } from "../../types/common";
+import type { ColorPalette, CommandResult, ProjectOperationSource, ViewMode } from "../../types/common";
 import type { DockerContainerGroup } from "../../types/docker";
 import type { ProjectsResponse } from "../../types/projects";
 import { commandErrorResult } from "../../utils/commandResult";
 import { filterProjects, isProject } from "../../utils/projects";
+import { WorkspaceStaleNotice, WorkspaceUnavailable } from "./WorkspaceQueryState";
 
 const LEGACY_FAVORITE_PROJECTS_STORAGE_KEY = "repo-control-favorite-projects";
 const APP_UPDATE_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const DOCKER_POLL_INTERVAL_MS = 60 * 1000;
 const MAX_WARM_PROJECT_PANELS = 4;
+const MAX_OPERATION_RECORDS = 20;
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "repo-control-sidebar-collapsed";
 type RepositorySort = "attention" | "name" | "recent" | "changes";
 type RepositoryGrouping = "folder" | "status";
@@ -99,8 +105,6 @@ type ProjectsDashboardProps = {
   onColorPaletteChange: (colorPalette: ColorPalette) => void;
 };
 
-function ignoreCommandResult(): void {}
-
 export function ProjectsDashboard({
   colorPalette,
   onColorPaletteChange
@@ -121,6 +125,7 @@ export function ProjectsDashboard({
   const [rootError, setRootError] = React.useState<string | null>(null);
   const [isPickingRoot, setIsPickingRoot] = React.useState(false);
   const [isScanningRoot, setIsScanningRoot] = React.useState(false);
+  const [isWorkspaceSnapshotInvalid, setIsWorkspaceSnapshotInvalid] = React.useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = React.useState(false);
   const [appUpdateResult, setAppUpdateResult] = React.useState<AppUpdateResult | null>(null);
   const [isAppUpdateDialogOpen, setIsAppUpdateDialogOpen] = React.useState(false);
@@ -131,8 +136,18 @@ export function ProjectsDashboard({
   const [activeProjectId, setActiveProjectId] = React.useState<string | null>(null);
   const [stoppingDockerGroupId, setStoppingDockerGroupId] = React.useState<string | null>(null);
   const [dockerActionError, setDockerActionError] = React.useState<string | null>(null);
+  const [operationRecords, setOperationRecords] = React.useState<OperationRecord[]>([]);
+  const [operationNotificationId, setOperationNotificationId] = React.useState<string | null>(null);
+  const operationSequenceRef = React.useRef(0);
 
-  const { data, isFetching, isLoading, refetch } = useQuery({
+  const {
+    data,
+    dataUpdatedAt,
+    error: projectsError,
+    isFetching,
+    isLoading,
+    refetch
+  } = useQuery({
     queryKey: ["projects"],
     queryFn: ({ signal }) => fetchProjects(signal)
   });
@@ -192,6 +207,14 @@ export function ProjectsDashboard({
   );
   const workspaceRoot = data?.root ?? "";
   const dockerAvailable = dockerStatus?.ok === true;
+  const isInitialWorkspaceLoading = isLoading && !data;
+  const isWorkspaceUnavailable = Boolean(
+    (isWorkspaceSnapshotInvalid && !isScanningRoot) || (projectsError && !data)
+  );
+  const isWorkspaceStale = Boolean(projectsError && data && !isWorkspaceSnapshotInvalid);
+  const needsGenericWorkspaceLoading = !activeProject
+    && (isInitialWorkspaceLoading || isScanningRoot)
+    && ["tasks", "agents", "automations", "docker"].includes(activeSection);
 
   React.useEffect(() => {
     window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(isSidebarCollapsed));
@@ -263,6 +286,7 @@ export function ProjectsDashboard({
   const applyRootPath = React.useCallback(async (root: string) => {
     await queryClient.cancelQueries({ queryKey: ["projects"] });
     const { root: nextRoot } = await setRootPath(root);
+    setIsWorkspaceSnapshotInvalid(true);
     queryClient.setQueryData<ProjectsResponse>(["projects"], {
       root: nextRoot,
       projects: []
@@ -272,7 +296,17 @@ export function ProjectsDashboard({
     setActiveProjectId(null);
     setSearch("");
     await refetch({ throwOnError: true });
+    setIsWorkspaceSnapshotInvalid(false);
   }, [queryClient, refetch]);
+
+  const retryProjects = React.useCallback(async () => {
+    const result = await refetch();
+
+    if (result.isSuccess && result.data) {
+      setIsWorkspaceSnapshotInvalid(false);
+      setRootError(null);
+    }
+  }, [refetch]);
 
   const handleFolderPick = React.useCallback(async () => {
     if (isPickingRoot || isScanningRoot) return;
@@ -385,6 +419,26 @@ export function ProjectsDashboard({
     });
   }, [saveFavoriteProjectIds]);
 
+  const recordOperation = React.useCallback((
+    scope: string,
+    result: CommandResult,
+    source: ProjectOperationSource
+  ) => {
+    if (source === "terminal") return;
+
+    operationSequenceRef.current += 1;
+    const record: OperationRecord = {
+      id: `${Date.now()}-${operationSequenceRef.current}`,
+      scope,
+      source,
+      result,
+      completedAt: Date.now()
+    };
+
+    setOperationRecords((currentRecords) => [record, ...currentRecords].slice(0, MAX_OPERATION_RECORDS));
+    setOperationNotificationId(record.id);
+  }, []);
+
   const refreshProjectSummary = React.useCallback(async (projectId: string) => {
     try {
       const refreshedProject = await fetchProjectSummary(projectId);
@@ -457,10 +511,16 @@ export function ProjectsDashboard({
     setDockerActionError(null);
 
     try {
-      await stopDockerContainers(group.containers.map((container) => container.id));
+      const result = await stopDockerContainers(group.containers.map((container) => container.id));
+      recordOperation(group.name, result, "docker");
       await refetchDockerContainers();
     } catch (error) {
-      setDockerActionError(error instanceof Error ? error.message : t("errors.stopDocker"));
+      const result = commandErrorResult(
+        "docker stop",
+        error instanceof Error ? error : new Error(t("errors.stopDocker"))
+      );
+      setDockerActionError(result.output);
+      recordOperation(group.name, result, "docker");
     } finally {
       setStoppingDockerGroupId(null);
     }
@@ -550,7 +610,7 @@ export function ProjectsDashboard({
 
       <Container
         component="main"
-        aria-busy={isNavigating}
+        aria-busy={isNavigating || isInitialWorkspaceLoading || isScanningRoot}
         maxWidth={false}
         sx={{
           maxWidth: isAutomationWorkspace ? "none" : 1680,
@@ -565,6 +625,30 @@ export function ProjectsDashboard({
           spacing={{ xs: 2.5, md: 3 }}
           sx={{ height: isAutomationWorkspace ? "100%" : undefined, minHeight: 0 }}
         >
+          {isWorkspaceStale ? (
+            <WorkspaceStaleNotice
+              error={projectsError}
+              dataUpdatedAt={dataUpdatedAt}
+              isRetrying={isFetching}
+              onRetry={() => void retryProjects()}
+            />
+          ) : null}
+
+          {!activeProject && isWorkspaceUnavailable ? (
+            <WorkspaceUnavailable
+              error={projectsError ?? rootError}
+              isRetrying={isFetching}
+              onRetry={() => void retryProjects()}
+              onPickWorkspace={() => {
+                void handleFolderPick();
+              }}
+            />
+          ) : null}
+
+          {needsGenericWorkspaceLoading ? (
+            <SectionLoading label={t("navigation.scanningWorkspace")} />
+          ) : null}
+
           {activeProject ? (
             <ViewEntrance>
               <Box
@@ -590,7 +674,7 @@ export function ProjectsDashboard({
                           isActive={project.id === activeProject.id}
                           isFavorite={favoriteProjectIdSet.has(project.id)}
                           onToggleFavorite={toggleFavoriteProject}
-                          onResult={ignoreCommandResult}
+                          onResult={recordOperation}
                           onRefresh={refreshProjectSummary}
                         />
                       </React.Suspense>
@@ -601,13 +685,13 @@ export function ProjectsDashboard({
             </ViewEntrance>
           ) : null}
 
-          {!activeProject && activeSection === "overview" ? (
+          {!activeProject && !isWorkspaceUnavailable && activeSection === "overview" ? (
             <ViewEntrance>
               <Box
                 component="section"
                 aria-labelledby={isScanningRoot ? undefined : "dashboard-home-title"}
               >
-                {isScanningRoot ? (
+                {isInitialWorkspaceLoading || isScanningRoot ? (
                   <DashboardHomeSkeleton />
                 ) : (
                   <DashboardHome
@@ -622,7 +706,7 @@ export function ProjectsDashboard({
             </ViewEntrance>
           ) : null}
 
-          {!activeProject && activeSection === "tasks" ? (
+          {!activeProject && data && !isScanningRoot && activeSection === "tasks" ? (
             <ViewEntrance>
               <React.Suspense fallback={<SectionLoading label={t("loading.tasks")} />}>
                 <TaskEngineeringPage projects={projects} />
@@ -630,7 +714,7 @@ export function ProjectsDashboard({
             </ViewEntrance>
           ) : null}
 
-          {!activeProject && activeSection === "agents" ? (
+          {!activeProject && data && !isScanningRoot && activeSection === "agents" ? (
             <ViewEntrance>
               <React.Suspense fallback={<SectionLoading label={t("loading.agents")} />}>
                 <AgentSessionsPage />
@@ -638,7 +722,7 @@ export function ProjectsDashboard({
             </ViewEntrance>
           ) : null}
 
-          {!activeProject && activeSection === "automations" ? (
+          {!activeProject && data && !isScanningRoot && activeSection === "automations" ? (
             <ViewEntrance fill>
               <React.Suspense
                 fallback={<SectionLoading label={t("loading.automations")} fill />}
@@ -648,7 +732,7 @@ export function ProjectsDashboard({
             </ViewEntrance>
           ) : null}
 
-          {!activeProject && activeSection === "docker" && dockerAvailable ? (
+          {!activeProject && data && !isScanningRoot && activeSection === "docker" && dockerAvailable ? (
             <ViewEntrance>
               <ControlCenter
                 dockerStatus={dockerStatus}
@@ -666,9 +750,9 @@ export function ProjectsDashboard({
             </ViewEntrance>
           ) : null}
 
-          {!activeProject && activeSection === "favorites" ? (
+          {!activeProject && !isWorkspaceUnavailable && activeSection === "favorites" ? (
             <ViewEntrance>
-              {isScanningRoot ? (
+              {isInitialWorkspaceLoading || isScanningRoot ? (
                 <RepositoryGridSkeleton />
               ) : (
                 <FavoriteProjects
@@ -691,7 +775,7 @@ export function ProjectsDashboard({
             </ViewEntrance>
           ) : null}
 
-          {!activeProject && activeSection === "repositories" ? (
+          {!activeProject && !isWorkspaceUnavailable && activeSection === "repositories" ? (
             <ViewEntrance>
               <Box component="section" aria-labelledby="repository-list-title">
                 <Stack
@@ -816,6 +900,15 @@ export function ProjectsDashboard({
         isUpdating={isUpdatingApp}
         result={appUpdateResult}
         onClose={() => setIsAppUpdateDialogOpen(false)}
+      />
+      <OperationFeedback
+        records={operationRecords}
+        notificationId={operationNotificationId}
+        onDismissNotification={() => setOperationNotificationId(null)}
+        onClear={() => {
+          setOperationRecords([]);
+          setOperationNotificationId(null);
+        }}
       />
       </Box>
     </Box>

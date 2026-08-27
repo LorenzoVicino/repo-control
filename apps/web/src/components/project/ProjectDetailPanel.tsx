@@ -11,7 +11,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import React from "react";
 import { fetchDockerComposeProject } from "../../api/docker";
 import { fetchGitActivity, fetchGitDetails } from "../../api/projects";
-import type { CommandResult } from "../../types/common";
+import type { CommandResult, ProjectOperationSource } from "../../types/common";
 import type { ProjectDetailTab, ProjectSummary } from "../../types/projects";
 import { BranchesPanel } from "./BranchesPanel";
 import { ChangesPanel } from "./ChangesPanel";
@@ -29,7 +29,7 @@ type ProjectDetailPanelProps = {
   isActive: boolean;
   isFavorite: boolean;
   onToggleFavorite: (projectId: string) => void;
-  onResult: (result: CommandResult) => void;
+  onResult: (scope: string, result: CommandResult, source: ProjectOperationSource) => void;
   onRefresh: (projectId: string) => void;
 };
 
@@ -45,6 +45,26 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
   const [mountedTabs, setMountedTabs] = React.useState<Set<ProjectDetailTab>>(() => new Set(["overview"]));
   const needsGitDetails = detailTab === "overview" || detailTab === "git" || detailTab === "branches";
   const needsDocker = project.hasDockerCompose && (detailTab === "overview" || detailTab === "docker");
+  const reportOverviewResult = React.useCallback(
+    (result: CommandResult) => onResult(project.name, result, "overview"),
+    [onResult, project.name]
+  );
+  const reportChangesResult = React.useCallback(
+    (result: CommandResult) => onResult(project.name, result, "changes"),
+    [onResult, project.name]
+  );
+  const reportBranchesResult = React.useCallback(
+    (result: CommandResult) => onResult(project.name, result, "branches"),
+    [onResult, project.name]
+  );
+  const reportTerminalResult = React.useCallback(
+    (result: CommandResult) => onResult(project.name, result, "terminal"),
+    [onResult, project.name]
+  );
+  const reportDockerResult = React.useCallback(
+    (result: CommandResult) => onResult(project.name, result, "docker"),
+    [onResult, project.name]
+  );
 
   React.useEffect(() => {
     if (!project.hasDockerCompose && detailTab === "docker") setDetailTab("overview");
@@ -212,7 +232,7 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
             isLoadingMore={isFetchingNextGitActivityPage}
             hasMore={Boolean(hasNextGitActivityPage)}
             onLoadMore={() => void fetchNextGitActivityPage()}
-            onResult={onResult}
+            onResult={reportOverviewResult}
             onCompleted={refreshAfterProjectAction}
           />
         ) : null}
@@ -222,7 +242,7 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
             projectId={project.id}
             details={gitDetails}
             isLoading={isFetchingGitDetails && !gitDetails}
-            onResult={onResult}
+            onResult={reportChangesResult}
             onCompleted={refreshAfterProjectAction}
           />
         ) : null}
@@ -232,7 +252,7 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
             projectId={project.id}
             details={gitDetails}
             isLoading={isFetchingGitDetails && !gitDetails}
-            onResult={onResult}
+            onResult={reportBranchesResult}
             onCompleted={refreshAfterProjectAction}
           />
         ) : null}
@@ -246,7 +266,7 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
               branch={gitDetails?.status.current ?? project.branch}
               hasDockerCompose={project.hasDockerCompose}
               composeServiceCount={dockerProject?.services.length}
-              onResult={onResult}
+              onResult={reportTerminalResult}
               onCompleted={refreshAfterProjectAction}
             />
           </Box>
@@ -257,7 +277,7 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
             projectId={project.id}
             compose={dockerProject}
             isLoading={isFetchingDocker}
-            onResult={onResult}
+            onResult={reportDockerResult}
             onCompleted={refreshAfterProjectAction}
           />
         ) : null}
