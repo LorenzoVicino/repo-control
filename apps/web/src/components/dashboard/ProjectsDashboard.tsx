@@ -38,6 +38,11 @@ import {
   type DashboardSection
 } from "./DashboardSidebar";
 import { ProjectTable } from "./ProjectTable";
+import {
+  PreferenceSyncNotice,
+  type PreferenceFailure,
+  type PreferenceFailureKind
+} from "./PreferenceSyncNotice";
 import { RepositoryCommandPalette } from "./RepositoryCommandPalette";
 import { FavoriteProjects, WorkspaceMap } from "./WorkspaceMap";
 import { ProjectWorkspaceTabs } from "../project/ProjectWorkspaceTabs";
@@ -131,6 +136,8 @@ export function ProjectsDashboard({
   const [isAppUpdateDialogOpen, setIsAppUpdateDialogOpen] = React.useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = React.useState(false);
   const [favoriteProjectIds, setFavoriteProjectIds] = React.useState<string[]>([]);
+  const [preferenceFailure, setPreferenceFailure] = React.useState<PreferenceFailure | null>(null);
+  const [isRetryingPreferenceSave, setIsRetryingPreferenceSave] = React.useState(false);
   const [openProjectIds, setOpenProjectIds] = React.useState<string[]>([]);
   const [warmProjectIds, setWarmProjectIds] = React.useState<string[]>([]);
   const [activeProjectId, setActiveProjectId] = React.useState<string | null>(null);
@@ -139,6 +146,10 @@ export function ProjectsDashboard({
   const [operationRecords, setOperationRecords] = React.useState<OperationRecord[]>([]);
   const [operationNotificationId, setOperationNotificationId] = React.useState<string | null>(null);
   const operationSequenceRef = React.useRef(0);
+  const favoriteProjectIdsRef = React.useRef<string[]>([]);
+  const confirmedFavoriteProjectIdsRef = React.useRef<string[]>([]);
+  const favoritePreferenceSequenceRef = React.useRef(0);
+  const favoritePreferenceQueueRef = React.useRef<Promise<void>>(Promise.resolve());
 
   const {
     data,
@@ -163,7 +174,12 @@ export function ProjectsDashboard({
     refetchInterval: DOCKER_POLL_INTERVAL_MS,
     refetchIntervalInBackground: true
   });
-  const { data: preferences } = useQuery({
+  const {
+    data: preferences,
+    error: preferencesError,
+    isFetching: isFetchingPreferences,
+    refetch: refetchPreferences
+  } = useQuery({
     queryKey: ["preferences"],
     queryFn: fetchPreferences
   });
@@ -215,6 +231,65 @@ export function ProjectsDashboard({
   const needsGenericWorkspaceLoading = !activeProject
     && (isInitialWorkspaceLoading || isScanningRoot)
     && ["tasks", "agents", "automations", "docker"].includes(activeSection);
+  const visiblePreferenceFailure: PreferenceFailure | null = preferencesError
+    ? { kind: "load", error: preferencesError }
+    : preferenceFailure;
+
+  const applyFavoriteProjectIds = React.useCallback((projectIds: string[]) => {
+    const nextProjectIds = [...projectIds];
+    favoriteProjectIdsRef.current = nextProjectIds;
+    setFavoriteProjectIds(nextProjectIds);
+  }, []);
+
+  const queueFavoritePreferenceSave = React.useCallback((
+    projectIds: string[],
+    failureKind: PreferenceFailureKind
+  ): Promise<void> => {
+    const requestedProjectIds = [...projectIds];
+    const sequence = ++favoritePreferenceSequenceRef.current;
+
+    const saveRequest = async () => {
+      try {
+        const savedPreferences = await updatePreferences({ favoriteProjectIds: requestedProjectIds });
+        confirmedFavoriteProjectIdsRef.current = [...savedPreferences.favoriteProjectIds];
+        window.localStorage.removeItem(LEGACY_FAVORITE_PROJECTS_STORAGE_KEY);
+
+        if (sequence === favoritePreferenceSequenceRef.current) {
+          applyFavoriteProjectIds(savedPreferences.favoriteProjectIds);
+          queryClient.setQueryData(["preferences"], savedPreferences);
+          setPreferenceFailure(null);
+        }
+      } catch (error) {
+        if (sequence === favoritePreferenceSequenceRef.current) {
+          applyFavoriteProjectIds(confirmedFavoriteProjectIdsRef.current);
+          setPreferenceFailure({
+            kind: failureKind,
+            error,
+            favoriteProjectIds: requestedProjectIds
+          });
+        }
+      }
+    };
+
+    const queuedRequest = favoritePreferenceQueueRef.current.then(saveRequest, saveRequest);
+    favoritePreferenceQueueRef.current = queuedRequest;
+    return queuedRequest;
+  }, [applyFavoriteProjectIds, queryClient]);
+
+  const retryPreferenceFailure = React.useCallback(async () => {
+    if (preferencesError) {
+      await refetchPreferences();
+      return;
+    }
+
+    if (!preferenceFailure?.favoriteProjectIds) return;
+    setIsRetryingPreferenceSave(true);
+    await queueFavoritePreferenceSave(
+      preferenceFailure.favoriteProjectIds,
+      preferenceFailure.kind
+    );
+    setIsRetryingPreferenceSave(false);
+  }, [preferenceFailure, preferencesError, queueFavoritePreferenceSave, refetchPreferences]);
 
   React.useEffect(() => {
     window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(isSidebarCollapsed));
@@ -271,17 +346,16 @@ export function ProjectsDashboard({
       ? legacyFavoriteProjectIds
       : preferences.favoriteProjectIds;
 
-    setFavoriteProjectIds(nextFavoriteProjectIds);
+    confirmedFavoriteProjectIdsRef.current = [...preferences.favoriteProjectIds];
+    applyFavoriteProjectIds(nextFavoriteProjectIds);
 
     if (shouldMigrateLegacyPreferences) {
-      void updatePreferences({ favoriteProjectIds: nextFavoriteProjectIds }).then(() => {
-        window.localStorage.removeItem(LEGACY_FAVORITE_PROJECTS_STORAGE_KEY);
-      });
+      void queueFavoritePreferenceSave(nextFavoriteProjectIds, "migration");
       return;
     }
 
     window.localStorage.removeItem(LEGACY_FAVORITE_PROJECTS_STORAGE_KEY);
-  }, [preferences]);
+  }, [applyFavoriteProjectIds, preferences, queueFavoritePreferenceSave]);
 
   const applyRootPath = React.useCallback(async (root: string) => {
     await queryClient.cancelQueries({ queryKey: ["projects"] });
@@ -395,29 +469,18 @@ export function ProjectsDashboard({
     window.scrollTo({ top: 0, behavior: "instant" });
   }, []);
 
-  const saveFavoriteProjectIds = React.useCallback(async (
-    nextProjectIds: string[],
-    rollbackProjectIds: string[]
-  ) => {
-    try {
-      await updatePreferences({ favoriteProjectIds: nextProjectIds });
-    } catch {
-      setFavoriteProjectIds((currentProjectIds) =>
-        haveSameProjectIds(currentProjectIds, nextProjectIds) ? rollbackProjectIds : currentProjectIds
-      );
-    }
-  }, []);
-
   const toggleFavoriteProject = React.useCallback((projectId: string) => {
-    setFavoriteProjectIds((currentProjectIds) => {
-      const nextProjectIds = currentProjectIds.includes(projectId)
-        ? currentProjectIds.filter((currentProjectId) => currentProjectId !== projectId)
-        : [...currentProjectIds, projectId];
+    if (!preferences || preferencesError) return;
 
-      void saveFavoriteProjectIds(nextProjectIds, currentProjectIds);
-      return nextProjectIds;
-    });
-  }, [saveFavoriteProjectIds]);
+    const currentProjectIds = favoriteProjectIdsRef.current;
+    const nextProjectIds = currentProjectIds.includes(projectId)
+      ? currentProjectIds.filter((currentProjectId) => currentProjectId !== projectId)
+      : [...currentProjectIds, projectId];
+
+    setPreferenceFailure(null);
+    applyFavoriteProjectIds(nextProjectIds);
+    void queueFavoritePreferenceSave(nextProjectIds, "save");
+  }, [applyFavoriteProjectIds, preferences, preferencesError, queueFavoritePreferenceSave]);
 
   const recordOperation = React.useCallback((
     scope: string,
@@ -625,6 +688,19 @@ export function ProjectsDashboard({
           spacing={{ xs: 2.5, md: 3 }}
           sx={{ height: isAutomationWorkspace ? "100%" : undefined, minHeight: 0 }}
         >
+          {visiblePreferenceFailure ? (
+            <PreferenceSyncNotice
+              failure={visiblePreferenceFailure}
+              isRetrying={visiblePreferenceFailure.kind === "load"
+                ? isFetchingPreferences
+                : isRetryingPreferenceSave}
+              onRetry={() => void retryPreferenceFailure()}
+              {...(visiblePreferenceFailure.kind === "load"
+                ? {}
+                : { onDismiss: () => setPreferenceFailure(null) })}
+            />
+          ) : null}
+
           {isWorkspaceStale ? (
             <WorkspaceStaleNotice
               error={projectsError}
