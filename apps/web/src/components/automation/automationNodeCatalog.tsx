@@ -11,15 +11,23 @@ import TerminalOutlinedIcon from "@mui/icons-material/TerminalOutlined";
 import TextFieldsOutlinedIcon from "@mui/icons-material/TextFieldsOutlined";
 import UploadOutlinedIcon from "@mui/icons-material/UploadOutlined";
 import type { SvgIconProps } from "@mui/material";
+import type { TFunction } from "i18next";
 import React from "react";
 import type { WorkflowNode, WorkflowNodeType } from "../../types/workflows";
 
-export type AutomationNodeGroup = "Avvio" | "Input" | "Repository" | "Git" | "Docker" | "Comandi" | "Output";
+// Groups are stable identifiers, not display text: the visible name comes from
+// `automation.groups.<group>` in the active locale.
+export type AutomationNodeGroup =
+  | "trigger"
+  | "input"
+  | "repository"
+  | "git"
+  | "docker"
+  | "commands"
+  | "output";
 
 export type AutomationNodeDefinition = {
   type: WorkflowNodeType;
-  label: string;
-  description: string;
   group: AutomationNodeGroup;
   color: string;
   icon: React.ComponentType<SvgIconProps>;
@@ -29,23 +37,19 @@ export type AutomationNodeDefinition = {
 export const AUTOMATION_NODE_DEFINITIONS: AutomationNodeDefinition[] = [
   {
     type: "trigger.manual",
-    label: "Avvio manuale",
-    description: "Punto di ingresso del workflow",
-    group: "Avvio",
+    group: "trigger",
     color: "#2563eb",
     icon: PlayArrowRoundedIcon,
     defaultConfig: {}
   },
   {
     type: "input.text",
-    label: "Input di testo",
-    description: "Richiedi un valore prima dell'esecuzione",
-    group: "Input",
+    group: "input",
     color: "#db2777",
     icon: TextFieldsOutlinedIcon,
     defaultConfig: {
       key: "text",
-      label: "Valore",
+      label: "",
       description: "",
       placeholder: "",
       defaultValue: "",
@@ -55,99 +59,77 @@ export const AUTOMATION_NODE_DEFINITIONS: AutomationNodeDefinition[] = [
   },
   {
     type: "repository.select",
-    label: "Seleziona repository",
-    description: "Tutti, preferiti o selezione manuale",
-    group: "Repository",
+    group: "repository",
     color: "#0891b2",
     icon: AccountTreeOutlinedIcon,
     defaultConfig: { mode: "all", projectIds: [] }
   },
   {
     type: "repository.filter",
-    label: "Filtra repository",
-    description: "Stato locale, sync e Docker",
-    group: "Repository",
+    group: "repository",
     color: "#0891b2",
     icon: FilterAltOutlinedIcon,
     defaultConfig: { clean: "any", sync: "any", docker: "any" }
   },
   {
     type: "git.fetch",
-    label: "Git fetch",
-    description: "Aggiorna tutti i riferimenti remoti",
-    group: "Git",
+    group: "git",
     color: "#7c3aed",
     icon: CloudSyncOutlinedIcon,
     defaultConfig: {}
   },
   {
     type: "git.pull",
-    label: "Git pull",
-    description: "Pull fast-forward del branch corrente",
-    group: "Git",
+    group: "git",
     color: "#7c3aed",
     icon: DownloadOutlinedIcon,
     defaultConfig: { requireClean: true }
   },
   {
     type: "git.pullDevelop",
-    label: "Pull develop",
-    description: "Aggiorna da origin/develop",
-    group: "Git",
+    group: "git",
     color: "#7c3aed",
     icon: DownloadOutlinedIcon,
     defaultConfig: { requireClean: true }
   },
   {
     type: "git.push",
-    label: "Git push",
-    description: "Invia il branch corrente al remoto",
-    group: "Git",
+    group: "git",
     color: "#7c3aed",
     icon: UploadOutlinedIcon,
     defaultConfig: {}
   },
   {
     type: "docker.up",
-    label: "Compose up",
-    description: "Avvia i servizi in background",
-    group: "Docker",
+    group: "docker",
     color: "#059669",
     icon: PlayCircleOutlineIcon,
     defaultConfig: {}
   },
   {
     type: "docker.rebuild",
-    label: "Compose rebuild",
-    description: "Ricostruisce e avvia i servizi",
-    group: "Docker",
+    group: "docker",
     color: "#059669",
     icon: BuildOutlinedIcon,
     defaultConfig: {}
   },
   {
     type: "docker.stop",
-    label: "Compose stop",
-    description: "Ferma i servizi del progetto",
-    group: "Docker",
+    group: "docker",
     color: "#059669",
     icon: StopCircleOutlinedIcon,
     defaultConfig: {}
   },
   {
     type: "terminal.command",
-    label: "Comando terminale",
-    description: "Esegue un comando in ogni repository",
-    group: "Comandi",
+    group: "commands",
     color: "#d97706",
     icon: TerminalOutlinedIcon,
     defaultConfig: { command: "" }
   },
   {
     type: "output.summary",
-    label: "Riepilogo",
-    description: "Chiude il flusso con un riepilogo",
-    group: "Output",
+    group: "output",
     color: "#d97706",
     icon: SummarizeOutlinedIcon,
     defaultConfig: {}
@@ -155,32 +137,50 @@ export const AUTOMATION_NODE_DEFINITIONS: AutomationNodeDefinition[] = [
 ];
 
 export const AUTOMATION_NODE_GROUPS: AutomationNodeGroup[] = [
-  "Avvio",
-  "Input",
-  "Repository",
-  "Git",
-  "Docker",
-  "Comandi",
-  "Output"
+  "trigger",
+  "input",
+  "repository",
+  "git",
+  "docker",
+  "commands",
+  "output"
 ];
 
 export function getAutomationNodeDefinition(type: WorkflowNodeType): AutomationNodeDefinition {
   return AUTOMATION_NODE_DEFINITIONS.find((definition) => definition.type === type) ?? AUTOMATION_NODE_DEFINITIONS[0];
 }
 
-export function getAutomationNodeSummary(node: WorkflowNode): string {
+export function getAutomationNodeLabel(t: TFunction, type: WorkflowNodeType): string {
+  return t(`automation.nodeTypes.${type}.label`);
+}
+
+export function getAutomationNodeDescription(t: TFunction, type: WorkflowNodeType): string {
+  return t(`automation.nodeTypes.${type}.description`);
+}
+
+export function getAutomationNodeGroupLabel(t: TFunction, group: AutomationNodeGroup): string {
+  return t(`automation.groups.${group}`);
+}
+
+export function getAutomationNodeSummary(t: TFunction, node: WorkflowNode): string {
   switch (node.type) {
     case "input.text": {
       const key = getConfigString(node, "key", "");
-      return key
-        ? `${key}${getConfigBoolean(node, "required", true) ? " · obbligatorio" : " · opzionale"}`
-        : "Chiave da configurare";
+      if (!key) return t("automation.nodeSummary.inputKeyMissing");
+
+      return getConfigBoolean(node, "required", true)
+        ? t("automation.nodeSummary.inputRequired", { key })
+        : t("automation.nodeSummary.inputOptional", { key });
     }
     case "repository.select": {
       const mode = getConfigString(node, "mode", "all");
-      if (mode === "favorites") return "Repository preferiti";
-      if (mode === "manual") return `${getConfigStringArray(node, "projectIds").length} selezionati`;
-      return "Tutti i repository";
+      if (mode === "favorites") return t("automation.nodeSummary.repositoriesFavorites");
+      if (mode === "manual") {
+        return t("automation.nodeSummary.repositoriesManual", {
+          total: getConfigStringArray(node, "projectIds").length
+        });
+      }
+      return t("automation.nodeSummary.repositoriesAll");
     }
     case "repository.filter": {
       const values = [
@@ -188,15 +188,17 @@ export function getAutomationNodeSummary(node: WorkflowNode): string {
         getConfigString(node, "sync", "any"),
         getConfigString(node, "docker", "any")
       ].filter((value) => value !== "any");
-      return values.length > 0 ? values.join(" · ") : "Nessun filtro";
+      return values.length > 0 ? values.join(" · ") : t("automation.nodeSummary.noFilter");
     }
     case "git.pull":
     case "git.pullDevelop":
-      return getConfigBoolean(node, "requireClean", true) ? "Solo checkout puliti" : "Consenti modifiche locali";
+      return getConfigBoolean(node, "requireClean", true)
+        ? t("automation.nodeSummary.cleanOnly")
+        : t("automation.nodeSummary.allowDirty");
     case "terminal.command":
-      return getConfigString(node, "command", "") || "Comando da configurare";
+      return getConfigString(node, "command", "") || t("automation.nodeSummary.commandMissing");
     default:
-      return getAutomationNodeDefinition(node.type).description;
+      return getAutomationNodeDescription(t, node.type);
   }
 }
 

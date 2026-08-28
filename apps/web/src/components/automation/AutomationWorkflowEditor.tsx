@@ -43,6 +43,7 @@ import {
   type OnBeforeDelete
 } from "@xyflow/react";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { cancelWorkflowRun, deleteWorkflow, executeWorkflow, fetchWorkflowRun, updateWorkflow } from "../../api/workflows";
 import type {
   WorkflowDefinition,
@@ -61,8 +62,10 @@ import { AutomationNodePalette } from "./AutomationNodePalette";
 import { AutomationRunDialog } from "./AutomationRunDialog";
 import { AutomationRunHistory } from "./AutomationRunHistory";
 import {
-  getAutomationNodeDefinition
+  getAutomationNodeDefinition,
+  getAutomationNodeLabel
 } from "./automationNodeCatalog";
+import { formatWorkflowIssue } from "./workflowIssues";
 import {
   buildWorkflowDraft,
   getConnectionSource,
@@ -97,6 +100,7 @@ export function AutomationWorkflowEditor({
   onDeleted,
   onDirtyChange
 }: AutomationWorkflowEditorProps) {
+  const { t } = useTranslation();
   const theme = useTheme();
   const queryClient = useQueryClient();
   const [name, setName] = React.useState(workflow.name);
@@ -143,7 +147,7 @@ export function AutomationWorkflowEditor({
       setEditorError(null);
       await queryClient.invalidateQueries({ queryKey: ["workflows"] });
     },
-    onError: (error) => setEditorError(getErrorMessage(error))
+    onError: (error) => setEditorError(getErrorMessage(error, t("automation.operationFailed")))
   });
   const runMutation = useMutation({
     mutationFn: async ({
@@ -168,7 +172,7 @@ export function AutomationWorkflowEditor({
         queryClient.invalidateQueries({ queryKey: ["workflow-runs"] })
       ]);
     },
-    onError: (error) => setEditorError(getErrorMessage(error))
+    onError: (error) => setEditorError(getErrorMessage(error, t("automation.operationFailed")))
   });
   const deleteMutation = useMutation({
     mutationFn: () => deleteWorkflow(workflow.id),
@@ -176,7 +180,7 @@ export function AutomationWorkflowEditor({
       setConfirmDeleteOpen(false);
       await onDeleted();
     },
-    onError: (error) => setEditorError(getErrorMessage(error))
+    onError: (error) => setEditorError(getErrorMessage(error, t("automation.operationFailed")))
   });
   const cancelMutation = useMutation({
     mutationFn: (runId: string) => cancelWorkflowRun(runId),
@@ -186,7 +190,7 @@ export function AutomationWorkflowEditor({
         queryClient.invalidateQueries({ queryKey: ["workflow-runs"] })
       ]);
     },
-    onError: (error) => setEditorError(getErrorMessage(error))
+    onError: (error) => setEditorError(getErrorMessage(error, t("automation.operationFailed")))
   });
   const busy = saveMutation.isPending || runMutation.isPending || deleteMutation.isPending;
 
@@ -238,24 +242,24 @@ export function AutomationWorkflowEditor({
   const onConnect = React.useCallback(
     (connection: Connection) => {
       if (!isLinearConnectionValid(connection, edges)) {
-        setEditorError("Ogni nodo può avere una sola entrata e una sola uscita; i cicli non sono supportati.");
+        setEditorError(t("automation.editor.connectionRule"));
         return;
       }
 
       setEditorError(null);
       setEdges((currentEdges) => addEdge(toFlowEdge(connection), currentEdges));
     },
-    [edges, setEdges]
+    [edges, setEdges, t]
   );
   const onBeforeDelete = React.useCallback<OnBeforeDelete<AutomationFlowNode, Edge>>(
     async ({ nodes: nodesToDelete }) => {
       if (nodes.length - nodesToDelete.length < 1) {
-        setEditorError("Il workflow deve contenere almeno un nodo.");
+        setEditorError(t("automation.editor.needsNode"));
         return false;
       }
       return true;
     },
-    [nodes.length]
+    [nodes.length, t]
   );
 
   function addNode(type: WorkflowNodeType) {
@@ -282,7 +286,7 @@ export function AutomationWorkflowEditor({
         workflowNode: {
           id: "",
           type,
-          name: definition.label,
+          name: getAutomationNodeLabel(t, type),
           position: { x: 0, y: 0 },
           config: defaultConfig
         }
@@ -317,7 +321,7 @@ export function AutomationWorkflowEditor({
 
   function deleteNode(nodeId: string) {
     if (nodes.length <= 1) {
-      setEditorError("Il workflow deve contenere almeno un nodo.");
+      setEditorError(t("automation.editor.needsNode"));
       return;
     }
 
@@ -353,8 +357,10 @@ export function AutomationWorkflowEditor({
 
   const firstValidationError = validation.errors[0] ?? null;
   const runDisabledReason = !name.trim()
-    ? "Inserisci un nome per il workflow."
-    : firstValidationError?.message ?? "";
+    ? t("automation.editor.needsName")
+    : firstValidationError
+      ? formatWorkflowIssue(t, firstValidationError)
+      : "";
 
   return (
     <Box
@@ -402,9 +408,9 @@ export function AutomationWorkflowEditor({
               variant="standard"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              inputProps={{ "aria-label": "Nome workflow", maxLength: 120 }}
+              inputProps={{ "aria-label": t("automation.editor.nameAriaLabel"), maxLength: 120 }}
               error={!name.trim()}
-              placeholder="Nome workflow"
+              placeholder={t("automation.editor.namePlaceholder")}
               sx={{
                 "& .MuiInputBase-input": {
                   py: 0.1,
@@ -421,8 +427,8 @@ export function AutomationWorkflowEditor({
               variant="standard"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              inputProps={{ "aria-label": "Descrizione workflow", maxLength: 400 }}
-              placeholder="Aggiungi una descrizione"
+              inputProps={{ "aria-label": t("automation.editor.descriptionAriaLabel"), maxLength: 400 }}
+              placeholder={t("automation.editor.descriptionPlaceholder")}
               sx={{
                 display: { xs: "none", xl: "block" },
                 "& .MuiInputBase-input": {
@@ -436,19 +442,25 @@ export function AutomationWorkflowEditor({
               }}
             />
           </Box>
-          <Tooltip title={validation.isRunnable ? "Workflow pronto" : firstValidationError?.message ?? "Workflow da completare"}>
+          <Tooltip
+            title={validation.isRunnable
+              ? t("automation.workflowReady")
+              : firstValidationError
+                ? formatWorkflowIssue(t, firstValidationError)
+                : t("automation.workflowIncomplete")}
+          >
             <Chip
               size="small"
               variant="outlined"
               color={validation.isRunnable ? "success" : "warning"}
               icon={validation.isRunnable ? <CheckCircleOutlineIcon /> : <WarningAmberOutlinedIcon />}
-              label={validation.isRunnable ? "Pronto" : "Da completare"}
+              label={validation.isRunnable ? t("automation.editor.readyChip") : t("automation.editor.incompleteChip")}
               sx={{ display: { xs: "none", md: "flex" }, flexShrink: 0 }}
             />
           </Tooltip>
           {dirty ? (
             <Box
-              aria-label="Modifiche non salvate"
+              aria-label={t("automation.editor.unsavedIndicator")}
               sx={{
                 width: 7,
                 height: 7,
@@ -468,7 +480,7 @@ export function AutomationWorkflowEditor({
             setSelectedNodeId(null);
             setNodeMenuAnchor(null);
           }}
-          aria-label="Vista automazione"
+          aria-label={t("automation.editor.viewAriaLabel")}
           sx={{
             minHeight: 40,
             flexShrink: 0,
@@ -482,14 +494,14 @@ export function AutomationWorkflowEditor({
             }
           }}
         >
-          <Tab value="editor" label="Editor" />
+          <Tab value="editor" label={t("automation.editor.tabEditor")} />
           <Tab
             value="executions"
             icon={<HistoryOutlinedIcon sx={{ fontSize: 17 }} />}
             iconPosition="start"
             label={
               <Box component="span">
-                Esecuzioni
+                {t("automation.runsTitle")}
                 <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}> {runs.length}</Box>
               </Box>
             }
@@ -502,7 +514,7 @@ export function AutomationWorkflowEditor({
           alignItems="center"
           sx={{ flex: { xs: "0 0 auto", md: "1 1 420px" }, justifyContent: "flex-end" }}
         >
-          <Tooltip title={dirty ? "Salva modifiche" : "Nessuna modifica da salvare"}>
+          <Tooltip title={dirty ? t("automation.editor.saveTooltip") : t("automation.editor.nothingToSave")}>
             <span>
               <Button
                 size="small"
@@ -516,11 +528,11 @@ export function AutomationWorkflowEditor({
                   "& .MuiButton-startIcon": { m: { xs: 0, lg: "0 8px 0 -4px" } }
                 }}
               >
-                <Box component="span" sx={{ display: { xs: "none", lg: "inline" } }}>Salva</Box>
+                <Box component="span" sx={{ display: { xs: "none", lg: "inline" } }}>{t("common.save")}</Box>
               </Button>
             </span>
           </Tooltip>
-          <Tooltip title={runDisabledReason || "Controlla le azioni senza applicarle"}>
+          <Tooltip title={runDisabledReason || t("automation.editor.dryRunTooltip")}>
             <span>
               <Button
                 size="small"
@@ -534,7 +546,9 @@ export function AutomationWorkflowEditor({
                   "& .MuiButton-startIcon": { m: { xs: 0, lg: "0 8px 0 -4px" } }
                 }}
               >
-                <Box component="span" sx={{ display: { xs: "none", lg: "inline" } }}>Anteprima</Box>
+                <Box component="span" sx={{ display: { xs: "none", lg: "inline" } }}>
+                  {t("automation.previewChip")}
+                </Box>
               </Button>
             </span>
           </Tooltip>
@@ -548,16 +562,16 @@ export function AutomationWorkflowEditor({
                 onClick={() => openExecutionDialog("run")}
                 sx={{ whiteSpace: "nowrap" }}
               >
-                Esegui
+                {t("automation.editor.runLabel")}
               </Button>
             </span>
           </Tooltip>
-          <Tooltip title="Elimina workflow">
+          <Tooltip title={t("automation.editor.deleteWorkflow")}>
             <span>
               <IconButton
                 size="small"
                 color="error"
-                aria-label="Elimina workflow"
+                aria-label={t("automation.editor.deleteWorkflow")}
                 onClick={() => setConfirmDeleteOpen(true)}
                 disabled={busy}
                 sx={{ display: { xs: "none", sm: "inline-flex" } }}
@@ -624,7 +638,7 @@ export function AutomationWorkflowEditor({
                 style: { strokeWidth: 2, stroke: alpha(theme.palette.text.secondary, 0.78) }
               }}
               proOptions={{ hideAttribution: true }}
-              aria-label="Canvas automazione"
+              aria-label={t("automation.editor.canvasAriaLabel")}
             >
               <Background
                 variant={BackgroundVariant.Dots}
@@ -646,7 +660,7 @@ export function AutomationWorkflowEditor({
                           size="small"
                           onClick={() => setSelectedNodeId(firstValidationError.nodeId ?? null)}
                         >
-                          Configura
+                          {t("automation.editor.configure")}
                         </Button>
                       ) : undefined
                     }
@@ -660,7 +674,9 @@ export function AutomationWorkflowEditor({
                       "& .MuiAlert-message": { py: 0.65 }
                     }}
                   >
-                    {editorError ?? firstValidationError?.message ?? validation.warnings[0]?.message}
+                    {editorError
+                      ?? (firstValidationError && formatWorkflowIssue(t, firstValidationError))
+                      ?? (validation.warnings[0] && formatWorkflowIssue(t, validation.warnings[0]))}
                   </Alert>
                 </Panel>
               ) : null}
@@ -669,7 +685,7 @@ export function AutomationWorkflowEditor({
                   variant="contained"
                   size="small"
                   startIcon={<AddIcon />}
-                  aria-label="Aggiungi passaggio"
+                  aria-label={t("automation.editor.addStep")}
                   aria-haspopup="dialog"
                   aria-expanded={Boolean(nodeMenuAnchor)}
                   onClick={(event) => setNodeMenuAnchor(event.currentTarget)}
@@ -683,7 +699,7 @@ export function AutomationWorkflowEditor({
                   }}
                 >
                   <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
-                    Aggiungi passaggio
+                    {t("automation.editor.addStep")}
                   </Box>
                 </Button>
               </Panel>
@@ -714,7 +730,7 @@ export function AutomationWorkflowEditor({
       ) : (
         <Box
           component="section"
-          aria-label="Esecuzioni workflow"
+          aria-label={t("automation.editor.runsAriaLabel")}
           sx={{
             flexGrow: 1,
             minHeight: 0,
@@ -726,13 +742,13 @@ export function AutomationWorkflowEditor({
           <Box sx={{ width: "100%", maxWidth: 980, mx: "auto" }}>
             <Stack direction="row" alignItems="flex-end" justifyContent="space-between" spacing={2} sx={{ mb: 2 }}>
               <Box>
-                <Typography variant="h4" fontWeight={500}>Cronologia</Typography>
+                <Typography variant="h4" fontWeight={500}>{t("automation.editor.historyTitle")}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Controlla risultati, durata e stato delle ultime esecuzioni.
+                  {t("automation.editor.historySubtitle")}
                 </Typography>
               </Box>
               <Button variant="outlined" size="small" onClick={() => setEditorView("editor")}>
-                Torna all’editor
+                {t("automation.editor.backToEditor")}
               </Button>
             </Stack>
             <AutomationRunHistory
@@ -786,13 +802,24 @@ export function AutomationWorkflowEditor({
       ) : null}
 
       <Dialog open={confirmDeleteOpen} onClose={deleteMutation.isPending ? undefined : () => setConfirmDeleteOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Elimina workflow</DialogTitle>
+        <DialogTitle>{t("automation.editor.deleteWorkflow")}</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary">Il workflow “{workflow.name}” verrà rimosso definitivamente.</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {t("automation.editor.deleteBody", { name: workflow.name })}
+          </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmDeleteOpen(false)} disabled={deleteMutation.isPending}>Annulla</Button>
-          <Button color="error" variant="contained" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>Elimina</Button>
+          <Button onClick={() => setConfirmDeleteOpen(false)} disabled={deleteMutation.isPending}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => deleteMutation.mutate()}
+            disabled={deleteMutation.isPending}
+          >
+            {t("common.delete")}
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -806,6 +833,6 @@ export function AutomationWorkflowEditor({
   );
 }
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Operazione non riuscita";
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
 }

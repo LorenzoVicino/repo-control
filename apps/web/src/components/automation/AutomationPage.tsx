@@ -23,6 +23,7 @@ import {
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { createWorkflow, fetchWorkflowRuns, fetchWorkflows } from "../../api/workflows";
 import type { ProjectSummary } from "../../types/projects";
 import type { WorkflowDraft } from "../../types/workflows";
@@ -38,6 +39,7 @@ type AutomationPageProps = {
 };
 
 export function AutomationPage({ projects }: AutomationPageProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [selectedWorkflowId, setSelectedWorkflowId] = React.useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
@@ -72,7 +74,7 @@ export function AutomationPage({ projects }: AutomationPageProps) {
       setSelectedWorkflowId(workflow.id);
       setCreateDialogOpen(false);
     },
-    onError: (error) => setCreateError(getErrorMessage(error))
+    onError: (error) => setCreateError(getErrorMessage(error, t("automation.operationFailed")))
   });
 
   React.useEffect(() => {
@@ -146,7 +148,7 @@ export function AutomationPage({ projects }: AutomationPageProps) {
   return (
     <Box
       component="section"
-      aria-label="Lavagna automazioni"
+      aria-label={t("automation.boardLabel")}
       sx={{
         position: "relative",
         height: "100%",
@@ -171,7 +173,7 @@ export function AutomationPage({ projects }: AutomationPageProps) {
           border: 0
         }}
       >
-        Automazioni
+        {t("navigation.sections.automations")}
       </Typography>
       <Stack
         component="header"
@@ -208,10 +210,10 @@ export function AutomationPage({ projects }: AutomationPageProps) {
         >
           <Box component="span" sx={{ minWidth: 0, textAlign: "left" }}>
             <Typography component="span" variant="caption" color="text.secondary" sx={{ display: "block", lineHeight: 1.1 }}>
-              Workflow attivo
+              {t("automation.activeWorkflow")}
             </Typography>
             <Typography component="span" variant="body2" fontWeight={500} noWrap sx={{ display: "block" }}>
-              {selectedWorkflow?.name ?? "Seleziona workflow"}
+              {selectedWorkflow?.name ?? t("automation.selectWorkflow")}
             </Typography>
           </Box>
         </Button>
@@ -229,12 +231,12 @@ export function AutomationPage({ projects }: AutomationPageProps) {
           onClick={requestCreateWorkflow}
           sx={{ "& .MuiButton-startIcon": { mr: { xs: 0, sm: 0.75 } } }}
         >
-          <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Nuovo</Box>
+          <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>{t("automation.newWorkflow")}</Box>
         </Button>
-        <Tooltip title="Aggiorna workflow">
+        <Tooltip title={t("automation.refreshWorkflows")}>
           <span>
             <IconButton
-              aria-label="Aggiorna workflow"
+              aria-label={t("automation.refreshWorkflows")}
               onClick={() => void Promise.all([workflowsQuery.refetch(), runsQuery.refetch()])}
               disabled={workflowsQuery.isFetching || runsQuery.isFetching}
             >
@@ -279,9 +281,9 @@ export function AutomationPage({ projects }: AutomationPageProps) {
           <Paper square sx={{ height: "100%", display: "grid", placeItems: "center", p: 3 }}>
             <Stack alignItems="center" spacing={1} sx={{ textAlign: "center" }}>
               <HubOutlinedIcon color="primary" />
-              <Typography variant="h3">Nessun workflow selezionato</Typography>
+              <Typography variant="h3">{t("automation.noWorkflowSelected")}</Typography>
               <Button variant="contained" startIcon={<AddIcon />} onClick={requestCreateWorkflow}>
-                Crea automazione
+                {t("automation.createAutomation")}
               </Button>
             </Stack>
           </Paper>
@@ -337,10 +339,12 @@ export function AutomationPage({ projects }: AutomationPageProps) {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle>Modifiche non salvate</DialogTitle>
+        <DialogTitle>{t("automation.unsaved.title")}</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary">
-            Se continui, le modifiche apportate a “{selectedWorkflow?.name ?? "questo workflow"}” verranno perse.
+            {t("automation.unsaved.body", {
+              name: selectedWorkflow?.name ?? t("automation.unsaved.thisWorkflow")
+            })}
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -350,10 +354,10 @@ export function AutomationPage({ projects }: AutomationPageProps) {
               setCreateAfterDiscard(false);
             }}
           >
-            Resta qui
+            {t("automation.unsaved.stay")}
           </Button>
           <Button color="error" variant="contained" onClick={discardChangesAndContinue}>
-            Scarta e continua
+            {t("automation.unsaved.discard")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -361,6 +365,6 @@ export function AutomationPage({ projects }: AutomationPageProps) {
   );
 }
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Operazione non riuscita";
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
 }

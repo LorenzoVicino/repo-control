@@ -10,14 +10,23 @@ export function getWorkflowRunStatusColor(
   return "success";
 }
 
-export function getWorkflowRunStatusLabel(status: WorkflowRunStatus): string {
-  if (status === "failed") return "Fallita";
-  if (status === "warning") return "Con avvisi";
-  if (status === "pending") return "In coda";
-  if (status === "running") return "In corso";
-  if (status === "cancelled") return "Annullata";
-  if (status === "interrupted") return "Interrotta";
-  return "Riuscita";
+type WorkflowRunStatusLabelKey =
+  | "failed"
+  | "warning"
+  | "pending"
+  | "running"
+  | "cancelled"
+  | "interrupted"
+  | "succeeded";
+
+export function getWorkflowRunStatusLabelKey(status: WorkflowRunStatus): WorkflowRunStatusLabelKey {
+  if (status === "failed") return "failed";
+  if (status === "warning") return "warning";
+  if (status === "pending") return "pending";
+  if (status === "running") return "running";
+  if (status === "cancelled") return "cancelled";
+  if (status === "interrupted") return "interrupted";
+  return "succeeded";
 }
 
 export function isActiveWorkflowRunStatus(status: WorkflowRunStatus): boolean {

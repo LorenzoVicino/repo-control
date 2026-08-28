@@ -14,15 +14,17 @@ import {
   Typography
 } from "@mui/material";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type {
   WorkflowNode,
   WorkflowRunInputs,
   WorkflowRunMode
 } from "../../types/workflows";
+import { formatWorkflowIssue } from "./workflowIssues";
 import {
   createInitialWorkflowRunInputs,
-  getRequiredWorkflowInputErrors,
-  getWorkflowInputConfigurationError,
+  getMissingRequiredWorkflowInputKeys,
+  getWorkflowInputConfigurationIssue,
   getWorkflowTextInputDefinitions
 } from "./workflowInputs";
 
@@ -47,23 +49,24 @@ export function AutomationExecutionDialog({
   onClose,
   onSubmit
 }: AutomationExecutionDialogProps) {
+  const { t } = useTranslation();
   const definitions = React.useMemo(() => getWorkflowTextInputDefinitions(nodes), [nodes]);
-  const configurationError = React.useMemo(
-    () => getWorkflowInputConfigurationError(nodes),
+  const configurationIssue = React.useMemo(
+    () => getWorkflowInputConfigurationIssue(nodes),
     [nodes]
   );
   const [inputs, setInputs] = React.useState<WorkflowRunInputs>(
     () => createInitialWorkflowRunInputs(definitions)
   );
-  const [inputErrors, setInputErrors] = React.useState<Record<string, string>>({});
+  const [missingInputKeys, setMissingInputKeys] = React.useState<string[]>([]);
   const isDryRun = mode === "dry-run";
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const nextErrors = getRequiredWorkflowInputErrors(definitions, inputs);
-    setInputErrors(nextErrors);
+    const nextMissingKeys = getMissingRequiredWorkflowInputKeys(definitions, inputs);
+    setMissingInputKeys(nextMissingKeys);
 
-    if (configurationError || Object.keys(nextErrors).length > 0) {
+    if (configurationIssue || nextMissingKeys.length > 0) {
       return;
     }
 
@@ -72,15 +75,9 @@ export function AutomationExecutionDialog({
 
   function updateInput(key: string, value: string) {
     setInputs((currentInputs) => ({ ...currentInputs, [key]: value }));
-    setInputErrors((currentErrors) => {
-      if (!currentErrors[key]) {
-        return currentErrors;
-      }
-
-      const nextErrors = { ...currentErrors };
-      delete nextErrors[key];
-      return nextErrors;
-    });
+    setMissingInputKeys((currentKeys) =>
+      currentKeys.includes(key) ? currentKeys.filter((currentKey) => currentKey !== key) : currentKeys
+    );
   }
 
   return (
@@ -93,40 +90,44 @@ export function AutomationExecutionDialog({
     >
       <Box component="form" noValidate onSubmit={handleSubmit}>
         <DialogTitle id="automation-execution-title">
-          {isDryRun ? "Anteprima workflow" : "Esegui workflow"}
+          {isDryRun ? t("automation.execution.previewTitle") : t("automation.execution.runTitle")}
         </DialogTitle>
         <DialogContent dividers={definitions.length > 0}>
           <Stack spacing={2}>
             <Typography variant="body2" color="text.secondary">
               {isDryRun
-                ? `Genera l'anteprima di “${workflowName}” con i valori di questa esecuzione.`
-                : `Avvia “${workflowName}” sul workspace corrente.`}
+                ? t("automation.execution.previewDescription", { name: workflowName })
+                : t("automation.execution.runDescription", { name: workflowName })}
             </Typography>
 
-            {configurationError ? <Alert severity="error">{configurationError}</Alert> : null}
+            {configurationIssue ? (
+              <Alert severity="error">{formatWorkflowIssue(t, configurationIssue)}</Alert>
+            ) : null}
             {error ? <Alert severity="error">{error}</Alert> : null}
             {willSaveChanges ? (
               <Alert severity="info" variant="outlined">
-                Le modifiche correnti verranno salvate prima di generare questa esecuzione.
+                {t("automation.execution.willSaveChanges")}
               </Alert>
             ) : null}
 
             {definitions.length > 0 ? (
               <>
                 <Alert severity="info" variant="outlined">
-                  Questi valori valgono solo per questa esecuzione. Non inserire password o token.
+                  {t("automation.execution.inputsNotice")}
                 </Alert>
                 {definitions.map((definition, index) => (
                   <TextField
                     key={definition.nodeId}
                     autoFocus={index === 0}
                     required={definition.required}
-                    label={definition.label}
+                    label={definition.label || t("automation.nodeSummary.defaultInputLabel")}
                     name={definition.key}
                     value={inputs[definition.key] ?? ""}
                     placeholder={definition.placeholder}
-                    error={Boolean(inputErrors[definition.key])}
-                    helperText={inputErrors[definition.key] ?? definition.description}
+                    error={missingInputKeys.includes(definition.key)}
+                    helperText={missingInputKeys.includes(definition.key)
+                      ? t("automation.issues.valueRequired")
+                      : definition.description}
                     onChange={(event) => updateInput(definition.key, event.target.value)}
                     inputProps={{ maxLength: 4000 }}
                     multiline={definition.multiline}
@@ -137,13 +138,13 @@ export function AutomationExecutionDialog({
               </>
             ) : (
               <Typography variant="body2">
-                Il workflow contiene {nodes.length} {nodes.length === 1 ? "nodo" : "nodi"} e non richiede input.
+                {t("automation.execution.noInputs", { count: nodes.length })}
               </Typography>
             )}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose} disabled={loading}>Annulla</Button>
+          <Button onClick={onClose} disabled={loading}>{t("common.cancel")}</Button>
           <Button
             type="submit"
             variant="contained"
@@ -154,9 +155,9 @@ export function AutomationExecutionDialog({
                   ? <PreviewOutlinedIcon />
                   : <PlayArrowIcon />
             }
-            disabled={loading || Boolean(configurationError)}
+            disabled={loading || Boolean(configurationIssue)}
           >
-            {isDryRun ? "Genera anteprima" : "Avvia esecuzione"}
+            {isDryRun ? t("automation.execution.generatePreview") : t("automation.execution.startRun")}
           </Button>
         </DialogActions>
       </Box>

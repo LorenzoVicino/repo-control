@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { WorkflowNode } from "../../types/workflows";
 import {
   createInitialWorkflowRunInputs,
-  getRequiredWorkflowInputErrors,
+  getMissingRequiredWorkflowInputKeys,
   getUniqueWorkflowInputKey,
-  getWorkflowInputConfigurationError,
+  getWorkflowInputConfigurationIssue,
   getWorkflowTextInputDefinitions
 } from "./workflowInputs";
 
@@ -45,15 +45,22 @@ describe("workflow inputs", () => {
     ];
     const definitions = getWorkflowTextInputDefinitions([createInputNode("message", { required: true })]);
 
-    expect(getWorkflowInputConfigurationError(duplicateNodes)).toContain("più di una volta");
-    expect(getWorkflowInputConfigurationError([createInputNode("Release-Name", {})])).toContain("lettera minuscola");
-    expect(getWorkflowInputConfigurationError([
+    expect(getWorkflowInputConfigurationIssue(duplicateNodes)).toMatchObject({
+      code: "duplicateInputKey",
+      values: { key: "message" }
+    });
+    expect(getWorkflowInputConfigurationIssue([createInputNode("Release-Name", {})])).toMatchObject({
+      code: "invalidInputKey",
+      values: { key: "Release-Name" }
+    });
+    expect(getWorkflowInputConfigurationIssue([
       createInputNode("message", {}),
       createTerminalNode("echo {{inputs.other}}")
-    ])).toContain("non è definito");
-    expect(getRequiredWorkflowInputErrors(definitions, { message: " " })).toEqual({
-      message: "Questo valore è obbligatorio"
+    ])).toMatchObject({
+      code: "undefinedInputReference",
+      values: { key: "other" }
     });
+    expect(getMissingRequiredWorkflowInputKeys(definitions, { message: " " })).toEqual(["message"]);
   });
 
   it("creates collision-free keys for newly added input nodes", () => {

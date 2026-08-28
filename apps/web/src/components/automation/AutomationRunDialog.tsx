@@ -20,10 +20,12 @@ import {
   Typography
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import type { WorkflowRun, WorkflowRunStep } from "../../types/workflows";
 import {
   getWorkflowRunStatusColor,
-  getWorkflowRunStatusLabel,
+  getWorkflowRunStatusLabelKey,
   isActiveWorkflowRunStatus
 } from "./workflowRunStatus";
 
@@ -35,6 +37,7 @@ type AutomationRunDialogProps = {
 };
 
 export function AutomationRunDialog({ run, onClose, onCancel, cancelling = false }: AutomationRunDialogProps) {
+  const { t } = useTranslation();
   const isActive = Boolean(run && isActiveWorkflowRunStatus(run.status));
 
   return (
@@ -44,39 +47,54 @@ export function AutomationRunDialog({ run, onClose, onCancel, cancelling = false
           <DialogTitle>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
               <Typography component="span" variant="h3" sx={{ flexGrow: 1 }}>{run.workflowName}</Typography>
-              <Chip size="small" variant="outlined" label={run.mode === "dry-run" ? "Anteprima" : "Esecuzione"} />
+              <Chip
+                size="small"
+                variant="outlined"
+                label={run.mode === "dry-run" ? t("automation.previewChip") : t("automation.run.executionChip")}
+              />
               <Chip
                 size="small"
                 icon={isActive ? <CircularProgress size={12} color="inherit" /> : undefined}
                 color={getWorkflowRunStatusColor(run.status)}
-                label={getWorkflowRunStatusLabel(run.status)}
+                label={t(`automation.runStatus.${getWorkflowRunStatusLabelKey(run.status)}`)}
               />
             </Stack>
           </DialogTitle>
           <DialogContent dividers>
             {run.status === "failed" ? (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                L'esecuzione si è fermata al primo step fallito. Apri il dettaglio per correggere il problema.
-              </Alert>
+              <Alert severity="error" sx={{ mb: 2 }}>{t("automation.run.failedAlert")}</Alert>
             ) : run.status === "warning" ? (
-              <Alert severity="warning" sx={{ mb: 2 }}>
-                L'esecuzione è terminata, ma uno o più comandi sono stati saltati.
-              </Alert>
+              <Alert severity="warning" sx={{ mb: 2 }}>{t("automation.run.warningAlert")}</Alert>
             ) : run.status === "cancelled" || run.status === "interrupted" ? (
               <Alert severity="warning" sx={{ mb: 2 }}>
-                {run.statusMessage ?? "L'esecuzione non è terminata regolarmente."}
+                {run.statusMessage ?? t("automation.run.irregularAlert")}
               </Alert>
             ) : isActive ? (
-              <Alert severity="info" sx={{ mb: 2 }}>
-                L'esecuzione è in corso in background: puoi chiudere questa finestra, il progresso continua e resta
-                visibile nello storico.
-              </Alert>
+              <Alert severity="info" sx={{ mb: 2 }}>{t("automation.run.activeAlert")}</Alert>
             ) : null}
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 2 }}>
-              <Chip size="small" label={`${run.summary.selectedProjects} repository`} />
-              <Chip size="small" color="success" variant="outlined" label={`${run.summary.succeeded} riusciti`} />
-              <Chip size="small" color="warning" variant="outlined" label={`${run.summary.skipped} saltati`} />
-              <Chip size="small" color="error" variant="outlined" label={`${run.summary.failed} falliti`} />
+              <Chip
+                size="small"
+                label={t("automation.run.repositoriesChip", { total: run.summary.selectedProjects })}
+              />
+              <Chip
+                size="small"
+                color="success"
+                variant="outlined"
+                label={t("automation.run.succeededChip", { total: run.summary.succeeded })}
+              />
+              <Chip
+                size="small"
+                color="warning"
+                variant="outlined"
+                label={t("automation.run.skippedChip", { total: run.summary.skipped })}
+              />
+              <Chip
+                size="small"
+                color="error"
+                variant="outlined"
+                label={t("automation.run.failedChip", { total: run.summary.failed })}
+              />
               <Chip size="small" variant="outlined" label={`${run.durationMs} ms`} />
             </Stack>
             <Divider sx={{ mb: 1.5 }} />
@@ -91,7 +109,7 @@ export function AutomationRunDialog({ run, onClose, onCancel, cancelling = false
                         {step.projectName ?? step.message}
                       </Typography>
                     </Box>
-                    <Chip size="small" variant="outlined" label={stepStatusLabel(step)} />
+                    <Chip size="small" variant="outlined" label={getStepStatusLabel(t, step)} />
                   </Stack>
                 </AccordionSummary>
                 <AccordionDetails>
@@ -113,10 +131,10 @@ export function AutomationRunDialog({ run, onClose, onCancel, cancelling = false
                 disabled={cancelling}
                 startIcon={cancelling ? <CircularProgress size={16} color="inherit" /> : <CancelOutlinedIcon />}
               >
-                Annulla esecuzione
+                {t("automation.run.cancelRun")}
               </Button>
             ) : null}
-            <Button onClick={onClose}>Chiudi</Button>
+            <Button onClick={onClose}>{t("common.close")}</Button>
           </DialogActions>
         </>
       ) : null}
@@ -131,11 +149,11 @@ function StepStatusIcon({ step }: { step: WorkflowRunStep }) {
   return <CheckCircleOutlineIcon color="success" fontSize="small" />;
 }
 
-function stepStatusLabel(step: WorkflowRunStep): string {
-  if (step.status === "failed") return "Fallito";
-  if (step.status === "skipped") return "Saltato";
-  if (step.status === "cancelled") return "Annullato";
-  return "Riuscito";
+function getStepStatusLabel(t: TFunction, step: WorkflowRunStep): string {
+  if (step.status === "failed") return t("automation.run.stepStatus.failed");
+  if (step.status === "skipped") return t("automation.run.stepStatus.skipped");
+  if (step.status === "cancelled") return t("automation.run.stepStatus.cancelled");
+  return t("automation.run.stepStatus.succeeded");
 }
 
 function CodeBlock({ children, error = false }: { children: string; error?: boolean }) {

@@ -30,9 +30,9 @@ describe("workflow validation", () => {
     const result = validateWorkflow(nodes, [{ id: "one", source: "trigger", target: "terminal" }]);
 
     expect(result.isRunnable).toBe(false);
-    expect(result.errors.map((issue) => issue.message)).toEqual(expect.arrayContaining([
-      "Configura il comando nel nodo “terminal”.",
-      "Collega all'avvio “push”."
+    expect(result.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "commandRequired", values: { name: "terminal" } }),
+      expect.objectContaining({ code: "disconnectedNodes", values: { names: "“push”" } })
     ]));
   });
 
@@ -48,8 +48,12 @@ describe("workflow validation", () => {
       createNode("summary", "output.summary")
     ];
 
-    expect(validateWorkflow(manualNodes, connect(manualNodes)).errors[0]?.message).toContain("almeno un repository");
-    expect(validateWorkflow(allRepositoriesNodes, connect(allRepositoriesNodes)).warnings[0]?.message).toContain("tutti i repository");
+    expect(validateWorkflow(manualNodes, connect(manualNodes)).errors[0]).toMatchObject({
+      code: "repositorySelectionRequired"
+    });
+    expect(validateWorkflow(allRepositoriesNodes, connect(allRepositoriesNodes)).warnings[0]).toMatchObject({
+      code: "noRepositorySelectWarning"
+    });
   });
 });
 
