@@ -75,10 +75,10 @@ describe("BranchesPanel", () => {
 
   it("renders loading and unavailable states", () => {
     const loading = renderPanel(null, true);
-    expect(screen.getByText("Caricamento branches")).toBeVisible();
+    expect(screen.getByText("Loading branches")).toBeVisible();
     loading.unmount();
     renderPanel(null);
-    expect(screen.getByText("Branches non disponibili")).toBeVisible();
+    expect(screen.getByText("Branches unavailable")).toBeVisible();
   });
 
   it("shows repository and branch metadata including empty groups", () => {
@@ -90,7 +90,7 @@ describe("BranchesPanel", () => {
     expect(screen.getByText("ahead 3")).toBeVisible();
     expect(screen.getByText("behind 2")).toBeVisible();
     expect(screen.getByText("current")).toBeVisible();
-    expect(screen.getByText("Nessun branch")).toBeVisible();
+    expect(screen.getByText("No branch")).toBeVisible();
     expect(screen.getByRole("button", { name: "Checkout" })).toBeDisabled();
   });
 
@@ -98,7 +98,7 @@ describe("BranchesPanel", () => {
     const user = userEvent.setup();
     runProjectAction.mockResolvedValue(result());
     const { onResult, onCompleted } = renderPanel();
-    const input = screen.getByRole("textbox", { name: "Nuovo branch" });
+    const input = screen.getByRole("textbox", { name: "New branch" });
     await user.type(input, "  feature/coverage  ");
     await user.click(screen.getByRole("button", { name: "Create" }));
 
@@ -114,7 +114,7 @@ describe("BranchesPanel", () => {
     const user = userEvent.setup();
     runProjectAction.mockResolvedValue(result({ ok: false, exitCode: 1 }));
     const { onCompleted } = renderPanel();
-    const input = screen.getByRole("textbox", { name: "Nuovo branch" });
+    const input = screen.getByRole("textbox", { name: "New branch" });
     await user.type(input, "broken");
     await user.click(screen.getByRole("button", { name: "Create" }));
     await waitFor(() => expect(onCompleted).toHaveBeenCalledOnce());
@@ -149,7 +149,7 @@ describe("BranchesPanel", () => {
     expect(onCompleted).not.toHaveBeenCalled();
     expect(checkout).toBeEnabled();
 
-    const input = screen.getByRole("textbox", { name: "Nuovo branch" });
+    const input = screen.getByRole("textbox", { name: "New branch" });
     fireEvent.change(input, { target: { value: "error" } });
     await user.click(screen.getByRole("button", { name: "Create" }));
     await waitFor(() => expect(onResult).toHaveBeenLastCalledWith(expect.objectContaining({ output: "Command failed" })));
@@ -157,8 +157,8 @@ describe("BranchesPanel", () => {
 
   it("blocks checkout and branch creation on dirty repositories", () => {
     renderPanel(details({ isClean: false, tracking: null, ahead: 0, behind: 0 }));
-    expect(screen.getByText("checkout bloccato: dirty")).toBeVisible();
-    expect(screen.getByRole("textbox", { name: "Nuovo branch" })).toBeDisabled();
+    expect(screen.getByText("checkout blocked: dirty")).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "New branch" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Create" })).toBeDisabled();
     expect(screen.getAllByRole("button", { name: "Checkout" }).every((button) => button.hasAttribute("disabled"))).toBe(true);
     expect(screen.getByRole("button", { name: "Pull ff-only" })).toBeDisabled();
@@ -169,10 +169,10 @@ describe("BranchesPanel", () => {
     const branches = Array.from({ length: 38 }, (_, index) => branch(`feature-${index}`));
     renderPanel(details({}, branches, []));
     expect(screen.queryByText("feature-12")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Mostra altri 24" }));
+    await user.click(screen.getByRole("button", { name: "Show 24 more" }));
     expect(screen.getByText("feature-35")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Mostra altri 2" })).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Mostra altri 2" }));
+    expect(screen.getByRole("button", { name: "Show 2 more" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Show 2 more" }));
     expect(screen.getByText("feature-37")).toBeVisible();
     expect(screen.queryByRole("button", { name: /Mostra altri/ })).not.toBeInTheDocument();
   });
@@ -194,7 +194,7 @@ describe("BranchesPanel", () => {
 
     expect(screen.getByText(/abc1234 · Improve repository search/)).toBeVisible();
     expect(screen.getByText("merged")).toBeVisible();
-    const search = screen.getByRole("textbox", { name: "Cerca branch" });
+    const search = screen.getByRole("textbox", { name: "Search branch" });
     await user.type(search, "lorenzo");
     expect(screen.getByText("feature/search")).toBeVisible();
     expect(screen.queryByText("main", { selector: "p" })).not.toBeInTheDocument();

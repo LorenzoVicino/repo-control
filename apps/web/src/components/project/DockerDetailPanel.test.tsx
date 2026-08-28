@@ -72,7 +72,7 @@ describe("DockerDetailPanel", () => {
 
     expect(screen.getByText("1/2 running")).toBeVisible();
     expect(screen.getByText("alpha-web-1")).toBeVisible();
-    expect(screen.getByText("Container non creato")).toBeVisible();
+    expect(screen.getByText("Container not created")).toBeVisible();
     expect(screen.getByRole("link", { name: "5173:3000" })).toHaveAttribute("href", "http://127.0.0.1:5173");
     expect(await screen.findByText("web ready")).toBeVisible();
 
