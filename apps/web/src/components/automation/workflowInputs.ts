@@ -1,6 +1,8 @@
 import type { WorkflowNode, WorkflowRunInputs } from "../../types/workflows";
+import type { WorkflowIssue } from "./workflowIssues";
 
 export const WORKFLOW_INPUT_KEY_PATTERN = /^[a-z][a-z0-9_]{0,39}$/;
+export const WORKFLOW_MAX_TEXT_INPUTS = 20;
 
 export type WorkflowTextInputDefinition = {
   nodeId: string;
@@ -19,7 +21,7 @@ export function getWorkflowTextInputDefinitions(nodes: WorkflowNode[]): Workflow
     .map((node) => ({
       nodeId: node.id,
       key: getConfigText(node, "key").trim(),
-      label: getConfigText(node, "label").trim() || node.name.trim() || "Input",
+      label: getConfigText(node, "label").trim() || node.name.trim(),
       description: getConfigText(node, "description").trim(),
       placeholder: getConfigText(node, "placeholder"),
       defaultValue: getConfigText(node, "defaultValue"),
@@ -28,22 +30,22 @@ export function getWorkflowTextInputDefinitions(nodes: WorkflowNode[]): Workflow
     }));
 }
 
-export function getWorkflowInputConfigurationError(nodes: WorkflowNode[]): string | null {
+export function getWorkflowInputConfigurationIssue(nodes: WorkflowNode[]): WorkflowIssue | null {
   const definitions = getWorkflowTextInputDefinitions(nodes);
 
-  if (definitions.length > 20) {
-    return "Un workflow può contenere al massimo 20 input di testo.";
+  if (definitions.length > WORKFLOW_MAX_TEXT_INPUTS) {
+    return { code: "tooManyInputs", values: { max: WORKFLOW_MAX_TEXT_INPUTS } };
   }
 
   const seenKeys = new Set<string>();
 
   for (const definition of definitions) {
     if (!WORKFLOW_INPUT_KEY_PATTERN.test(definition.key)) {
-      return `La chiave “${definition.key || "(vuota)"}” deve iniziare con una lettera minuscola e contenere solo lettere minuscole, numeri o underscore.`;
+      return { code: "invalidInputKey", values: { key: definition.key }, nodeId: definition.nodeId };
     }
 
     if (seenKeys.has(definition.key)) {
-      return `La chiave input “${definition.key}” è utilizzata più di una volta.`;
+      return { code: "duplicateInputKey", values: { key: definition.key }, nodeId: definition.nodeId };
     }
 
     seenKeys.add(definition.key);
@@ -61,16 +63,16 @@ export function getWorkflowInputConfigurationError(nodes: WorkflowNode[]): strin
       const key = match[1]?.trim() ?? "";
 
       if (!WORKFLOW_INPUT_KEY_PATTERN.test(key)) {
-        return `Il comando “${node.name}” contiene un riferimento input non valido.`;
+        return { code: "invalidInputReference", values: { name: node.name }, nodeId: node.id };
       }
 
       if (!seenKeys.has(key)) {
-        return `Il comando “${node.name}” utilizza l'input “${key}”, che non è definito.`;
+        return { code: "undefinedInputReference", values: { name: node.name, key }, nodeId: node.id };
       }
     }
 
     if (/\{\{\s*inputs\./.test(command.replace(referencePattern, ""))) {
-      return `Il comando “${node.name}” contiene un riferimento input incompleto.`;
+      return { code: "incompleteInputReference", values: { name: node.name }, nodeId: node.id };
     }
   }
 
@@ -85,15 +87,15 @@ export function createInitialWorkflowRunInputs(
   );
 }
 
-export function getRequiredWorkflowInputErrors(
+// Reports which required inputs are still empty. The wording of the field error is a
+// presentation concern and belongs to the component that renders it.
+export function getMissingRequiredWorkflowInputKeys(
   definitions: WorkflowTextInputDefinition[],
   inputs: WorkflowRunInputs
-): Record<string, string> {
-  return Object.fromEntries(
-    definitions
-      .filter((definition) => definition.required && !(inputs[definition.key] ?? "").trim())
-      .map((definition) => [definition.key, "Questo valore è obbligatorio"])
-  );
+): string[] {
+  return definitions
+    .filter((definition) => definition.required && !(inputs[definition.key] ?? "").trim())
+    .map((definition) => definition.key);
 }
 
 export function getUniqueWorkflowInputKey(nodes: WorkflowNode[], baseKey = "text"): string {

@@ -55,10 +55,10 @@ describe("automation supporting components", () => {
     const first = renderWithTheme(
       <CreateAutomationDialog open loading={false} error={null} onClose={vi.fn()} onCreate={onCreate} />
     );
-    fireEvent.change(screen.getByRole("textbox", { name: "Nome" }), { target: { value: "  Sync release  " } });
-    fireEvent.change(screen.getByRole("textbox", { name: "Descrizione" }), { target: { value: "  Safe sync  " } });
-    fireEvent.click(screen.getByRole("button", { name: /Sincronizza preferiti/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Crea workflow" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "  Sync release  " } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Description" }), { target: { value: "  Safe sync  " } });
+    fireEvent.click(screen.getByRole("button", { name: /Sync favorites/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Create workflow" }));
     expect(onCreate).toHaveBeenLastCalledWith(expect.objectContaining({
       name: "Sync release",
       description: "Safe sync",
@@ -74,9 +74,9 @@ describe("automation supporting components", () => {
       <CreateAutomationDialog open loading={false} error="Previous failure" onClose={vi.fn()} onCreate={dockerCreate} />
     );
     expect(screen.getByText("Previous failure")).toBeVisible();
-    fireEvent.change(screen.getByRole("textbox", { name: "Nome" }), { target: { value: "Docker" } });
-    fireEvent.click(screen.getByRole("button", { name: /Avvia Docker/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Crea workflow" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Docker" } });
+    fireEvent.click(screen.getByRole("button", { name: /Start Docker/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Create workflow" }));
     expect(dockerCreate).toHaveBeenCalledWith(expect.objectContaining({
       nodes: expect.arrayContaining([
         expect.objectContaining({ type: "repository.filter", config: expect.objectContaining({ docker: "yes" }) }),
@@ -92,13 +92,13 @@ describe("automation supporting components", () => {
       <AutomationNodePalette nodeTypes={["trigger.manual"]} onAddNode={onAddNode} onClose={onClose} />
     );
 
-    expect(screen.getByRole("button", { name: /Avvio manuale/ })).toBeDisabled();
-    fireEvent.change(screen.getByRole("textbox", { name: "Cerca nella libreria nodi" }), { target: { value: "Git fetch" } });
+    expect(screen.getByRole("button", { name: /Manual trigger/ })).toBeDisabled();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search the node library" }), { target: { value: "Git fetch" } });
     fireEvent.click(screen.getByRole("button", { name: /Git fetch/ }));
     expect(onAddNode).toHaveBeenCalledWith("git.fetch");
-    fireEvent.change(screen.getByRole("textbox", { name: "Cerca nella libreria nodi" }), { target: { value: "nothing-here" } });
-    expect(screen.getByText("Nessun passaggio trovato")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Chiudi libreria nodi" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Search the node library" }), { target: { value: "nothing-here" } });
+    expect(screen.getByText("No steps found")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Close node library" }));
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -110,8 +110,8 @@ describe("automation supporting components", () => {
     const empty = renderWithTheme(
       <AutomationNodeInspector node={null} projects={[]} onClose={onClose} onUpdateNode={onUpdateNode} onDeleteNode={onDeleteNode} />
     );
-    expect(screen.getByText("Nessun nodo selezionato")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Chiudi configurazione nodo" }));
+    expect(screen.getByText("No node selected")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Close node configuration" }));
     empty.unmount();
 
     renderWithTheme(
@@ -123,16 +123,16 @@ describe("automation supporting components", () => {
         onDeleteNode={onDeleteNode}
       />
     );
-    expect(screen.getByText(/Inizia con una lettera minuscola/)).toBeVisible();
-    fireEvent.change(screen.getByRole("textbox", { name: "Nome nodo" }), { target: { value: "Input release" } });
-    fireEvent.change(screen.getByRole("textbox", { name: "Chiave" }), { target: { value: "Release_Name" } });
-    fireEvent.change(screen.getByRole("textbox", { name: "Etichetta" }), { target: { value: "Release" } });
-    fireEvent.change(screen.getByRole("textbox", { name: "Descrizione" }), { target: { value: "Describe" } });
+    expect(screen.getByText(/Start with a lowercase letter/)).toBeVisible();
+    fireEvent.change(screen.getByRole("textbox", { name: "Node name" }), { target: { value: "Input release" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Key" }), { target: { value: "Release_Name" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Label" }), { target: { value: "Release" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Description" }), { target: { value: "Describe" } });
     fireEvent.change(screen.getByRole("textbox", { name: "Placeholder" }), { target: { value: "v1.0" } });
-    fireEvent.change(screen.getByRole("textbox", { name: "Valore predefinito" }), { target: { value: "main" } });
-    await user.click(screen.getByRole("switch", { name: "Input obbligatorio" }));
-    await user.click(screen.getByRole("switch", { name: "Testo su più righe" }));
-    await user.click(screen.getByRole("button", { name: "Elimina nodo" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Default value" }), { target: { value: "main" } });
+    await user.click(screen.getByRole("switch", { name: "Required input" }));
+    await user.click(screen.getByRole("switch", { name: "Multi-line text" }));
+    await user.click(screen.getByRole("button", { name: "Delete node" }));
     expect(onUpdateNode).toHaveBeenCalledWith(expect.objectContaining({ config: expect.objectContaining({ key: "release_name" }) }));
     expect(onDeleteNode).toHaveBeenCalledWith("node-input.text");
   });
@@ -156,22 +156,22 @@ describe("automation supporting components", () => {
       <AutomationNodeInspector node={node("repository.filter")} projects={projects} {...callbacks} />
     );
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "Checkout" }));
-    await user.click(screen.getByRole("option", { name: "Pulito" }));
+    await user.click(screen.getByRole("option", { name: "Clean" }));
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ config: expect.objectContaining({ clean: "clean" }) }));
-    expect(screen.getByRole("combobox", { name: "Sincronizzazione" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "Sync" })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "Docker Compose" })).toBeVisible();
     filter.unmount();
 
     const pull = renderWithTheme(
       <AutomationNodeInspector node={node("git.pull", { requireClean: true })} projects={[]} {...callbacks} />
     );
-    await user.click(screen.getByRole("switch", { name: "Richiedi checkout pulito" }));
+    await user.click(screen.getByRole("switch", { name: "Require a clean checkout" }));
     pull.unmount();
 
     renderWithTheme(
       <AutomationNodeInspector node={node("terminal.command", { command: "npm test" })} projects={[]} {...callbacks} />
     );
-    fireEvent.change(screen.getByRole("textbox", { name: "Comando" }), { target: { value: "npm run build" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Command" }), { target: { value: "npm run build" } });
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ config: expect.objectContaining({ command: "npm run build" }) }));
   });
 
@@ -190,14 +190,14 @@ describe("automation supporting components", () => {
     );
     await user.click(screen.getByText("Release"));
     expect(onSelect).toHaveBeenCalledWith("workflow-1");
-    await user.type(screen.getByRole("textbox", { name: "Cerca workflow" }), "missing");
-    expect(screen.getByText(/Nessun risultato/)).toBeVisible();
+    await user.type(screen.getByRole("textbox", { name: "Search workflows" }), "missing");
+    expect(screen.getByText(/No results/)).toBeVisible();
     view.unmount();
 
     const empty = renderWithTheme(
       <AutomationWorkflowList workflows={[]} runs={[]} selectedWorkflowId={null} loading={false} onSelectWorkflow={vi.fn()} onCreateWorkflow={vi.fn()} />
     );
-    expect(screen.getByText("Nessun workflow")).toBeVisible();
+    expect(screen.getByText("No workflows")).toBeVisible();
     empty.unmount();
     renderWithTheme(
       <AutomationWorkflowList workflows={[]} runs={[]} selectedWorkflowId={null} loading onSelectWorkflow={vi.fn()} onCreateWorkflow={vi.fn()} />
@@ -212,12 +212,12 @@ describe("automation supporting components", () => {
     const view = renderWithTheme(
       <AutomationRunHistory runs={statuses.map((status) => run(status))} onSelectRun={onSelectRun} />
     );
-    expect(screen.getByText("In corso…")).toBeVisible();
+    expect(screen.getByText("In progress…")).toBeVisible();
     await user.click(screen.getAllByRole("button")[0]!);
     expect(onSelectRun).toHaveBeenCalledWith(expect.objectContaining({ status: "running" }));
     view.unmount();
 
     renderWithTheme(<AutomationRunHistory runs={[]} onSelectRun={vi.fn()} />);
-    expect(screen.getByText("Nessuna esecuzione registrata")).toBeVisible();
+    expect(screen.getByText("No runs recorded")).toBeVisible();
   });
 });

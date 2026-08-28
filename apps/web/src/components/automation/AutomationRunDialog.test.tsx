@@ -29,7 +29,7 @@ describe("AutomationRunDialog", () => {
       <AutomationRunDialog run={createRun()} onClose={vi.fn()} onCancel={onCancel} />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Annulla esecuzione" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel run" }));
     expect(onCancel).toHaveBeenCalled();
   });
 
@@ -40,7 +40,7 @@ describe("AutomationRunDialog", () => {
       <AutomationRunDialog run={createRun()} onClose={onClose} onCancel={vi.fn()} />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Chiudi" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -56,8 +56,8 @@ describe("AutomationRunDialog", () => {
       />
     );
 
-    expect(screen.queryByRole("button", { name: "Annullando esecuzione" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Annulla esecuzione" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancelling run" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel run" })).not.toBeInTheDocument();
     expect(screen.getByText("Cancelled by user")).toBeVisible();
   });
 });

@@ -103,7 +103,7 @@ describe("AutomationPage", () => {
     renderPage();
     expect(await screen.findByTestId("editor-alpha")).toHaveAttribute("data-runs", "1");
 
-    await user.click(screen.getByRole("button", { name: /Workflow attivo/ }));
+    await user.click(screen.getByRole("button", { name: /Active workflow/ }));
     await user.click(screen.getByText("select-alpha"));
     expect(screen.getByTestId("editor-alpha")).toBeVisible();
     await user.click(screen.getByText("select-beta"));
@@ -114,29 +114,29 @@ describe("AutomationPage", () => {
     window.dispatchEvent(beforeUnload);
     expect(beforeUnload.defaultPrevented).toBe(true);
 
-    await user.click(screen.getByRole("button", { name: /Workflow attivo/ }));
+    await user.click(screen.getByRole("button", { name: /Active workflow/ }));
     await user.click(screen.getByText("select-alpha"));
-    expect(screen.getByRole("dialog", { name: "Modifiche non salvate" })).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Resta qui" }));
-    await waitForElementToBeRemoved(() => screen.queryByRole("dialog", { name: "Modifiche non salvate" }));
+    expect(screen.getByRole("dialog", { name: "Unsaved changes" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Stay here" }));
+    await waitForElementToBeRemoved(() => screen.queryByRole("dialog", { name: "Unsaved changes" }));
     expect(screen.getByTestId("editor-beta")).toBeVisible();
 
     await user.click(screen.getByText("select-alpha"));
-    await user.click(screen.getByRole("button", { name: "Scarta e continua" }));
-    await waitForElementToBeRemoved(() => screen.queryByRole("dialog", { name: "Modifiche non salvate" }));
+    await user.click(screen.getByRole("button", { name: "Discard and continue" }));
+    await waitForElementToBeRemoved(() => screen.queryByRole("dialog", { name: "Unsaved changes" }));
     expect(await screen.findByTestId("editor-alpha")).toBeVisible();
 
     await user.click(screen.getByText("editor-dirty"));
-    await user.click(screen.getByRole("button", { name: /Workflow attivo/ }));
+    await user.click(screen.getByRole("button", { name: /Active workflow/ }));
     await user.click(screen.getByText("list-create"));
-    await user.click(screen.getByRole("button", { name: "Scarta e continua" }));
-    await waitForElementToBeRemoved(() => screen.queryByRole("dialog", { name: "Modifiche non salvate" }));
+    await user.click(screen.getByRole("button", { name: "Discard and continue" }));
+    await waitForElementToBeRemoved(() => screen.queryByRole("dialog", { name: "Unsaved changes" }));
     expect(screen.getByTestId("create-dialog")).toBeVisible();
     await user.click(screen.getByText("dialog-create"));
     expect(createWorkflow).toHaveBeenCalledWith(expect.objectContaining({ name: "Created" }));
 
     await user.click(screen.getByText("editor-deleted"));
-    await user.click(screen.getByRole("button", { name: "Aggiorna workflow" }));
+    await user.click(screen.getByRole("button", { name: "Refresh workflows" }));
     expect(fetchWorkflows).toHaveBeenCalled();
     expect(fetchWorkflowRuns).toHaveBeenCalled();
   }, 20_000);
@@ -148,9 +148,9 @@ describe("AutomationPage", () => {
     vi.mocked(createWorkflow).mockRejectedValueOnce(new Error("create failed"));
     renderPage();
 
-    expect(await screen.findByText("Nessun workflow selezionato")).toBeVisible();
+    expect(await screen.findByText("No workflow selected")).toBeVisible();
     expect(await screen.findByText("runs offline")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Crea automazione" }));
+    await user.click(screen.getByRole("button", { name: "Create automation" }));
     await user.click(screen.getByText("dialog-create"));
     expect(await screen.findByTestId("create-dialog")).toHaveAttribute("data-error", "create failed");
     await user.click(screen.getByText("dialog-close"));
@@ -175,7 +175,7 @@ describe("AutomationPage", () => {
     await user.click(screen.getByText("editor-open-run"));
     expect(screen.getByRole("dialog", { name: "Mock run" })).toBeVisible();
 
-    await user.click(screen.getByRole("button", { name: "Aggiorna workflow" }));
+    await user.click(screen.getByRole("button", { name: "Refresh workflows" }));
 
     expect(await screen.findByText(refreshedAlpha.updatedAt)).toBeVisible();
     expect(screen.getByRole("dialog", { name: "Mock run" })).toBeVisible();

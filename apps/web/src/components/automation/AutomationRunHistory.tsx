@@ -3,10 +3,11 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import { Box, ButtonBase, Chip, CircularProgress, Divider, Stack, Typography } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import type { WorkflowRun } from "../../types/workflows";
 import {
   getWorkflowRunStatusColor,
-  getWorkflowRunStatusLabel,
+  getWorkflowRunStatusLabelKey,
   isActiveWorkflowRunStatus
 } from "./workflowRunStatus";
 
@@ -16,6 +17,8 @@ type AutomationRunHistoryProps = {
 };
 
 export function AutomationRunHistory({ runs, onSelectRun }: AutomationRunHistoryProps) {
+  const { t, i18n } = useTranslation();
+
   return (
     <Box
       component="section"
@@ -24,15 +27,17 @@ export function AutomationRunHistory({ runs, onSelectRun }: AutomationRunHistory
     >
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1.5, py: 1.25 }}>
         <Box>
-          <Typography id="automation-runs-title" variant="subtitle2" fontWeight={500}>Esecuzioni</Typography>
-          <Typography variant="caption" color="text.secondary">Cronologia del workflow selezionato</Typography>
+          <Typography id="automation-runs-title" variant="subtitle2" fontWeight={500}>
+            {t("automation.runsTitle")}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">{t("automation.runsSubtitle")}</Typography>
         </Box>
         <Chip size="small" variant="outlined" label={runs.length} />
       </Stack>
       <Divider />
       {runs.length === 0 ? (
         <Box sx={{ minHeight: 84, display: "grid", placeItems: "center", px: 2 }}>
-          <Typography variant="body2" color="text.secondary">Nessuna esecuzione registrata</Typography>
+          <Typography variant="body2" color="text.secondary">{t("automation.noRuns")}</Typography>
         </Box>
       ) : (
         <Stack divider={<Divider flexItem />}>
@@ -55,20 +60,29 @@ export function AutomationRunHistory({ runs, onSelectRun }: AutomationRunHistory
               <RunStatusIcon run={run} />
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="body2" fontWeight={700} noWrap>
-                  {isActiveWorkflowRunStatus(run.status) ? "In corso…" : formatRunDate(run.completedAt)}
+                  {isActiveWorkflowRunStatus(run.status)
+                    ? t("automation.runInProgress")
+                    : formatRunDate(run.completedAt, i18n.language)}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" component="div" noWrap>
-                  {run.summary.selectedProjects} repository · {run.summary.commands} comandi
+                  {t("automation.runSummary", {
+                    repositories: run.summary.selectedProjects,
+                    commands: run.summary.commands
+                  })}
                 </Typography>
               </Box>
-              <Chip size="small" variant="outlined" label={run.mode === "dry-run" ? "Anteprima" : "Run"} />
+              <Chip
+                size="small"
+                variant="outlined"
+                label={run.mode === "dry-run" ? t("automation.previewChip") : t("automation.runChip")}
+              />
               <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>
                 {run.durationMs} ms
               </Typography>
               <Chip
                 size="small"
                 color={getWorkflowRunStatusColor(run.status)}
-                label={getWorkflowRunStatusLabel(run.status)}
+                label={t(`automation.runStatus.${getWorkflowRunStatusLabelKey(run.status)}`)}
                 sx={{ display: { xs: "none", sm: "flex" } }}
               />
             </ButtonBase>
@@ -89,6 +103,6 @@ function RunStatusIcon({ run }: { run: WorkflowRun }) {
   return <CheckCircleOutlineIcon color="success" fontSize="small" />;
 }
 
-function formatRunDate(value: string): string {
-  return new Intl.DateTimeFormat("it-IT", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+function formatRunDate(value: string, language: string): string {
+  return new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }

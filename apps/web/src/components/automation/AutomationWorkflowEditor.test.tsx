@@ -209,20 +209,20 @@ describe("AutomationWorkflowEditor", () => {
     vi.mocked(fetchWorkflowRun)
       .mockResolvedValueOnce(createRun("running"))
       .mockResolvedValue(createRun("cancelled"));
-    await user.clear(screen.getByRole("textbox", { name: "Nome workflow" }));
-    expect(screen.getByRole("button", { name: "Esegui" })).toBeDisabled();
-    await user.type(screen.getByRole("textbox", { name: "Nome workflow" }), "Release v2");
-    await user.clear(screen.getByRole("textbox", { name: "Descrizione workflow" }));
-    await user.type(screen.getByRole("textbox", { name: "Descrizione workflow" }), "Updated");
-    expect(screen.getByLabelText("Modifiche non salvate")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: /Salva/ }));
+    await user.clear(screen.getByRole("textbox", { name: "Workflow name" }));
+    expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
+    await user.type(screen.getByRole("textbox", { name: "Workflow name" }), "Release v2");
+    await user.clear(screen.getByRole("textbox", { name: "Workflow description" }));
+    await user.type(screen.getByRole("textbox", { name: "Workflow description" }), "Updated");
+    expect(screen.getByLabelText("Unsaved changes")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /Save/ }));
     expect(updateWorkflow).toHaveBeenCalledWith(
       workflow.id,
       expect.objectContaining({ name: "Release v2", description: "Updated" })
     );
 
     vi.mocked(executeWorkflow).mockResolvedValueOnce(createRun("running"));
-    await user.click(screen.getByRole("button", { name: "Esegui" }));
+    await user.click(screen.getByRole("button", { name: "Run" }));
     expect(screen.getByTestId("execution-run")).toHaveAttribute("data-save", "true");
     await user.click(screen.getByText("submit-execution"));
     expect(executeWorkflow).toHaveBeenCalledWith(workflow.id, "run", { message: "ship" });
@@ -232,12 +232,12 @@ describe("AutomationWorkflowEditor", () => {
     await waitFor(() => expect(screen.getByTestId("run-dialog-run-1")).toHaveAttribute("data-status", "cancelled"));
     await user.click(screen.getByText("close-run"));
 
-    await user.click(screen.getByRole("button", { name: "Aggiungi passaggio" }));
+    await user.click(screen.getByRole("button", { name: "Add step" }));
     await user.click(screen.getByText("add-trigger"));
     await user.click(screen.getByText("add-input"));
     expect(screen.getByTestId("node-inspector")).toBeVisible();
     await user.click(screen.getByText("inspector-update"));
-    expect(screen.getByText("Input di testo updated")).toBeVisible();
+    expect(screen.getByText("Text input updated")).toBeVisible();
     await user.click(screen.getByText("inspector-close"));
 
     await user.click(screen.getByText("select-fetch"));
@@ -246,17 +246,17 @@ describe("AutomationWorkflowEditor", () => {
     await user.click(screen.getByText("flow-pane"));
     await user.click(screen.getByText("nodes-deleted"));
     await user.click(screen.getByText("connect-invalid"));
-    expect(screen.getByRole("alert")).toHaveTextContent("una sola entrata");
+    expect(screen.getByRole("alert")).toHaveTextContent("only one input");
 
-    await user.click(screen.getByRole("tab", { name: /Esecuzioni/ }));
-    expect(screen.getByLabelText("Esecuzioni workflow")).toBeVisible();
+    await user.click(screen.getByRole("tab", { name: /Runs/ }));
+    expect(screen.getByLabelText("Workflow runs")).toBeVisible();
     await user.click(screen.getByText("history-history-1"));
     expect(screen.getByTestId("run-dialog-history-1")).toBeVisible();
     await user.click(screen.getByText("close-run"));
-    await user.click(screen.getByRole("button", { name: "Torna all’editor" }));
+    await user.click(screen.getByRole("button", { name: "Back to the editor" }));
 
-    await user.click(screen.getByRole("button", { name: "Elimina workflow" }));
-    await user.click(screen.getByRole("button", { name: "Elimina" }));
+    await user.click(screen.getByRole("button", { name: "Delete workflow" }));
+    await user.click(screen.getByRole("button", { name: "Delete" }));
     expect(deleteWorkflow).toHaveBeenCalledWith(workflow.id);
     expect(onDeleted).toHaveBeenCalled();
     expect(onDirtyChange).toHaveBeenCalledWith(true);
@@ -276,25 +276,25 @@ describe("AutomationWorkflowEditor", () => {
       />
     );
 
-    await user.type(screen.getByRole("textbox", { name: "Descrizione workflow" }), " changed");
-    await user.click(screen.getByRole("button", { name: /Salva/ }));
+    await user.type(screen.getByRole("textbox", { name: "Workflow description" }), " changed");
+    await user.click(screen.getByRole("button", { name: /Save/ }));
     expect(await screen.findByRole("alert")).toHaveTextContent("save failed");
 
     await user.click(screen.getByText("select-trigger"));
     await user.click(screen.getByText("inspector-delete"));
-    expect(screen.getByRole("alert")).toHaveTextContent("almeno un nodo");
+    expect(screen.getByRole("alert")).toHaveTextContent("at least one node");
     await user.click(screen.getByText("delete-all"));
 
     vi.mocked(deleteWorkflow).mockRejectedValueOnce("unknown");
-    await user.click(screen.getByRole("button", { name: "Elimina workflow" }));
-    await user.click(screen.getByRole("button", { name: "Annulla" }));
+    await user.click(screen.getByRole("button", { name: "Delete workflow" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
     await user.click(await screen.findByRole(
       "button",
-      { name: "Elimina workflow" },
+      { name: "Delete workflow" },
       { timeout: 3_000 }
     ));
-    await user.click(screen.getByRole("button", { name: "Elimina" }));
-    expect(await screen.findByText("Operazione non riuscita")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    expect(await screen.findByText("Operation failed")).toBeInTheDocument();
   }, 20_000);
 
   it("polls an active run until completion and keeps the dialog updated", async () => {
@@ -314,7 +314,7 @@ describe("AutomationWorkflowEditor", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Esegui" }));
+    await user.click(screen.getByRole("button", { name: "Run" }));
     await user.click(screen.getByText("submit-execution"));
 
     expect(await screen.findByTestId("run-dialog-run-1")).toHaveAttribute("data-status", "running");

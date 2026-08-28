@@ -12,10 +12,14 @@ import {
   Typography
 } from "@mui/material";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { WorkflowNodeType } from "../../types/workflows";
 import {
   AUTOMATION_NODE_DEFINITIONS,
-  AUTOMATION_NODE_GROUPS
+  AUTOMATION_NODE_GROUPS,
+  getAutomationNodeDescription,
+  getAutomationNodeGroupLabel,
+  getAutomationNodeLabel
 } from "./automationNodeCatalog";
 
 type AutomationNodePaletteProps = {
@@ -25,19 +29,26 @@ type AutomationNodePaletteProps = {
 };
 
 export function AutomationNodePalette({ nodeTypes, onAddNode, onClose }: AutomationNodePaletteProps) {
+  const { t, i18n } = useTranslation();
   const [query, setQuery] = React.useState("");
-  const normalizedQuery = query.trim().toLocaleLowerCase("it");
+  const language = i18n.language;
+  const normalizedQuery = query.trim().toLocaleLowerCase(language);
   const filteredDefinitions = AUTOMATION_NODE_DEFINITIONS.filter((definition) =>
     normalizedQuery.length === 0
-      || `${definition.label} ${definition.description} ${definition.group}`
-        .toLocaleLowerCase("it")
+      || [
+        getAutomationNodeLabel(t, definition.type),
+        getAutomationNodeDescription(t, definition.type),
+        getAutomationNodeGroupLabel(t, definition.group)
+      ]
+        .join(" ")
+        .toLocaleLowerCase(language)
         .includes(normalizedQuery)
   );
 
   return (
     <Box
       component="aside"
-      aria-label="Libreria nodi"
+      aria-label={t("automation.palette.title")}
       sx={{
         minWidth: 0,
         height: "100%",
@@ -51,13 +62,13 @@ export function AutomationNodePalette({ nodeTypes, onAddNode, onClose }: Automat
       <Box sx={{ px: 1.25, pt: 1.25, pb: 1 }}>
         <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
           <Box>
-            <Typography variant="subtitle1" fontWeight={500}>Libreria nodi</Typography>
+            <Typography variant="subtitle1" fontWeight={500}>{t("automation.palette.title")}</Typography>
             <Typography variant="caption" color="text.secondary">
-              {AUTOMATION_NODE_DEFINITIONS.length} passaggi disponibili
+              {t("automation.palette.available", { total: AUTOMATION_NODE_DEFINITIONS.length })}
             </Typography>
           </Box>
           {onClose ? (
-            <IconButton size="small" aria-label="Chiudi libreria nodi" onClick={onClose}>
+            <IconButton size="small" aria-label={t("automation.palette.close")} onClick={onClose}>
               <CloseRoundedIcon fontSize="small" />
             </IconButton>
           ) : null}
@@ -86,8 +97,8 @@ export function AutomationNodePalette({ nodeTypes, onAddNode, onClose }: Automat
             fullWidth
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Cerca un passaggio..."
-            inputProps={{ "aria-label": "Cerca nella libreria nodi" }}
+            placeholder={t("automation.palette.searchPlaceholder")}
+            inputProps={{ "aria-label": t("automation.palette.searchLabel") }}
             sx={{ fontSize: "0.875rem" }}
           />
         </Box>
@@ -96,9 +107,9 @@ export function AutomationNodePalette({ nodeTypes, onAddNode, onClose }: Automat
       <Box sx={{ minHeight: 0, flexGrow: 1, overflowY: "auto", px: 1, py: 1 }}>
         {filteredDefinitions.length === 0 ? (
           <Box sx={{ px: 2, py: 5, textAlign: "center" }}>
-            <Typography variant="body2" fontWeight={500}>Nessun passaggio trovato</Typography>
+            <Typography variant="body2" fontWeight={500}>{t("automation.palette.noResults")}</Typography>
             <Typography variant="caption" color="text.secondary">
-              Prova con “Git”, “Docker” o “input”.
+              {t("automation.palette.noResultsHint")}
             </Typography>
           </Box>
         ) : AUTOMATION_NODE_GROUPS.map((group) => {
@@ -112,7 +123,7 @@ export function AutomationNodePalette({ nodeTypes, onAddNode, onClose }: Automat
                 color="text.secondary"
                 sx={{ display: "block", px: 1, py: 0.5, letterSpacing: "0.09em" }}
               >
-                {group}
+                {getAutomationNodeGroupLabel(t, group)}
               </Typography>
               <Stack spacing={0.35}>
                 {definitions.map((definition) => {
@@ -165,10 +176,10 @@ export function AutomationNodePalette({ nodeTypes, onAddNode, onClose }: Automat
                       </Box>
                       <Box sx={{ minWidth: 0, ml: 1.1, flexGrow: 1 }}>
                         <Typography variant="body2" component="div" fontWeight={500} noWrap>
-                          {definition.label}
+                          {getAutomationNodeLabel(t, definition.type)}
                         </Typography>
                         <Typography variant="caption" component="div" color="text.secondary" noWrap>
-                          {definition.description}
+                          {getAutomationNodeDescription(t, definition.type)}
                         </Typography>
                       </Box>
                       <AddRoundedIcon sx={{ ml: 0.5, fontSize: 18, color: "text.secondary" }} />

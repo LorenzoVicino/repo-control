@@ -24,14 +24,14 @@ describe("AutomationExecutionDialog", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Genera anteprima" }));
-    expect(screen.getByText("Questo valore è obbligatorio")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Generate preview" }));
+    expect(screen.getByText("This value is required")).toBeVisible();
     expect(onSubmit).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByRole("textbox", { name: /Messaggio/ }), {
       target: { value: "release candidate" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "Genera anteprima" }));
+    fireEvent.click(screen.getByRole("button", { name: "Generate preview" }));
 
     expect(onSubmit).toHaveBeenCalledWith({
       message: "release candidate",

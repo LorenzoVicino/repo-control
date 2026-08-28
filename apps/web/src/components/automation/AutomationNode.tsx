@@ -1,6 +1,7 @@
 import { alpha, Box, Paper, Stack, Typography, useTheme } from "@mui/material";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { WorkflowNode } from "../../types/workflows";
 import { getAutomationNodeDefinition, getAutomationNodeSummary } from "./automationNodeCatalog";
 
@@ -10,6 +11,7 @@ export const AutomationNode = React.memo(function AutomationNode({
   data,
   selected
 }: NodeProps<AutomationFlowNode>) {
+  const { t } = useTranslation();
   const theme = useTheme();
   const workflowNode = data.workflowNode;
   const definition = getAutomationNodeDefinition(workflowNode.type);
@@ -73,7 +75,7 @@ export const AutomationNode = React.memo(function AutomationNode({
             noWrap
             sx={{ mt: 0.35, maxWidth: 160 }}
           >
-            {getAutomationNodeSummary(workflowNode)}
+            {getAutomationNodeSummary(t, workflowNode)}
           </Typography>
         </Box>
       </Stack>

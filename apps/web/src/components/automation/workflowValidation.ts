@@ -3,7 +3,9 @@ import type {
   WorkflowNode
 } from "../../types/workflows";
 import { getConfigString, getConfigStringArray } from "./automationNodeCatalog";
-import { getWorkflowInputConfigurationError } from "./workflowInputs";
+import { getWorkflowIssueIdentity } from "./workflowIssues";
+import type { WorkflowIssue } from "./workflowIssues";
+import { getWorkflowInputConfigurationIssue } from "./workflowInputs";
 
 const EXECUTABLE_NODE_TYPES = new Set<WorkflowNode["type"]>([
   "git.fetch",
@@ -16,10 +18,7 @@ const EXECUTABLE_NODE_TYPES = new Set<WorkflowNode["type"]>([
   "terminal.command"
 ]);
 
-export type WorkflowValidationIssue = {
-  message: string;
-  nodeId?: string;
-};
+export type WorkflowValidationIssue = WorkflowIssue;
 
 export type WorkflowValidationResult = {
   errors: WorkflowValidationIssue[];
@@ -38,23 +37,23 @@ export function validateWorkflow(
 
   for (const node of nodes) {
     if (nodesById.has(node.id)) {
-      errors.push({ message: `L'identificativo del nodo “${node.name}” è duplicato.`, nodeId: node.id });
+      errors.push({ code: "duplicateNodeId", values: { name: node.name }, nodeId: node.id });
     }
     nodesById.set(node.id, node);
   }
 
   const triggerNodes = nodes.filter((node) => node.type === "trigger.manual");
   if (triggerNodes.length !== 1) {
-    errors.push({ message: "Il workflow deve avere un solo nodo di avvio manuale." });
+    errors.push({ code: "singleTrigger" });
   }
 
   if (!nodes.some((node) => EXECUTABLE_NODE_TYPES.has(node.type))) {
-    errors.push({ message: "Aggiungi almeno un'azione Git, Docker o terminale." });
+    errors.push({ code: "needsAction" });
   }
 
   for (const node of nodes) {
     if (node.type === "terminal.command" && !getConfigString(node, "command", "").trim()) {
-      errors.push({ message: `Configura il comando nel nodo “${node.name}”.`, nodeId: node.id });
+      errors.push({ code: "commandRequired", values: { name: node.name }, nodeId: node.id });
     }
 
     if (
@@ -62,13 +61,13 @@ export function validateWorkflow(
       && getConfigString(node, "mode", "all") === "manual"
       && getConfigStringArray(node, "projectIds").length === 0
     ) {
-      errors.push({ message: `Seleziona almeno un repository nel nodo “${node.name}”.`, nodeId: node.id });
+      errors.push({ code: "repositorySelectionRequired", values: { name: node.name }, nodeId: node.id });
     }
   }
 
-  const inputConfigurationError = getWorkflowInputConfigurationError(nodes);
-  if (inputConfigurationError) {
-    errors.push({ message: inputConfigurationError });
+  const inputConfigurationIssue = getWorkflowInputConfigurationIssue(nodes);
+  if (inputConfigurationIssue) {
+    errors.push(inputConfigurationIssue);
   }
 
   const incomingEdges = new Map<string, number>();
@@ -76,13 +75,14 @@ export function validateWorkflow(
 
   for (const edge of edges) {
     if (!nodesById.has(edge.source) || !nodesById.has(edge.target)) {
-      errors.push({ message: "Una connessione fa riferimento a un nodo che non esiste più." });
+      errors.push({ code: "edgeMissingNode" });
       continue;
     }
 
     if (edge.source === edge.target) {
       errors.push({
-        message: `Il nodo “${nodesById.get(edge.source)?.name ?? edge.source}” non può collegarsi a sé stesso.`,
+        code: "selfConnection",
+        values: { name: nodesById.get(edge.source)?.name ?? edge.source },
         nodeId: edge.source
       });
       continue;
@@ -90,7 +90,8 @@ export function validateWorkflow(
 
     if (outgoingEdges.has(edge.source)) {
       errors.push({
-        message: `Il nodo “${nodesById.get(edge.source)?.name ?? edge.source}” ha più di un'uscita.`,
+        code: "multipleOutputs",
+        values: { name: nodesById.get(edge.source)?.name ?? edge.source },
         nodeId: edge.source
       });
     } else {
@@ -101,7 +102,8 @@ export function validateWorkflow(
     incomingEdges.set(edge.target, incomingCount);
     if (incomingCount > 1) {
       errors.push({
-        message: `Il nodo “${nodesById.get(edge.target)?.name ?? edge.target}” ha più di un ingresso.`,
+        code: "multipleInputs",
+        values: { name: nodesById.get(edge.target)?.name ?? edge.target },
         nodeId: edge.target
       });
     }
@@ -109,12 +111,12 @@ export function validateWorkflow(
 
   const triggerNode = triggerNodes[0];
   if (triggerNode && (incomingEdges.get(triggerNode.id) ?? 0) > 0) {
-    errors.push({ message: "Il nodo di avvio deve essere il primo del flusso.", nodeId: triggerNode.id });
+    errors.push({ code: "triggerMustBeFirst", nodeId: triggerNode.id });
   }
 
   for (const node of nodes) {
     if (node.type === "output.summary" && outgoingEdges.has(node.id)) {
-      errors.push({ message: `Il riepilogo “${node.name}” deve essere l'ultimo nodo.`, nodeId: node.id });
+      errors.push({ code: "summaryMustBeLast", values: { name: node.name }, nodeId: node.id });
     }
   }
 
@@ -129,23 +131,20 @@ export function validateWorkflow(
   }
 
   if (currentNode) {
-    errors.push({ message: "Il workflow contiene un ciclo." });
+    errors.push({ code: "cycle" });
   }
 
   const disconnectedNodes = nodes.filter((node) => !visitedNodeIds.has(node.id));
   if (triggerNode && disconnectedNodes.length > 0) {
-    errors.push({
-      message: `Collega all'avvio ${formatNodeNames(disconnectedNodes)}.`,
-      nodeId: disconnectedNodes[0]?.id
-    });
+    errors.push({ ...getDisconnectedNodesIssue(disconnectedNodes), nodeId: disconnectedNodes[0]?.id });
   }
 
   if (!nodes.some((node) => node.type === "repository.select")) {
-    warnings.push({ message: "Senza un nodo di selezione, le azioni verranno applicate a tutti i repository." });
+    warnings.push({ code: "noRepositorySelectWarning" });
   }
 
   if (!nodes.some((node) => node.type === "output.summary")) {
-    warnings.push({ message: "Aggiungi un riepilogo finale per rendere l'esito più leggibile." });
+    warnings.push({ code: "noSummaryWarning" });
   }
 
   return {
@@ -156,19 +155,23 @@ export function validateWorkflow(
   };
 }
 
-function formatNodeNames(nodes: WorkflowNode[]): string {
+function getDisconnectedNodesIssue(nodes: WorkflowNode[]): WorkflowIssue {
   const names = nodes.slice(0, 3).map((node) => `“${node.name}”`).join(", ");
   const remainingCount = nodes.length - 3;
-  return remainingCount > 0 ? `${names} e altri ${remainingCount} nodi` : names;
+
+  return remainingCount > 0
+    ? { code: "disconnectedNodesMore", values: { names, remaining: remainingCount } }
+    : { code: "disconnectedNodes", values: { names } };
 }
 
 function deduplicateIssues(issues: WorkflowValidationIssue[]): WorkflowValidationIssue[] {
-  const messages = new Set<string>();
+  const identities = new Set<string>();
   return issues.filter((issue) => {
-    if (messages.has(issue.message)) {
+    const identity = getWorkflowIssueIdentity(issue);
+    if (identities.has(identity)) {
       return false;
     }
-    messages.add(issue.message);
+    identities.add(identity);
     return true;
   });
 }

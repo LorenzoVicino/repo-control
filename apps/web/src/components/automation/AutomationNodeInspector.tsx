@@ -18,10 +18,13 @@ import {
   TextField,
   Typography
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import type { ProjectSummary } from "../../types/projects";
 import type { WorkflowNode } from "../../types/workflows";
 import {
   getAutomationNodeDefinition,
+  getAutomationNodeGroupLabel,
+  getAutomationNodeLabel,
   getConfigBoolean,
   getConfigString,
   getConfigStringArray
@@ -43,9 +46,11 @@ export function AutomationNodeInspector({
   onUpdateNode,
   onDeleteNode
 }: AutomationNodeInspectorProps) {
+  const { t } = useTranslation();
+
   if (!node) {
     return (
-      <InspectorShell title="Configurazione" onClose={onClose}>
+      <InspectorShell title={t("automation.inspector.title")} onClose={onClose}>
         <Box
           sx={{
             minHeight: 150,
@@ -56,7 +61,7 @@ export function AutomationNodeInspector({
             color: "text.secondary"
           }}
         >
-          <Typography variant="body2">Nessun nodo selezionato</Typography>
+          <Typography variant="body2">{t("automation.inspector.noSelection")}</Typography>
         </Box>
       </InspectorShell>
     );
@@ -75,8 +80,8 @@ export function AutomationNodeInspector({
 
   return (
     <InspectorShell
-      title={definition.label}
-      subtitle={definition.group}
+      title={getAutomationNodeLabel(t, node.type)}
+      subtitle={getAutomationNodeGroupLabel(t, definition.group)}
       icon={
         <Box
           sx={{
@@ -100,7 +105,7 @@ export function AutomationNodeInspector({
       <Stack spacing={2} sx={{ p: 1.5 }}>
         <TextField
           size="small"
-          label="Nome nodo"
+          label={t("automation.inspector.nodeName")}
           value={node.name}
           inputProps={{ maxLength: 80 }}
           onChange={(event) => onUpdateNode({ ...node, name: event.target.value })}
@@ -109,31 +114,31 @@ export function AutomationNodeInspector({
         {node.type === "input.text" ? (
           <Stack spacing={1.5}>
             <Alert severity="info" variant="outlined">
-              Il valore viene richiesto prima di anteprima o esecuzione. Non utilizzare questo nodo per password o token.
+              {t("automation.inspector.inputNotice")}
             </Alert>
             <TextField
               size="small"
-              label="Chiave"
+              label={t("automation.inspector.key")}
               value={inputKey}
               error={inputKeyInvalid}
               onChange={(event) => updateConfig({ key: event.target.value.toLowerCase() })}
               helperText={
                 inputKeyInvalid
-                  ? "Inizia con una lettera minuscola; usa solo lettere, numeri e underscore."
+                  ? t("automation.inspector.keyHelp")
                   : `Nel comando terminale: {{inputs.${inputKey}}}`
               }
               inputProps={{ maxLength: 40 }}
             />
             <TextField
               size="small"
-              label="Etichetta"
+              label={t("automation.inspector.label")}
               value={getConfigString(node, "label", "")}
               onChange={(event) => updateConfig({ label: event.target.value })}
               inputProps={{ maxLength: 120 }}
             />
             <TextField
               size="small"
-              label="Descrizione"
+              label={t("automation.inspector.description")}
               value={getConfigString(node, "description", "")}
               onChange={(event) => updateConfig({ description: event.target.value })}
               inputProps={{ maxLength: 240 }}
@@ -142,14 +147,14 @@ export function AutomationNodeInspector({
             />
             <TextField
               size="small"
-              label="Placeholder"
+              label={t("automation.inspector.placeholder")}
               value={getConfigString(node, "placeholder", "")}
               onChange={(event) => updateConfig({ placeholder: event.target.value })}
               inputProps={{ maxLength: 160 }}
             />
             <TextField
               size="small"
-              label="Valore predefinito"
+              label={t("automation.inspector.defaultValue")}
               value={getConfigString(node, "defaultValue", "")}
               onChange={(event) => updateConfig({ defaultValue: event.target.value })}
               inputProps={{ maxLength: 4000 }}
@@ -163,7 +168,7 @@ export function AutomationNodeInspector({
                   onChange={(event) => updateConfig({ required: event.target.checked })}
                 />
               }
-              label="Input obbligatorio"
+              label={t("automation.inspector.required")}
             />
             <FormControlLabel
               control={
@@ -172,7 +177,7 @@ export function AutomationNodeInspector({
                   onChange={(event) => updateConfig({ multiline: event.target.checked })}
                 />
               }
-              label="Testo su più righe"
+              label={t("automation.inspector.multiline")}
             />
           </Stack>
         ) : null}
@@ -180,16 +185,16 @@ export function AutomationNodeInspector({
         {node.type === "repository.select" ? (
           <Stack spacing={1.5}>
             <FormControl size="small">
-              <InputLabel id={`repository-mode-${node.id}`}>Selezione</InputLabel>
+              <InputLabel id={`repository-mode-${node.id}`}>{t("automation.inspector.selection")}</InputLabel>
               <Select
                 labelId={`repository-mode-${node.id}`}
-                label="Selezione"
+                label={t("automation.inspector.selection")}
                 value={getConfigString(node, "mode", "all")}
                 onChange={(event) => updateConfig({ mode: event.target.value })}
               >
-                <MenuItem value="all">Tutti</MenuItem>
-                <MenuItem value="favorites">Preferiti</MenuItem>
-                <MenuItem value="manual">Manuale</MenuItem>
+                <MenuItem value="all">{t("automation.inspector.modes.all")}</MenuItem>
+                <MenuItem value="favorites">{t("automation.inspector.modes.favorites")}</MenuItem>
+                <MenuItem value="manual">{t("automation.inspector.modes.manual")}</MenuItem>
               </Select>
             </FormControl>
             {getConfigString(node, "mode", "all") === "manual" ? (
@@ -211,35 +216,35 @@ export function AutomationNodeInspector({
           <Stack spacing={1.5}>
             <NodeSelect
               id={`clean-${node.id}`}
-              label="Checkout"
+              label={t("automation.inspector.checkout")}
               value={getConfigString(node, "clean", "any")}
               options={[
-                ["any", "Qualsiasi"],
-                ["clean", "Pulito"],
-                ["dirty", "Con modifiche"]
+                ["any", t("automation.inspector.checkoutOptions.any")],
+                ["clean", t("automation.inspector.checkoutOptions.clean")],
+                ["dirty", t("automation.inspector.checkoutOptions.dirty")]
               ]}
               onChange={(value) => updateConfig({ clean: value })}
             />
             <NodeSelect
               id={`sync-${node.id}`}
-              label="Sincronizzazione"
+              label={t("automation.inspector.sync")}
               value={getConfigString(node, "sync", "any")}
               options={[
-                ["any", "Qualsiasi"],
-                ["behind", "Da aggiornare"],
-                ["ahead", "Da pubblicare"],
-                ["diverged", "Divergente"]
+                ["any", t("automation.inspector.syncOptions.any")],
+                ["behind", t("automation.inspector.syncOptions.behind")],
+                ["ahead", t("automation.inspector.syncOptions.ahead")],
+                ["diverged", t("automation.inspector.syncOptions.diverged")]
               ]}
               onChange={(value) => updateConfig({ sync: value })}
             />
             <NodeSelect
               id={`docker-${node.id}`}
-              label="Docker Compose"
+              label={t("automation.inspector.docker")}
               value={getConfigString(node, "docker", "any")}
               options={[
-                ["any", "Qualsiasi"],
-                ["yes", "Presente"],
-                ["no", "Assente"]
+                ["any", t("automation.inspector.dockerOptions.any")],
+                ["yes", t("automation.inspector.dockerOptions.yes")],
+                ["no", t("automation.inspector.dockerOptions.no")]
               ]}
               onChange={(value) => updateConfig({ docker: value })}
             />
@@ -254,14 +259,14 @@ export function AutomationNodeInspector({
                 onChange={(event) => updateConfig({ requireClean: event.target.checked })}
               />
             }
-            label="Richiedi checkout pulito"
+            label={t("automation.inspector.requireClean")}
           />
         ) : null}
 
         {node.type === "terminal.command" ? (
           <TextField
             size="small"
-            label="Comando"
+            label={t("automation.inspector.command")}
             value={getConfigString(node, "command", "")}
             onChange={(event) => updateConfig({ command: event.target.value })}
             multiline
@@ -280,7 +285,7 @@ export function AutomationNodeInspector({
           startIcon={<DeleteOutlineIcon />}
           onClick={() => onDeleteNode(node.id)}
         >
-          Elimina nodo
+          {t("automation.inspector.deleteNode")}
         </Button>
       </Stack>
     </InspectorShell>
@@ -300,6 +305,8 @@ function InspectorShell({
   children: React.ReactNode;
   onClose?: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <Box
       component="aside"
@@ -340,7 +347,7 @@ function InspectorShell({
           </Box>
         </Stack>
         {onClose ? (
-          <IconButton size="small" aria-label="Chiudi configurazione nodo" onClick={onClose}>
+          <IconButton size="small" aria-label={t("automation.inspector.close")} onClick={onClose}>
             <CloseRoundedIcon fontSize="small" />
           </IconButton>
         ) : null}

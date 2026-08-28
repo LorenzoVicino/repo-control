@@ -155,8 +155,8 @@ test("navigates between lazy dashboard sections without browser errors", async (
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
   await page.getByRole("button", { name: "Automations", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Automazioni", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Canvas automazione")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Automations", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Automation canvas")).toBeVisible();
 
   await page.getByRole("button", { name: /Repositories/ }).first().click();
   await expect(page.getByRole("heading", { name: "Repositories", exact: true })).toBeVisible();
@@ -339,25 +339,25 @@ test("uses focused automation editor views and a searchable node library", async
   await page.goto("/");
   await page.getByRole("button", { name: "Automations", exact: true }).click();
 
-  await expect(page.getByLabel("Canvas automazione")).toBeVisible();
-  await page.getByRole("button", { name: "Aggiungi passaggio", exact: true }).click();
+  await expect(page.getByLabel("Automation canvas")).toBeVisible();
+  await page.getByRole("button", { name: "Add step", exact: true }).click();
 
-  const nodeLibrary = page.getByRole("complementary", { name: "Libreria nodi" });
+  const nodeLibrary = page.getByRole("complementary", { name: "Node library" });
   await expect(nodeLibrary).toBeVisible();
-  await nodeLibrary.getByRole("textbox", { name: "Cerca nella libreria nodi" }).fill("Docker");
+  await nodeLibrary.getByRole("textbox", { name: "Search the node library" }).fill("Docker");
   await expect(nodeLibrary.getByText("Compose up", { exact: true })).toBeVisible();
-  await nodeLibrary.getByRole("button", { name: "Chiudi libreria nodi" }).click();
+  await nodeLibrary.getByRole("button", { name: "Close node library" }).click();
 
-  await page.getByRole("tab", { name: /Esecuzioni/ }).click();
-  await expect(page.getByRole("region", { name: "Esecuzioni workflow" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Cronologia" })).toBeVisible();
+  await page.getByRole("tab", { name: /Runs/ }).click();
+  await expect(page.getByRole("region", { name: "Workflow runs" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "History" })).toBeVisible();
 
   expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(
     await page.evaluate(() => window.innerHeight)
   );
 });
 
-// The "Workflow attivo" popover fails to load a newly created workflow into the editor
+// The "Active workflow" popover fails to load a newly created workflow into the editor
 // (it stays on the seeded default workflow) — reproduces even on a clean checkout, unrelated
 // to any pending change. Needs investigation in AutomationPage's workflow switcher.
 test.fixme("collects workflow text inputs and resolves them safely in a dry run", async ({ page, request }) => {
@@ -372,7 +372,7 @@ test.fixme("collects workflow text inputs and resolves them safely in a dry run"
         {
           id: "input-e2e-trigger",
           type: "trigger.manual",
-          name: "Avvio manuale",
+          name: "Manual trigger",
           position: { x: 0, y: 0 },
           config: {}
         },
@@ -427,11 +427,11 @@ test.fixme("collects workflow text inputs and resolves them safely in a dry run"
   try {
     await page.goto("/");
     await page.getByRole("button", { name: "Automations", exact: true }).click();
-    await page.locator('button[aria-haspopup="menu"]').filter({ hasText: "Workflow attivo" }).click();
+    await page.locator('button[aria-haspopup="menu"]').filter({ hasText: "Active workflow" }).click();
     await page.getByText(workflowName, { exact: true }).click();
-    await page.getByRole("button", { name: "Anteprima", exact: true }).click();
+    await page.getByRole("button", { name: "Preview", exact: true }).click();
 
-    const executionDialog = page.getByRole("dialog", { name: "Anteprima workflow" });
+    const executionDialog = page.getByRole("dialog", { name: "Preview workflow" });
     await expect(executionDialog).toBeVisible();
     await executionDialog.getByRole("textbox", { name: /Messaggio release/ }).fill("release candidate");
 
@@ -447,7 +447,7 @@ test.fixme("collects workflow text inputs and resolves them safely in a dry run"
 
     const resultDialog = page.getByRole("dialog");
     await expect(resultDialog).toContainText(workflowName);
-    await expect(resultDialog).toContainText("Anteprima");
+    await expect(resultDialog).toContainText("Preview");
     await resultDialog.getByRole("button", { name: /Echo message/ }).first().click();
     const expectedCommand = process.platform === "win32"
       ? 'echo "$env:REPO_CONTROL_INPUT_MESSAGE"'

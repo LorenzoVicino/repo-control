@@ -14,9 +14,11 @@ import {
   ToggleButtonGroup,
   Typography
 } from "@mui/material";
+import type { TFunction } from "i18next";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { WorkflowDraft, WorkflowNodeType } from "../../types/workflows";
-import { getAutomationNodeDefinition } from "./automationNodeCatalog";
+import { getAutomationNodeDefinition, getAutomationNodeLabel } from "./automationNodeCatalog";
 
 type AutomationTemplate = "empty" | "sync-favorites" | "docker-up";
 
@@ -35,6 +37,7 @@ export function CreateAutomationDialog({
   onClose,
   onCreate
 }: CreateAutomationDialogProps) {
+  const { t } = useTranslation();
   const [name, setName] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [template, setTemplate] = React.useState<AutomationTemplate>("empty");
@@ -50,9 +53,9 @@ export function CreateAutomationDialog({
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="sm">
       <DialogTitle>
-        <Typography component="span" variant="h2">Nuova automazione</Typography>
+        <Typography component="span" variant="h2">{t("automation.create.title")}</Typography>
         <Typography component="div" variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Parti da una base pronta oppure costruisci il flusso da zero.
+          {t("automation.create.subtitle")}
         </Typography>
       </DialogTitle>
       <DialogContent>
@@ -60,13 +63,13 @@ export function CreateAutomationDialog({
           {error ? <Alert severity="error">{error}</Alert> : null}
           <TextField
             autoFocus
-            label="Nome"
+            label={t("automation.create.nameLabel")}
             value={name}
             inputProps={{ maxLength: 120 }}
             onChange={(event) => setName(event.target.value)}
           />
           <TextField
-            label="Descrizione"
+            label={t("automation.create.descriptionLabel")}
             value={description}
             inputProps={{ maxLength: 400 }}
             onChange={(event) => setDescription(event.target.value)}
@@ -74,7 +77,7 @@ export function CreateAutomationDialog({
             minRows={2}
           />
           <Stack spacing={0.75}>
-            <Typography variant="subtitle2" fontWeight={500}>Scegli una base</Typography>
+            <Typography variant="subtitle2" fontWeight={500}>{t("automation.create.chooseBase")}</Typography>
             <ToggleButtonGroup
               exclusive
               orientation="vertical"
@@ -82,40 +85,40 @@ export function CreateAutomationDialog({
               onChange={(_, value: AutomationTemplate | null) => {
                 if (value) setTemplate(value);
               }}
-              aria-label="Template automazione"
+              aria-label={t("automation.create.templateAriaLabel")}
               fullWidth
               sx={{ gap: 0.75, "& .MuiToggleButtonGroup-grouped": { border: "1px solid !important", borderColor: "divider !important", borderRadius: "8px !important" } }}
             >
               <TemplateOption
                 value="empty"
                 icon={<AccountTreeOutlinedIcon />}
-                title="Da zero"
-                description="Solo il nodo di avvio, da completare liberamente."
+                title={t("automation.create.templates.empty.title")}
+                description={t("automation.create.templates.empty.description")}
               />
               <TemplateOption
                 value="sync-favorites"
                 icon={<CloudSyncOutlinedIcon />}
-                title="Sincronizza preferiti"
-                description="Fetch e pull sicuro dei repository preferiti e puliti."
+                title={t("automation.create.templates.syncFavorites.title")}
+                description={t("automation.create.templates.syncFavorites.description")}
               />
               <TemplateOption
                 value="docker-up"
                 icon={<RocketLaunchOutlinedIcon />}
-                title="Avvia Docker"
-                description="Seleziona i progetti Compose e avvia i servizi."
+                title={t("automation.create.templates.dockerUp.title")}
+                description={t("automation.create.templates.dockerUp.description")}
               />
             </ToggleButtonGroup>
           </Stack>
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={loading}>Annulla</Button>
+        <Button onClick={onClose} disabled={loading}>{t("common.cancel")}</Button>
         <Button
           variant="contained"
           disabled={loading || !name.trim()}
-          onClick={() => onCreate(buildAutomationDraft(name, description, template))}
+          onClick={() => onCreate(buildAutomationDraft(t, name, description, template))}
         >
-          {loading ? "Creazione" : "Crea workflow"}
+          {loading ? t("automation.create.creating") : t("automation.createWorkflow")}
         </Button>
       </DialogActions>
     </Dialog>
@@ -156,7 +159,12 @@ function TemplateOption({
   );
 }
 
-function buildAutomationDraft(name: string, description: string, template: AutomationTemplate): WorkflowDraft {
+function buildAutomationDraft(
+  t: TFunction,
+  name: string,
+  description: string,
+  template: AutomationTemplate
+): WorkflowDraft {
   const types = getTemplateNodeTypes(template);
   const id = crypto.randomUUID();
   const nodes = types.map((type, index) => {
@@ -165,7 +173,7 @@ function buildAutomationDraft(name: string, description: string, template: Autom
     return {
       id: `${id}-${index}`,
       type,
-      name: definition.label,
+      name: getAutomationNodeLabel(t, definition.type),
       position: { x: 60 + index * 260, y: 180 },
       config: {
         ...definition.defaultConfig,
