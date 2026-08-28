@@ -182,6 +182,18 @@ export const en = {
     unknownError: "The workspace request failed for an unknown reason.",
     unknownUpdateTime: "an unknown time"
   },
+  preferenceState: {
+    loadTitle: "Favorites unavailable",
+    loadDescription: "repo-control could not load your saved favorites. Favorite changes are paused until this recovers.",
+    migrationTitle: "Favorites were not migrated",
+    migrationDescription: "Your legacy favorites remain on this device, and the previous server selection has been restored.",
+    saveTitle: "Favorite change was not saved",
+    saveDescription: "The last confirmed favorite selection has been restored.",
+    retry: "Retry",
+    retrying: "Retrying…",
+    dismiss: "Dismiss",
+    unknownError: "The preference request failed for an unknown reason."
+  },
   projectDataState: {
     unavailableTitle: "{{resource}} unavailable",
     unavailableDescription: "repo-control could not load the live data required by this repository view.",
@@ -434,6 +446,18 @@ export const it: TranslationSchema<typeof en> = {
     changeWorkspace: "Cambia workspace",
     unknownError: "La richiesta del workspace non è riuscita per un motivo sconosciuto.",
     unknownUpdateTime: "un momento sconosciuto"
+  },
+  preferenceState: {
+    loadTitle: "Preferiti non disponibili",
+    loadDescription: "repo-control non è riuscito a caricare i preferiti salvati. Le modifiche ai preferiti sono sospese fino al ripristino.",
+    migrationTitle: "Preferiti non migrati",
+    migrationDescription: "I preferiti precedenti restano su questo dispositivo ed è stata ripristinata l'ultima selezione salvata sul server.",
+    saveTitle: "Modifica ai preferiti non salvata",
+    saveDescription: "È stata ripristinata l'ultima selezione di preferiti confermata.",
+    retry: "Riprova",
+    retrying: "Nuovo tentativo…",
+    dismiss: "Ignora",
+    unknownError: "La richiesta delle preferenze non è riuscita per un motivo sconosciuto."
   },
   projectDataState: {
     unavailableTitle: "Dati non disponibili: {{resource}}",

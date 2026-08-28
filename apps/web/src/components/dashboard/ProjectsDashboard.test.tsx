@@ -152,13 +152,21 @@ vi.mock("./ControlCenter", () => ({
 }));
 vi.mock("./WorkspaceMap", () => ({
   WorkspaceMap: (props: Record<string, unknown>) => (
-    <div data-testid="workspace-map" data-density={String(props.density)}>
+    <div
+      data-testid="workspace-map"
+      data-density={String(props.density)}
+      data-favorites={(props.favoriteProjectIds as string[]).join(",")}
+    >
       <button onClick={() => (props.onSelectProject as (id: string) => void)("alpha")}>map-open-alpha</button>
       <button onClick={() => (props.onToggleFavorite as (id: string) => void)("beta")}>map-favorite-beta</button>
     </div>
   ),
   FavoriteProjects: (props: Record<string, unknown>) => (
-    <div data-testid="favorites" data-density={String(props.density)}>
+    <div
+      data-testid="favorites"
+      data-density={String(props.density)}
+      data-favorites={(props.favoriteProjectIds as string[]).join(",")}
+    >
       <button onClick={() => (props.onSelectProject as (id: string) => void)("alpha")}>favorite-open-alpha</button>
       <button onClick={() => (props.onToggleFavorite as (id: string) => void)("alpha")}>favorite-toggle-alpha</button>
       <button onClick={() => (props.onDensityChange as (density: string) => void)("compact")}>favorite-density-compact</button>
@@ -496,6 +504,55 @@ describe("ProjectsDashboard orchestration", () => {
 
     await user.click(within(failure).getByRole("button", { name: /Retry|Riprova/i }));
     expect(await screen.findByTestId("home")).toBeVisible();
+  });
+
+  it("restores the last confirmed favorites when a favorite save fails and recovers on retry", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+    expect(await screen.findByTestId("home")).toBeVisible();
+
+    await user.click(screen.getByText("nav-favorites"));
+    expect(await screen.findByTestId("favorites")).toHaveAttribute("data-favorites", "alpha");
+
+    vi.mocked(updatePreferences).mockRejectedValueOnce(new Error("preferences offline"));
+    await user.click(screen.getByText("favorite-toggle-alpha"));
+
+    const failure = await screen.findByRole("alert");
+    expect(failure).toHaveTextContent(/Favorite change was not saved|Modifica ai preferiti non salvata/i);
+    expect(failure).toHaveTextContent("preferences offline");
+    await waitFor(() => {
+      expect(screen.getByTestId("favorites")).toHaveAttribute("data-favorites", "alpha");
+    });
+
+    await user.click(within(failure).getByRole("button", { name: /Retry|Riprova/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId("favorites")).toHaveAttribute("data-favorites", "");
+  });
+
+  it("pauses favorite changes while saved preferences are unavailable and recovers on retry", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchPreferences).mockRejectedValueOnce(new Error("preferences unreachable"));
+    renderDashboard();
+    expect(await screen.findByTestId("home")).toBeVisible();
+
+    const failure = await screen.findByRole("alert");
+    expect(failure).toHaveTextContent(/Favorites unavailable|Preferiti non disponibili/i);
+    expect(failure).toHaveTextContent("preferences unreachable");
+
+    const savesBeforeToggle = vi.mocked(updatePreferences).mock.calls.length;
+    await user.click(screen.getByText("nav-favorites"));
+    await user.click(await screen.findByText("favorite-toggle-alpha"));
+    expect(vi.mocked(updatePreferences).mock.calls).toHaveLength(savesBeforeToggle);
+
+    await user.click(within(failure).getByRole("button", { name: /Retry|Riprova/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+    expect(await screen.findByTestId("favorites")).toHaveAttribute("data-favorites", "alpha");
   });
 
   it("announces project action failures and retains their command output in operation history", async () => {
