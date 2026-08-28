@@ -91,10 +91,10 @@ describe("ChangesPanel", () => {
 
   it("renders loading and unavailable Git states", () => {
     const loading = renderPanel(null, true);
-    expect(screen.getByText("Caricamento Git")).toBeVisible();
+    expect(screen.getByText("Loading Git")).toBeVisible();
     loading.unmount();
     renderPanel(null);
-    expect(screen.getByText("Git non disponibile")).toBeVisible();
+    expect(screen.getByText("Git unavailable")).toBeVisible();
   });
 
   it("renders a clean repository with empty sections and disabled actions", () => {
@@ -108,10 +108,10 @@ describe("ChangesPanel", () => {
     cleanDetails.stashes = [];
     renderPanel(cleanDetails);
 
-    expect(screen.getByText("working tree pulito")).toBeVisible();
-    expect(screen.getByText("Nessun file staged")).toBeVisible();
-    expect(screen.getByText("Nessun file unstaged")).toBeVisible();
-    expect(screen.getByText("Nessuno stash")).toBeVisible();
+    expect(screen.getByText("working tree clean")).toBeVisible();
+    expect(screen.getByText("No staged file")).toBeVisible();
+    expect(screen.getByText("No unstaged file")).toBeVisible();
+    expect(screen.getByText("No stash")).toBeVisible();
     for (const name of ["Unstage all", "Stage all", "Pull", "Push", "Stash changes", "Commit"]) {
       expect(screen.getByRole("button", { name })).toBeDisabled();
     }
@@ -122,7 +122,7 @@ describe("ChangesPanel", () => {
   it("shows every file status, renamed paths, sync data and stash variants", () => {
     renderPanel();
 
-    expect(screen.getByText("6 modifiche")).toBeVisible();
+    expect(screen.getByText("6 changes")).toBeVisible();
     expect(screen.getByText("1 staged")).toBeVisible();
     expect(screen.getByText("5 unstaged")).toBeVisible();
     expect(screen.getByText("origin/main")).toBeVisible();
@@ -148,7 +148,7 @@ describe("ChangesPanel", () => {
       expect.objectContaining({ path: "src/staged.ts" }),
       true
     );
-    expect(screen.getByText("1 file")).toBeVisible();
+    expect(screen.getByText("1 files")).toBeVisible();
     expect(screen.getByText("+4")).toBeVisible();
   });
 
@@ -156,7 +156,7 @@ describe("ChangesPanel", () => {
     const resultValue = result({ command: "git commit" });
     runProjectAction.mockResolvedValue(resultValue);
     const { onResult, onCompleted } = renderPanel();
-    const input = screen.getByRole("textbox", { name: "Messaggio commit" });
+    const input = screen.getByRole("textbox", { name: "Commit message" });
 
     fireEvent.change(input, { target: { value: "  cover risky flow  " } });
     fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
@@ -172,7 +172,7 @@ describe("ChangesPanel", () => {
     const user = userEvent.setup();
     runProjectAction.mockResolvedValue(result({ ok: false, exitCode: 1 }));
     const { onCompleted } = renderPanel();
-    const input = screen.getByRole("textbox", { name: "Messaggio commit" });
+    const input = screen.getByRole("textbox", { name: "Commit message" });
     await user.type(input, "message");
     fireEvent.keyDown(input, { key: "Enter" });
     expect(runProjectAction).not.toHaveBeenCalled();
@@ -185,7 +185,7 @@ describe("ChangesPanel", () => {
     const user = userEvent.setup();
     runProjectAction.mockRejectedValueOnce(new Error("commit failed")).mockRejectedValueOnce("unknown");
     const { onResult, onCompleted } = renderPanel();
-    const input = screen.getByRole("textbox", { name: "Messaggio commit" });
+    const input = screen.getByRole("textbox", { name: "Commit message" });
 
     await user.type(input, "first");
     await user.click(screen.getByRole("button", { name: "Commit" }));

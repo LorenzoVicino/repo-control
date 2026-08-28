@@ -25,6 +25,7 @@ import {
   useTheme
 } from "@mui/material";
 import React from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { CommandResult, ProjectOperationSource } from "../../types/common";
 
@@ -321,7 +322,7 @@ function DetailValue({ children, mono = false }: React.PropsWithChildren<{ mono?
   );
 }
 
-function getSourceLabel(source: VisibleOperationSource, t: ReturnType<typeof useTranslation>["t"]): string {
+function getSourceLabel(source: VisibleOperationSource, t: TFunction): string {
   if (source === "overview") return t("operations.sources.overview");
   if (source === "changes") return t("operations.sources.changes");
   if (source === "branches") return t("operations.sources.branches");

@@ -19,6 +19,7 @@ import {
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { fetchGitFileDiff, runProjectAction } from "../../api/projects";
 import { ActionButton } from "../shared/ActionButton";
 import { EmptyPanel } from "../shared/EmptyPanel";
@@ -41,6 +42,7 @@ type ChangesPanelProps = {
 };
 
 export function ChangesPanel({ projectId, details, isLoading, onResult, onCompleted }: ChangesPanelProps) {
+  const { t } = useTranslation();
   const [commitMessage, setCommitMessage] = React.useState("");
   const [isCommitting, setIsCommitting] = React.useState(false);
   const files = details?.status.files;
@@ -72,7 +74,7 @@ export function ChangesPanel({ projectId, details, isLoading, onResult, onComple
     setIsCommitting(true);
 
     try {
-      const result = await runProjectAction(projectId, "git/commit", "Commit", { message });
+      const result = await runProjectAction(projectId, "git/commit", t("project.changes.commit"), { message });
       onResult(result);
 
       if (result.ok) {
@@ -81,7 +83,7 @@ export function ChangesPanel({ projectId, details, isLoading, onResult, onComple
 
       onCompleted();
     } catch (error) {
-      onResult(commandErrorResult("Commit", error));
+      onResult(commandErrorResult(t("project.changes.commit"), error));
     } finally {
       setIsCommitting(false);
     }
@@ -95,11 +97,11 @@ export function ChangesPanel({ projectId, details, isLoading, onResult, onComple
   }
 
   if (isLoading) {
-    return <LoadingPanel label="Caricamento Git" />;
+    return <LoadingPanel label={t("project.changes.loading")} />;
   }
 
   if (!files || !details) {
-    return <EmptyPanel label="Git non disponibile" />;
+    return <EmptyPanel label={t("project.changes.unavailable")} />;
   }
 
   return (
@@ -112,15 +114,21 @@ export function ChangesPanel({ projectId, details, isLoading, onResult, onComple
         sx={{ px: 0.25 }}
       >
         <Box>
-          <Typography variant="overline" color="text.secondary">Working tree</Typography>
+          <Typography variant="overline" color="text.secondary">{t("project.changes.workingTree")}</Typography>
           <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center" sx={{ mt: 0.35 }}>
             <Chip
               size="small"
               color={details.status.isClean ? "success" : "warning"}
-              label={details.status.isClean ? "working tree pulito" : `${totalChanges} modifiche`}
+              label={details.status.isClean
+                ? t("project.changes.cleanTree")
+                : t("project.changes.changesCount", { total: totalChanges })}
             />
-            <Chip size="small" label={`${stagedCount} staged`} variant="outlined" />
-            <Chip size="small" label={`${unstagedCount} unstaged`} variant="outlined" />
+            <Chip size="small" label={t("project.changes.stagedCount", { total: stagedCount })} variant="outlined" />
+            <Chip
+              size="small"
+              label={t("project.changes.unstagedCount", { total: unstagedCount })}
+              variant="outlined"
+            />
           </Stack>
         </Box>
         <Stack direction="row" spacing={0.75} alignItems="center">
@@ -148,14 +156,14 @@ export function ChangesPanel({ projectId, details, isLoading, onResult, onComple
         <Stack spacing={1} sx={{ minWidth: 0, gridArea: "files" }}>
           <GitFileSection
             projectId={projectId}
-            title="Staged"
+            title={t("project.changes.staged")}
             files={stagedFiles}
-            emptyLabel="Nessun file staged"
+            emptyLabel={t("project.changes.noStagedFiles")}
             bulkActionPath="git/unstage-all"
-            bulkActionLabel="Unstage all"
+            bulkActionLabel={t("project.changes.unstageAll")}
             bulkActionIcon={<UndoIcon fontSize="small" />}
             fileActionPath="git/unstage"
-            fileActionLabel="Unstage file"
+            fileActionLabel={t("project.changes.unstageFile")}
             fileActionIcon={<UndoIcon fontSize="small" />}
             disabled={stagedCount === 0}
             staged
@@ -166,14 +174,14 @@ export function ChangesPanel({ projectId, details, isLoading, onResult, onComple
           />
           <GitFileSection
             projectId={projectId}
-            title="Unstaged"
+            title={t("project.changes.unstaged")}
             files={unstagedFiles}
-            emptyLabel="Nessun file unstaged"
+            emptyLabel={t("project.changes.noUnstagedFiles")}
             bulkActionPath="git/stage-all"
-            bulkActionLabel="Stage all"
+            bulkActionLabel={t("project.changes.stageAll")}
             bulkActionIcon={<AddIcon fontSize="small" />}
             fileActionPath="git/stage"
-            fileActionLabel="Stage file"
+            fileActionLabel={t("project.changes.stageFile")}
             fileActionIcon={<AddIcon fontSize="small" />}
             disabled={unstagedCount === 0}
             staged={false}
@@ -189,7 +197,7 @@ export function ChangesPanel({ projectId, details, isLoading, onResult, onComple
         </Box>
 
         <Stack spacing={1} sx={{ minWidth: 0, gridArea: "actions" }}>
-          <GitActionBlock title="Commit">
+          <GitActionBlock title={t("project.changes.commit")}>
             <Stack spacing={1}>
               <CommitSummary details={details} />
               <Box
@@ -202,13 +210,27 @@ export function ChangesPanel({ projectId, details, isLoading, onResult, onComple
                 }}
               >
                 <Typography variant="caption" color="text.secondary">
-                  Crea un commit su <Box component="span" sx={{ color: "text.primary", fontFamily: "var(--rc-font-mono)" }}>{details.status.current}</Box>
-                  {` con ${stagedCount} file; ${unstagedCount} resteranno fuori dal commit.`}
+                  <Trans
+                    i18nKey="project.changes.commitSummary"
+                    values={{
+                      branch: details.status.current,
+                      staged: stagedCount,
+                      unstaged: unstagedCount
+                    }}
+                    components={{
+                      branch: (
+                        <Box
+                          component="span"
+                          sx={{ color: "text.primary", fontFamily: "var(--rc-font-mono)" }}
+                        />
+                      )
+                    }}
+                  />
                 </Typography>
               </Box>
               <TextField
                 size="small"
-                label="Messaggio commit"
+                label={t("project.changes.commitMessage")}
                 value={commitMessage}
                 onChange={(event) => setCommitMessage(event.target.value)}
                 onKeyDown={handleCommitKeyDown}
@@ -222,18 +244,18 @@ export function ChangesPanel({ projectId, details, isLoading, onResult, onComple
                 disabled={isCommitting || stagedCount === 0 || commitMessage.trim().length === 0}
                 fullWidth
               >
-                Commit
+                {t("project.changes.commit")}
               </Button>
             </Stack>
           </GitActionBlock>
 
-          <GitActionBlock title="Sync">
+          <GitActionBlock title={t("project.changes.sync")}>
             <Stack spacing={1}>
               <Stack direction="row" spacing={1}>
                 <ActionButton
                   projectId={projectId}
                   actionPath="git/pull"
-                  label="Pull"
+                  label={t("project.changes.pull")}
                   icon={<CloudDownloadIcon fontSize="small" />}
                   disabled={!canSync}
                   onResult={onResult}
@@ -242,7 +264,7 @@ export function ChangesPanel({ projectId, details, isLoading, onResult, onComple
                 <ActionButton
                   projectId={projectId}
                   actionPath="git/push"
-                  label="Push"
+                  label={t("project.changes.push")}
                   icon={<CloudUploadIcon fontSize="small" />}
                   disabled={!canSync}
                   onResult={onResult}
@@ -250,18 +272,26 @@ export function ChangesPanel({ projectId, details, isLoading, onResult, onComple
                 />
               </Stack>
               <Stack direction="row" spacing={1}>
-                <Chip size="small" label={`${details.status.ahead} ahead`} variant="outlined" />
-                <Chip size="small" label={`${details.status.behind} behind`} variant="outlined" />
+                <Chip
+                  size="small"
+                  label={t("project.changes.ahead", { total: details.status.ahead })}
+                  variant="outlined"
+                />
+                <Chip
+                  size="small"
+                  label={t("project.changes.behind", { total: details.status.behind })}
+                  variant="outlined"
+                />
               </Stack>
             </Stack>
           </GitActionBlock>
 
-          <GitActionBlock title="Stash">
+          <GitActionBlock title={t("project.changes.stash")}>
             <Stack spacing={1}>
               <ActionButton
                 projectId={projectId}
                 actionPath="git/stash"
-                label="Stash changes"
+                label={t("project.changes.stashChanges")}
                 icon={<ArchiveIcon fontSize="small" />}
                 disabled={totalChanges === 0}
                 onResult={onResult}
@@ -614,13 +644,21 @@ function GitFileActionButton({
 }
 
 function CommitSummary({ details }: { details: GitDetails }) {
+  const { t } = useTranslation();
   const summary = details.status.diff.staged;
+
   return (
     <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-      <Chip size="small" label={`${summary.files} file`} variant="outlined" />
+      <Chip size="small" label={t("project.changes.fileCount", { total: summary.files })} variant="outlined" />
       <Chip size="small" label={`+${summary.additions}`} color="success" variant="outlined" />
       <Chip size="small" label={`−${summary.deletions}`} color="error" variant="outlined" />
-      {summary.binaryFiles > 0 ? <Chip size="small" label={`${summary.binaryFiles} binari`} variant="outlined" /> : null}
+      {summary.binaryFiles > 0
+        ? <Chip
+            size="small"
+            label={t("project.changes.binaryCount", { total: summary.binaryFiles })}
+            variant="outlined"
+          />
+        : null}
     </Stack>
   );
 }
@@ -632,6 +670,7 @@ function GitDiffPanel({
   projectId: string;
   selectedChange: { file: GitFileChange; staged: boolean } | null;
 }) {
+  const { t } = useTranslation();
   const diffQuery = useQuery({
     queryKey: ["git-file-diff", projectId, selectedChange?.file.previousPath, selectedChange?.file.path, selectedChange?.staged],
     queryFn: () => fetchGitFileDiff(projectId, selectedChange!.file, selectedChange!.staged),
@@ -644,10 +683,14 @@ function GitDiffPanel({
         <Stack direction="row" alignItems="center" sx={{ minHeight: 42, px: 1.25, py: 0.75, borderBottom: "1px solid", borderColor: "divider", bgcolor: "var(--rc-surface-2)" }}>
           <Box sx={{ minWidth: 0, flexGrow: 1 }}>
             <Typography variant="body2" noWrap sx={{ fontWeight: 500, fontFamily: selectedChange ? "var(--rc-font-mono)" : undefined }}>
-              {selectedChange ? getGitFileDisplayPath(selectedChange.file) : "Diff"}
+              {selectedChange ? getGitFileDisplayPath(selectedChange.file) : t("project.changes.diff")}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {selectedChange ? (selectedChange.staged ? "Modifiche staged" : "Modifiche working tree") : "Seleziona un file"}
+              {selectedChange
+                ? (selectedChange.staged
+                  ? t("project.changes.stagedChanges")
+                  : t("project.changes.workingTreeChanges"))
+                : t("project.changes.selectFile")}
             </Typography>
           </Box>
           {diffQuery.data ? (
@@ -664,13 +707,33 @@ function GitDiffPanel({
 }
 
 function DiffContent({ diff, isLoading, error }: { diff: GitFileDiff | undefined; isLoading: boolean; error: Error | null }) {
+  const { t } = useTranslation();
+
   if (isLoading && !diff) {
-    return <Stack direction="row" spacing={1} alignItems="center" sx={{ p: 2 }}><CircularProgress size={16} /><Typography variant="body2">Caricamento diff</Typography></Stack>;
+    return <Stack direction="row" spacing={1} alignItems="center" sx={{ p: 2 }}><CircularProgress size={16} /><Typography variant="body2">{t("project.changes.loadingDiff")}</Typography></Stack>;
   }
   if (error) return <Typography variant="body2" color="error" sx={{ p: 2 }}>{error.message}</Typography>;
-  if (!diff) return <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>Seleziona un file per ispezionare le modifiche.</Typography>;
-  if (diff.binary) return <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>File binario: anteprima testuale non disponibile.</Typography>;
-  if (!diff.patch) return <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>Nessuna differenza testuale disponibile.</Typography>;
+  if (!diff) {
+    return (
+      <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+        {t("project.changes.selectFileHint")}
+      </Typography>
+    );
+  }
+  if (diff.binary) {
+    return (
+      <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+        {t("project.changes.binaryFile")}
+      </Typography>
+    );
+  }
+  if (!diff.patch) {
+    return (
+      <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+        {t("project.changes.noTextDiff")}
+      </Typography>
+    );
+  }
 
   return (
     <Box
@@ -754,10 +817,12 @@ type StashListProps = {
 };
 
 function StashList({ projectId, stashes, onResult, onCompleted }: StashListProps) {
+  const { t } = useTranslation();
+
   if (stashes.length === 0) {
     return (
       <Typography variant="caption" color="text.secondary">
-        Nessuno stash
+        {t("project.changes.noStash")}
       </Typography>
     );
   }
@@ -794,17 +859,23 @@ type StashRowProps = {
 };
 
 function StashRow({ projectId, stash, onResult, onCompleted }: StashRowProps) {
+  const { t } = useTranslation();
   const [isRunning, setIsRunning] = React.useState(false);
 
   async function popStash() {
     setIsRunning(true);
 
     try {
-      const result = await runProjectAction(projectId, "git/stash-pop", `Pop ${stash.ref}`, { ref: stash.ref });
+      const result = await runProjectAction(
+        projectId,
+        "git/stash-pop",
+        t("project.changes.popStashAction", { ref: stash.ref }),
+        { ref: stash.ref }
+      );
       onResult(result);
       onCompleted();
     } catch (error) {
-      onResult(commandErrorResult(`Pop ${stash.ref}`, error));
+      onResult(commandErrorResult(t("project.changes.popStashAction", { ref: stash.ref }), error));
     } finally {
       setIsRunning(false);
     }
@@ -835,9 +906,14 @@ function StashRow({ projectId, stash, onResult, onCompleted }: StashRowProps) {
           </Typography>
         ) : null}
       </Box>
-      <Tooltip title="Pop stash">
+      <Tooltip title={t("project.changes.popStash")}>
         <span>
-          <IconButton size="small" onClick={popStash} disabled={isRunning} aria-label={`Pop ${stash.ref}`}>
+          <IconButton
+            size="small"
+            onClick={popStash}
+            disabled={isRunning}
+            aria-label={t("project.changes.popStashAction", { ref: stash.ref })}
+          >
             {isRunning ? <CircularProgress size={16} /> : <RestoreIcon fontSize="small" />}
           </IconButton>
         </span>

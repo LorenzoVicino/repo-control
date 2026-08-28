@@ -22,6 +22,8 @@ import {
   Typography
 } from "@mui/material";
 import React from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import {
   cancelTerminalCommand,
   fetchTerminalSuggestions,
@@ -64,6 +66,7 @@ export function TerminalPanel({
   onResult,
   onCompleted
 }: TerminalPanelProps) {
+  const { t } = useTranslation();
   const [command, setCommand] = React.useState("");
   const [entries, setEntries] = React.useState<TerminalEntry[]>([]);
   const [history, setHistory] = React.useState<string[]>([]);
@@ -198,7 +201,7 @@ export function TerminalPanel({
       setEntries((currentEntries) => currentEntries.map((entry) => (
         entry.id === activeEntryId ? { ...entry, cancelRequested: false } : entry
       )));
-      onResult(commandErrorResult("Cancel command", error));
+      onResult(commandErrorResult(t("project.terminal.cancelCommand"), error));
     } finally {
       setIsCancelling(false);
     }
@@ -384,15 +387,17 @@ export function TerminalPanel({
       </Paper>
 
       <Dialog open={clearDialogOpen} onClose={() => setClearDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Pulisci il transcript?</DialogTitle>
+        <DialogTitle>{t("project.terminal.clearDialogTitle")}</DialogTitle>
         <DialogContent>
           <Typography color="text.secondary">
-            Verranno rimossi i {entries.length} blocchi di output visibili. La cronologia dei comandi resterà disponibile.
+            {t("project.terminal.clearDialogBody", { total: entries.length })}
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setClearDialogOpen(false)} color="inherit">Annulla</Button>
-          <Button onClick={clearTranscript} color="error" variant="contained">Pulisci transcript</Button>
+          <Button onClick={() => setClearDialogOpen(false)} color="inherit">{t("common.cancel")}</Button>
+          <Button onClick={clearTranscript} color="error" variant="contained">
+            {t("project.terminal.clearTranscript")}
+          </Button>
         </DialogActions>
       </Dialog>
     </>
@@ -430,6 +435,8 @@ function TerminalToolbar({
   onClear,
   onStop
 }: TerminalToolbarProps) {
+  const { t } = useTranslation();
+
   return (
     <Stack
       direction="row"
@@ -438,35 +445,47 @@ function TerminalToolbar({
       flexWrap="wrap"
       sx={{ minHeight: 42, px: { xs: 1.25, sm: 2.25 }, py: 0.65, gap: 0.5, borderBottom: "1px solid var(--rc-border)" }}
     >
-      <Typography variant="overline" color="text.disabled">Sessione</Typography>
+      <Typography variant="overline" color="text.disabled">{t("project.terminal.session")}</Typography>
       <Typography sx={{ mr: "auto", color: "text.secondary", fontFamily: terminalFontFamily, fontSize: 10.5 }}>
-        {commandCount} comandi · scrollback {MAX_TERMINAL_ENTRIES} · cronologia {historyCount}/{MAX_HISTORY_ENTRIES}
+        {t("project.terminal.sessionSummary", {
+          commands: commandCount,
+          scrollback: MAX_TERMINAL_ENTRIES,
+          history: historyCount,
+          maxHistory: MAX_HISTORY_ENTRIES
+        })}
       </Typography>
       <ToolbarAction
-        label="A capo"
+        label={t("project.terminal.wrap")}
         icon={<WrapTextRoundedIcon />}
         active={wrapOutput}
         onClick={onToggleWrap}
       />
       <ToolbarAction
-        label={copyState === "copied" ? "Copiato" : copyState === "error" ? "Errore copia" : "Copia tutto"}
+        label={copyState === "copied"
+          ? t("project.terminal.copied")
+          : copyState === "error" ? t("project.terminal.copyError") : t("project.terminal.copyAll")}
         icon={<ContentCopyRoundedIcon />}
         disabled={!canCopy}
         onClick={onCopy}
       />
-      <ToolbarAction label="Pulisci" icon={<DeleteSweepOutlinedIcon />} disabled={!canClear} onClick={onClear} />
+      <ToolbarAction
+        label={t("project.terminal.clear")}
+        icon={<DeleteSweepOutlinedIcon />}
+        disabled={!canClear}
+        onClick={onClear}
+      />
       {isRunning ? (
         <Button
           size="small"
           color="error"
           variant="outlined"
-          aria-label="Interrompi comando"
+          aria-label={t("project.terminal.stopCommand")}
           onClick={onStop}
           disabled={isCancelling}
           startIcon={isCancelling ? <CircularProgress size={13} color="inherit" /> : <StopCircleOutlinedIcon />}
           sx={{ ml: 0.5, borderStyle: "dashed", bgcolor: (theme) => alpha(theme.palette.error.main, 0.08) }}
         >
-          Stop <Box component="span" aria-hidden="true">· {formatElapsed(elapsedMs)}</Box>
+          {t("project.terminal.stop")} <Box component="span" aria-hidden="true">· {formatElapsed(elapsedMs)}</Box>
         </Button>
       ) : null}
     </Stack>
@@ -513,11 +532,13 @@ function ToolbarAction({
 }
 
 function TerminalEmptyState() {
+  const { t } = useTranslation();
+
   return (
     <Stack direction="row" spacing={0.9} alignItems="center" sx={{ color: "text.disabled" }}>
       <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: "primary.main" }} />
       <Typography sx={{ fontFamily: terminalFontFamily, fontSize: 11.5, lineHeight: 1.7 }}>
-        repo-control terminal · scoped a questa repository · i comandi partono dalla cwd indicata
+        {t("project.terminal.emptyState")}
       </Typography>
     </Stack>
   );
@@ -530,7 +551,8 @@ const TerminalEntryBlock = React.memo(function TerminalEntryBlock({
   entry: TerminalEntry;
   wrapOutput: boolean;
 }) {
-  const status = getEntryStatus(entry);
+  const { t } = useTranslation();
+  const status = getEntryStatus(t, entry);
   const output = entry.result?.output ?? "";
 
   return (
@@ -587,7 +609,7 @@ const TerminalEntryBlock = React.memo(function TerminalEntryBlock({
           </Box>
         ) : (
           <Typography sx={{ mt: 0.55, color: "success.main", fontFamily: terminalFontFamily, fontSize: 11.5 }}>
-            Comando completato senza output.
+            {t("project.terminal.completedNoOutput")}
           </Typography>
         )
       ) : (
@@ -629,6 +651,8 @@ function TerminalComposer({
   onKeyDown,
   onRun
 }: TerminalComposerProps) {
+  const { t } = useTranslation();
+
   return (
     <Box sx={{ px: { xs: 1.25, sm: 2.25 }, py: 1.35, borderTop: "1px solid var(--rc-border)" }}>
       <Stack
@@ -658,11 +682,11 @@ function TerminalComposer({
           value={command}
           onChange={(event) => onCommandChange(event.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="type a command"
+          placeholder={t("project.terminal.placeholder")}
           multiline
           maxRows={4}
           fullWidth
-          inputProps={{ "aria-label": "Comando terminale" }}
+          inputProps={{ "aria-label": t("project.terminal.inputAriaLabel") }}
           sx={{
             minWidth: 0,
             color: "text.primary",
@@ -677,12 +701,12 @@ function TerminalComposer({
           aria-hidden="true"
           sx={{ display: { xs: "none", md: "block" }, pt: 0.4, flexShrink: 0, color: "text.disabled", fontFamily: terminalFontFamily, fontSize: 9.5 }}
         >
-          Enter run · Shift Enter newline
+          {t("project.terminal.keyHint")}
         </Typography>
         <Button
           size="small"
           variant="outlined"
-          aria-label="Run command"
+          aria-label={t("project.terminal.runCommand")}
           disabled={isRunning || command.trim().length === 0}
           onClick={(event) => {
             event.stopPropagation();
@@ -691,20 +715,20 @@ function TerminalComposer({
           startIcon={<PlayArrowRoundedIcon />}
           sx={{ flexShrink: 0 }}
         >
-          Run
+          {t("project.terminal.run")}
         </Button>
       </Stack>
       <Stack direction="row" alignItems="center" spacing={0.75} sx={{ minHeight: 22, mt: 0.75, color: "text.disabled" }}>
         <InfoOutlinedIcon sx={{ fontSize: 12 }} />
         <Typography sx={{ fontSize: 10.5 }}>
-          {isRunning ? "Processo attivo: puoi preparare il prossimo comando." : "Un comando alla volta."}
+          {isRunning ? t("project.terminal.processActive") : t("project.terminal.oneAtATime")}
         </Typography>
         <Typography sx={{ ml: "auto !important", display: { xs: "none", sm: "block" }, fontSize: 10.5 }}>
-          ↑↓ cronologia · Tab suggerimento · Ctrl L pulisci
+          {t("project.terminal.shortcutHint")}
         </Typography>
         {suggestions.length > 0 ? (
           <Typography sx={{ display: { xs: "none", md: "block" }, color: "primary.light", fontSize: 10.5 }}>
-            {suggestions.length} suggerimenti
+            {t("project.terminal.suggestionCount", { total: suggestions.length })}
           </Typography>
         ) : null}
       </Stack>
@@ -737,12 +761,13 @@ function TerminalContextRail({
   onSelectCommand,
   onClearHistory
 }: TerminalContextRailProps) {
+  const { t } = useTranslation();
   const recentHistory = [...history].reverse().slice(0, 8);
 
   return (
     <Box
       component="aside"
-      aria-label="Contesto terminale"
+      aria-label={t("project.terminal.contextAriaLabel")}
       sx={{
         minWidth: 0,
         bgcolor: "var(--rc-surface-1)",
@@ -752,28 +777,28 @@ function TerminalContextRail({
         borderTop: { xs: "1px solid var(--rc-border)", lg: 0 }
       }}
     >
-      <RailSection title="Contesto">
+      <RailSection title={t("project.terminal.contextTitle")}>
         <Box component="dl" sx={{ m: 0, display: "grid", gap: 0.7 }}>
-          <ContextRow label="Repository" value={projectName} />
-          <ContextRow label="Branch" value={branch || "—"} />
-          <ContextRow label="Cwd" value={projectPath} truncateFromStart />
+          <ContextRow label={t("project.terminal.contextRepository")} value={projectName} />
+          <ContextRow label={t("project.terminal.contextBranch")} value={branch || "—"} />
+          <ContextRow label={t("project.terminal.contextCwd")} value={projectPath} truncateFromStart />
           <ContextRow
-            label="Compose"
+            label={t("project.terminal.contextCompose")}
             value={hasDockerCompose
               ? composeServiceCount === undefined
-                ? "configurato"
-                : `${composeServiceCount} ${composeServiceCount === 1 ? "servizio" : "servizi"}`
-              : "non configurato"}
+                ? t("project.terminal.composeConfigured")
+                : t("project.terminal.composeServices", { count: composeServiceCount })
+              : t("project.terminal.composeNotConfigured")}
           />
         </Box>
         <Box sx={{ mt: 1.25, p: 1, border: "1px solid var(--rc-border)", borderLeft: "3px solid", borderLeftColor: "primary.main", borderRadius: "var(--rc-radius-control)", bgcolor: "var(--rc-surface-2)" }}>
           <Typography color="text.secondary" sx={{ fontSize: 10.5, lineHeight: 1.55 }}>
-            La sessione resta disponibile mentre questa repository rimane aperta.
+            {t("project.terminal.sessionNotice")}
           </Typography>
         </Box>
       </RailSection>
 
-      <RailSection title="Suggerimenti" icon={<AutoAwesomeOutlinedIcon />}>
+      <RailSection title={t("project.terminal.suggestionsTitle")} icon={<AutoAwesomeOutlinedIcon />}>
         {suggestions.length > 0 ? (
           <Stack spacing={0.65}>
             {suggestions.slice(0, 5).map((suggestion) => (
@@ -782,16 +807,25 @@ function TerminalContextRail({
           </Stack>
         ) : (
           <Typography color="text.disabled" sx={{ fontSize: 10.5, lineHeight: 1.55 }}>
-            {command.trim() ? "Nessuna corrispondenza nella memoria dei comandi." : "Digita l’inizio di un comando per cercare nella memoria della repository."}
+            {command.trim()
+              ? t("project.terminal.noSuggestionMatch")
+              : t("project.terminal.suggestionHint")}
           </Typography>
         )}
       </RailSection>
 
       <RailSection
-        title="Cronologia"
+        title={t("project.terminal.historyTitle")}
         icon={<HistoryRoundedIcon />}
         action={history.length > 0 ? (
-          <Button size="small" color="inherit" aria-label="Pulisci cronologia" onClick={onClearHistory}>Pulisci</Button>
+          <Button
+            size="small"
+            color="inherit"
+            aria-label={t("project.terminal.clearHistory")}
+            onClick={onClearHistory}
+          >
+            {t("project.terminal.clear")}
+          </Button>
         ) : undefined}
       >
         {recentHistory.length > 0 ? (
@@ -810,7 +844,9 @@ function TerminalContextRail({
             ))}
           </Stack>
         ) : (
-          <Typography color="text.disabled" sx={{ fontSize: 10.5 }}>Nessun comando in questa sessione.</Typography>
+          <Typography color="text.disabled" sx={{ fontSize: 10.5 }}>
+            {t("project.terminal.noCommands")}
+          </Typography>
         )}
       </RailSection>
     </Box>
@@ -878,17 +914,26 @@ function CommandChoice({ command, onSelect }: { command: string; onSelect: (comm
   );
 }
 
-function getEntryStatus(entry: TerminalEntry): { label: string; color: string } {
+function getEntryStatus(t: TFunction, entry: TerminalEntry): { label: string; color: string } {
   if (!entry.result) {
     return entry.cancelRequested
-      ? { label: "stopping", color: "error.main" }
-      : { label: "running", color: "warning.main" };
+      ? { label: t("project.terminal.status.stopping"), color: "error.main" }
+      : { label: t("project.terminal.status.running"), color: "warning.main" };
   }
   if (entry.result.ok) {
-    return { label: entry.result.exitCode === null ? "done" : `exit ${entry.result.exitCode}`, color: "success.main" };
+    return {
+      label: entry.result.exitCode === null
+        ? t("project.terminal.status.done")
+        : t("project.terminal.status.exit", { code: entry.result.exitCode }),
+      color: "success.main"
+    };
   }
   return {
-    label: entry.cancelRequested ? "interrotto" : entry.result.exitCode === null ? "failed" : `exit ${entry.result.exitCode}`,
+    label: entry.cancelRequested
+      ? t("project.terminal.status.interrupted")
+      : entry.result.exitCode === null
+        ? t("project.terminal.status.failed")
+        : t("project.terminal.status.exit", { code: entry.result.exitCode }),
     color: "error.main"
   };
 }
