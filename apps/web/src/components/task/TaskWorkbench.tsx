@@ -17,14 +17,15 @@ import {
 } from "@mui/material";
 import { useMutation } from "@tanstack/react-query";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { approveBrainTask, updateBrainTask } from "../../api/brain";
 import type { BrainContentPhase, BrainGatePhase, BrainTask } from "../../types/brain";
 import type { ProjectSummary } from "../../types/projects";
 import { ImplementationPanel } from "./ImplementationPanel";
 import {
+  getTaskStatusLabel,
   MAX_CONTEXT_REPOSITORIES,
-  TASK_PHASES,
-  TASK_STATUS_LABELS,
+  TASK_PHASE_IDS,
   TASK_STATUS_ORDER
 } from "./taskEngineeringConfig";
 import {
@@ -42,6 +43,7 @@ type TaskWorkbenchProps = {
 };
 
 export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWorkbenchProps) {
+  const { t, i18n } = useTranslation();
   const [phase, setPhase] = React.useState<BrainGatePhase>(
     task.status === "done" ? "implementation" : task.status
   );
@@ -82,7 +84,7 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
       });
     },
     onSuccess: onChanged,
-    onError: (mutationError) => setError(getTaskErrorMessage(mutationError))
+    onError: (mutationError) => setError(getTaskErrorMessage(mutationError, t("taskEngineering.operationFailed")))
   });
   const approveMutation = useMutation({
     mutationFn: async () => {
@@ -94,7 +96,7 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
       await onChanged();
       setPhase(nextTask.status === "done" ? "implementation" : nextTask.status);
     },
-    onError: (mutationError) => setError(getTaskErrorMessage(mutationError))
+    onError: (mutationError) => setError(getTaskErrorMessage(mutationError, t("taskEngineering.operationFailed")))
   });
   const contextMutation = useMutation({
     mutationFn: () => updateBrainTask(projectId, task.id, { contextProjectIds }),
@@ -102,7 +104,7 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
       setError(null);
       await onChanged();
     },
-    onError: (mutationError) => setError(getTaskErrorMessage(mutationError))
+    onError: (mutationError) => setError(getTaskErrorMessage(mutationError, t("taskEngineering.operationFailed")))
   });
 
   const currentPhaseIndex = TASK_STATUS_ORDER.indexOf(task.status);
@@ -114,13 +116,15 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="h2" noWrap>{task.title}</Typography>
           <Typography variant="caption" color="text.secondary">
-            Aggiornato {formatTaskDate(task.updatedAt)}
+            {t("taskEngineering.workbench.updatedAt", {
+              date: formatTaskDate(task.updatedAt, i18n.language)
+            })}
           </Typography>
         </Box>
         <Chip
           color={task.status === "done" ? "success" : "primary"}
           variant="outlined"
-          label={TASK_STATUS_LABELS[task.status]}
+          label={getTaskStatusLabel(t, task.status)}
         />
       </Stack>
       <Divider />
@@ -131,7 +135,7 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
         sx={{ px: 2, py: 1.5, bgcolor: "action.hover" }}
       >
         <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: { md: 180 } }}>
-          <Chip size="small" color="primary" label="Principale" />
+          <Chip size="small" color="primary" label={t("taskEngineering.workbench.primary")} />
           <Typography variant="body2" fontWeight={750} noWrap>
             {primaryProject?.name ?? projectId}
           </Typography>
@@ -153,7 +157,9 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
               <Checkbox size="small" checked={selected} sx={{ mr: 1 }} />
               <ListItemText
                 primary={project.name}
-                secondary={`${project.branch} · ${project.isClean ? "Pulito" : "Modificato"}`}
+                secondary={`${project.branch} · ${project.isClean
+                  ? t("taskEngineering.repositoryState.clean")
+                  : t("taskEngineering.repositoryState.dirty")}`}
               />
             </li>
           )}
@@ -161,7 +167,7 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
             <TextField
               {...params}
               size="small"
-              label="Repository di contesto"
+              label={t("taskEngineering.workbench.contextRepositories")}
               helperText={`${contextProjectIds.length}/${MAX_CONTEXT_REPOSITORIES}`}
             />
           )}
@@ -174,14 +180,14 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
           disabled={!contextChanged || busy}
           sx={{ flexShrink: 0 }}
         >
-          Salva contesto
+          {t("taskEngineering.workbench.saveContext")}
         </Button>
       </Stack>
       <Divider />
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "196px minmax(0, 1fr)" }, minWidth: 0 }}>
         <Box
           component="nav"
-          aria-label="Gate del task"
+          aria-label={t("taskEngineering.workbench.gateTitle")}
           sx={{
             p: 1,
             bgcolor: "var(--rc-surface-1)",
@@ -192,20 +198,20 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
           }}
         >
           <Typography variant="overline" color="text.secondary" sx={{ display: { xs: "none", md: "block" }, px: 1, mb: 0.75 }}>
-            Gate del task
+            {t("taskEngineering.workbench.gateTitle")}
           </Typography>
           <Stack direction={{ xs: "row", md: "column" }} spacing={0.5} sx={{ minWidth: { xs: 680, md: 0 } }}>
-            {TASK_PHASES.map((item, index) => {
+            {TASK_PHASE_IDS.map((phaseId, index) => {
               const unlocked = index <= currentPhaseIndex || task.status === "done";
               const approved = index < currentPhaseIndex || task.status === "done";
               return (
                 <Button
-                  key={item.id}
+                  key={phaseId}
                   size="small"
                   disabled={!unlocked}
-                  onClick={() => setPhase(item.id)}
-                  variant={phase === item.id ? "contained" : "text"}
-                  color={approved && phase !== item.id ? "success" : "primary"}
+                  onClick={() => setPhase(phaseId)}
+                  variant={phase === phaseId ? "contained" : "text"}
+                  color={approved && phase !== phaseId ? "success" : "primary"}
                   startIcon={approved ? <CheckCircleOutlineIcon fontSize="small" /> : (
                     <Box
                       component="span"
@@ -230,7 +236,7 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
                     opacity: unlocked ? 1 : 0.55
                   }}
                 >
-                  {item.label}
+                  {getTaskStatusLabel(t, phaseId)}
                 </Button>
               );
             })}
@@ -240,18 +246,25 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
         <Box sx={{ minWidth: 0 }}>
           <Box sx={{ px: { xs: 1.5, md: 2.5 }, pt: { xs: 1.5, md: 2.25 }, pb: 1.25 }}>
             <Typography variant="overline" color="primary.main">
-              {phase === "implementation" ? "Esecuzione controllata" : "Contenuto modificabile · approvazione umana"}
+              {phase === "implementation"
+                ? t("taskEngineering.workbench.controlledExecution")
+                : t("taskEngineering.workbench.editableContent")}
             </Typography>
-            <Typography variant="h3">{TASK_PHASES.find((item) => item.id === phase)?.label}</Typography>
+            <Typography variant="h3">{getTaskStatusLabel(t, phase)}</Typography>
           </Box>
           <Divider />
           <Box sx={{ p: { xs: 1.5, md: 2.5 } }}>
             {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
             {phase === "definition" ? (
               <Stack spacing={2}>
-                <TextField label="Titolo" value={title} onChange={(event) => setTitle(event.target.value)} fullWidth />
                 <TextField
-                  label="Descrizione"
+                  label={t("taskEngineering.workbench.titleLabel")}
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  fullWidth
+                />
+                <TextField
+                  label={t("taskEngineering.workbench.descriptionLabel")}
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   multiline
@@ -259,7 +272,7 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
                   fullWidth
                 />
                 <TextField
-                  label="Motivazione"
+                  label={t("taskEngineering.workbench.motivationLabel")}
                   value={motivation}
                   onChange={(event) => setMotivation(event.target.value)}
                   multiline
@@ -271,7 +284,7 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
               <ImplementationPanel projectId={projectId} task={task} onChanged={onChanged} />
             ) : (
               <TextField
-                label={TASK_PHASES.find((item) => item.id === phase)?.label}
+                label={getTaskStatusLabel(t, phase)}
                 value={content}
                 onChange={(event) => setContent(event.target.value)}
                 multiline
@@ -289,14 +302,16 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
               spacing={1}
               sx={{ px: { xs: 1.5, md: 2.5 }, py: 1.5, borderTop: "1px solid", borderColor: "divider", bgcolor: "var(--rc-surface-1)" }}
             >
-              <Button variant="outlined" onClick={() => saveMutation.mutate()} disabled={busy}>Salva bozza</Button>
+              <Button variant="outlined" onClick={() => saveMutation.mutate()} disabled={busy}>
+                {t("taskEngineering.workbench.saveDraft")}
+              </Button>
               <Button
                 variant="contained"
                 onClick={() => approveMutation.mutate()}
                 disabled={busy}
                 startIcon={busy ? <CircularProgress size={16} /> : <CheckCircleOutlineIcon />}
               >
-                Approva gate e continua
+                {t("taskEngineering.workbench.approveGate")}
               </Button>
             </Stack>
           ) : task.status === "implementation" ? (
@@ -308,7 +323,7 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
                 disabled={busy}
                 startIcon={<CheckCircleOutlineIcon />}
               >
-                Chiudi task
+                {t("taskEngineering.workbench.closeTask")}
               </Button>
             </Stack>
           ) : null}

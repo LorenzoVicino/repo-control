@@ -27,10 +27,11 @@ import {
 } from "@mui/material";
 import { useMutation } from "@tanstack/react-query";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { cancelBrainTaskPlanning, createBrainTaskFromPlan, planBrainTask } from "../../api/brain";
 import type { BrainTask, BrainTaskProfile, TaskPlanDraft } from "../../types/brain";
 import type { ProjectSummary } from "../../types/projects";
-import { MAX_CONTEXT_REPOSITORIES, TASK_PROFILE_LABELS } from "./taskEngineeringConfig";
+import { getTaskProfileLabel, MAX_CONTEXT_REPOSITORIES, TASK_PROFILE_IDS } from "./taskEngineeringConfig";
 import { getTaskErrorMessage } from "./taskEngineeringUtils";
 import { TaskPlanReview } from "./TaskPlanReview";
 
@@ -51,6 +52,7 @@ export function TaskPlanningComposer({
   onCancel,
   onCreated
 }: TaskPlanningComposerProps) {
+  const { t } = useTranslation();
   const [brief, setBrief] = React.useState("");
   const [profile, setProfile] = React.useState<BrainTaskProfile | "auto">("auto");
   const [contextProjectIds, setContextProjectIds] = React.useState<string[]>([]);
@@ -99,7 +101,7 @@ export function TaskPlanningComposer({
       setFeedback("");
     },
     onError: (mutationError) => {
-      if (!isAbortError(mutationError)) setError(getTaskErrorMessage(mutationError));
+      if (!isAbortError(mutationError)) setError(getTaskErrorMessage(mutationError, t("taskEngineering.operationFailed")));
     },
     onSettled: () => {
       planningAbortController.current = null;
@@ -109,7 +111,7 @@ export function TaskPlanningComposer({
 
   const createMutation = useMutation({
     mutationFn: () => {
-      if (!draft) throw new Error("Piano non disponibile");
+      if (!draft) throw new Error(t("taskEngineering.composer.planUnavailable"));
 
       return createBrainTaskFromPlan(projectId, {
         title: draft.title,
@@ -133,7 +135,7 @@ export function TaskPlanningComposer({
       });
     },
     onSuccess: onCreated,
-    onError: (mutationError) => setError(getTaskErrorMessage(mutationError))
+    onError: (mutationError) => setError(getTaskErrorMessage(mutationError, t("taskEngineering.operationFailed")))
   });
 
   const busy = planMutation.isPending || createMutation.isPending;
@@ -211,13 +213,13 @@ export function TaskPlanningComposer({
               <PsychologyOutlinedIcon />
             </Box>
             <Box>
-              <Typography component="h2" variant="h2">Racconta il risultato, al piano pensa Claude</Typography>
+              <Typography component="h2" variant="h2">{t("taskEngineering.composer.heading")}</Typography>
               <Typography color="text.secondary" variant="body2" sx={{ mt: 0.6, maxWidth: 720 }}>
-                Parti da una richiesta libera. Claude esplora il repository in sola lettura, individua le aree coinvolte e prepara una bozza completa da approvare.
+                {t("taskEngineering.composer.description")}
               </Typography>
             </Box>
           </Stack>
-          <Chip icon={<AutoAwesomeOutlinedIcon />} color="primary" variant="outlined" label="Claude Code · sola lettura" />
+          <Chip icon={<AutoAwesomeOutlinedIcon />} color="primary" variant="outlined" label={t("taskEngineering.composer.readOnlyChip")} />
         </Stack>
       </Box>
 
@@ -226,47 +228,57 @@ export function TaskPlanningComposer({
 
         <TextField
           autoFocus
-          label="Cosa vuoi cambiare o ottenere?"
+          label={t("taskEngineering.composer.briefLabel")}
           value={brief}
           onChange={(event) => setBrief(event.target.value)}
           multiline
           minRows={7}
           fullWidth
-          placeholder="Esempio: quando un run fallisce, voglio poterlo rilanciare mantenendo il contesto e vedere chiaramente quale verifica non è passata."
-          helperText="Puoi incollare una richiesta, un bug report o descrivere il risultato con parole tue. Non serve preparare requisiti o piano."
+          placeholder={t("taskEngineering.composer.briefPlaceholder")}
+          helperText={t("taskEngineering.composer.briefHelp")}
           disabled={busy}
         />
 
         <Accordion variant="outlined" disableGutters sx={{ "&:before": { display: "none" } }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Contesto e preferenze</Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+                {t("taskEngineering.composer.contextAndPreferences")}
+              </Typography>
               <Chip size="small" color="primary" label={primaryProject?.name ?? projectId} />
               <Chip
                 size="small"
                 variant="outlined"
-                label={profile === "auto" ? "Profilo automatico" : TASK_PROFILE_LABELS[profile]}
+                label={profile === "auto"
+                  ? t("taskEngineering.composer.automaticProfile")
+                  : getTaskProfileLabel(t, profile)}
               />
               {contextProjectIds.length > 0 ? (
-                <Chip size="small" variant="outlined" label={`+${contextProjectIds.length} repository`} />
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={t("taskEngineering.composer.extraRepositories", { total: contextProjectIds.length })}
+                />
               ) : null}
             </Stack>
           </AccordionSummary>
           <AccordionDetails>
             <Stack spacing={2}>
               <FormControl size="small" sx={{ maxWidth: 360 }}>
-                <FormLabel id="planning-profile-label" sx={{ mb: 0.75 }}>Profondità del piano</FormLabel>
+                <FormLabel id="planning-profile-label" sx={{ mb: 0.75 }}>
+                  {t("taskEngineering.composer.planDepth")}
+                </FormLabel>
                 <Select
                   aria-labelledby="planning-profile-label"
                   value={profile}
                   onChange={(event) => setProfile(event.target.value as BrainTaskProfile | "auto")}
                 >
-                  <MenuItem value="auto">Automatica · consigliata</MenuItem>
-                  {Object.entries(TASK_PROFILE_LABELS).map(([value, label]) => (
-                    <MenuItem key={value} value={value}>{label}</MenuItem>
+                  <MenuItem value="auto">{t("taskEngineering.composer.automaticRecommended")}</MenuItem>
+                  {TASK_PROFILE_IDS.map((profileId) => (
+                    <MenuItem key={profileId} value={profileId}>{getTaskProfileLabel(t, profileId)}</MenuItem>
                   ))}
                 </Select>
-                <FormHelperText>Fix e chore restano rapidi; feature e refactor ricevono più dettaglio.</FormHelperText>
+                <FormHelperText>{t("taskEngineering.composer.profileHelp")}</FormHelperText>
               </FormControl>
 
               <Autocomplete
@@ -286,15 +298,17 @@ export function TaskPlanningComposer({
                     <Checkbox size="small" checked={selected} sx={{ mr: 1 }} />
                     <ListItemText
                       primary={project.name}
-                      secondary={`${project.branch} · ${project.isClean ? "Pulito" : "Modificato"}`}
+                      secondary={`${project.branch} · ${project.isClean
+                        ? t("taskEngineering.repositoryState.clean")
+                        : t("taskEngineering.repositoryState.dirty")}`}
                     />
                   </li>
                 )}
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Repository aggiuntivi di contesto"
-                    helperText="Verranno letti per capire le dipendenze, senza essere modificati."
+                    label={t("taskEngineering.composer.contextRepositories")}
+                    helperText={t("taskEngineering.composer.contextRepositoriesHelp")}
                   />
                 )}
               />
@@ -308,14 +322,18 @@ export function TaskPlanningComposer({
               <Stack direction="row" spacing={1} alignItems="center">
                 <AutoAwesomeOutlinedIcon color="primary" />
                 <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Analisi in sola lettura</Typography>
-                  <Typography variant="caption" color="text.secondary">Claude sta raccogliendo contesto. Nessuna fase viene segnata come completata prima della review.</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+                    {t("taskEngineering.composer.analysisTitle")}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {t("taskEngineering.composer.analysisDescription")}
+                  </Typography>
                 </Box>
               </Stack>
               <LinearProgress />
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                {["Struttura del repository", "Aree e rischi", "Passi e verifiche"].map((label, index) => (
-                  <Stack key={label} direction="row" spacing={0.6} alignItems="center" sx={{ flex: 1 }}>
+                {(["structure", "risks", "steps"] as const).map((step, index) => (
+                  <Stack key={step} direction="row" spacing={0.6} alignItems="center" sx={{ flex: 1 }}>
                     <Box
                       aria-hidden="true"
                       sx={{
@@ -334,7 +352,9 @@ export function TaskPlanningComposer({
                     >
                       {index + 1}
                     </Box>
-                    <Typography variant="caption" color="text.secondary">{label}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {t(`taskEngineering.composer.analysisSteps.${step}`)}
+                    </Typography>
                   </Stack>
                 ))}
               </Stack>
@@ -351,7 +371,7 @@ export function TaskPlanningComposer({
               }}
               disabled={createMutation.isPending}
             >
-              {planMutation.isPending ? "Interrompi analisi" : "Annulla"}
+              {planMutation.isPending ? t("taskEngineering.composer.stopAnalysis") : t("common.cancel")}
             </Button>
           ) : <Box />}
           <Button
@@ -361,7 +381,7 @@ export function TaskPlanningComposer({
             onClick={() => planMutation.mutate()}
             disabled={busy || brief.trim().length < 8}
           >
-            Analizza e prepara il piano
+            {t("taskEngineering.composer.analyze")}
           </Button>
         </Stack>
       </Stack>

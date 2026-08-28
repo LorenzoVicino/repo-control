@@ -23,6 +23,7 @@ import {
 } from "@mui/material";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { fetchBrainContext, runBrainTask } from "../../api/brain";
 import type { BrainTask } from "../../types/brain";
 import { formatTaskDate, getTaskErrorMessage } from "./taskEngineeringUtils";
@@ -34,6 +35,7 @@ type ImplementationPanelProps = {
 };
 
 export function ImplementationPanel({ projectId, task, onChanged }: ImplementationPanelProps) {
+  const { t, i18n } = useTranslation();
   const [prompt, setPrompt] = React.useState("");
   const [checksText, setChecksText] = React.useState(
     task.verificationChecks.length > 0 ? task.verificationChecks.join("\n") : "npm run build"
@@ -52,32 +54,34 @@ export function ImplementationPanel({ projectId, task, onChanged }: Implementati
       setRunError(null);
       await onChanged();
     },
-    onError: (error) => setRunError(getTaskErrorMessage(error))
+    onError: (error) => setRunError(getTaskErrorMessage(error, t("taskEngineering.operationFailed")))
   });
   const latestRun = task.implementation.runs[0];
 
   return (
     <Stack spacing={2.5}>
       <Alert severity="info">
-        Checkout di esecuzione: repository principale. Context pack: {task.contextRepositoryPaths.length + 1} repository.
+        {t("taskEngineering.implementation.checkoutNotice", {
+          total: task.contextRepositoryPaths.length + 1
+        })}
       </Alert>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1fr) minmax(320px, 0.72fr)" }, gap: 2 }}>
         <Stack spacing={2}>
           <TextField
-            label="Istruzione aggiuntiva"
+            label={t("taskEngineering.implementation.extraInstruction")}
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
             multiline
             minRows={3}
-            placeholder="Vincoli specifici per questa iterazione"
+            placeholder={t("taskEngineering.implementation.extraInstructionPlaceholder")}
           />
           <TextField
-            label="Comandi di verifica"
+            label={t("taskEngineering.implementation.verificationCommands")}
             value={checksText}
             onChange={(event) => setChecksText(event.target.value)}
             multiline
             minRows={4}
-            helperText="Un comando per riga. Almeno uno è obbligatorio."
+            helperText={t("taskEngineering.implementation.verificationHelp")}
             inputProps={{ style: { fontFamily: "var(--rc-font-mono)" } }}
           />
           {runError ? <Alert severity="error">{runError}</Alert> : null}
@@ -88,7 +92,9 @@ export function ImplementationPanel({ projectId, task, onChanged }: Implementati
             disabled={runMutation.isPending || !checksText.trim() || task.status !== "implementation"}
             sx={{ alignSelf: "flex-start" }}
           >
-            {runMutation.isPending ? "Run in corso" : "Avvia iterazione"}
+            {runMutation.isPending
+              ? t("taskEngineering.implementation.running")
+              : t("taskEngineering.implementation.startIteration")}
           </Button>
         </Stack>
 
@@ -100,16 +106,24 @@ export function ImplementationPanel({ projectId, task, onChanged }: Implementati
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Stack direction="row" spacing={0.75} alignItems="center">
               <AutoAwesomeOutlinedIcon color="primary" fontSize="small" />
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Context pack</Typography>
-              <Chip size="small" variant="outlined" label={`${task.contextRepositoryPaths.length + 1} repo`} />
+              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+                {t("taskEngineering.implementation.contextPack")}
+              </Typography>
+              <Chip
+                size="small"
+                variant="outlined"
+                label={t("taskEngineering.implementation.repoChip", {
+                  total: task.contextRepositoryPaths.length + 1
+                })}
+              />
             </Stack>
           </AccordionSummary>
           <AccordionDetails sx={{ borderTop: "1px solid", borderColor: "divider", p: 1.5, maxHeight: 360, overflow: "auto" }}>
             <Stack direction="row" justifyContent="flex-end" sx={{ mb: 1 }}>
-              <Tooltip title="Copia contesto">
+              <Tooltip title={t("taskEngineering.implementation.copyContext")}>
                 <span>
                   <Button
-                    aria-label="Copia context pack"
+                    aria-label={t("taskEngineering.implementation.copyContextPack")}
                     size="small"
                     disabled={!contextQuery.data}
                     onClick={() => void navigator.clipboard.writeText(contextQuery.data?.content ?? "")}
@@ -145,16 +159,23 @@ export function ImplementationPanel({ projectId, task, onChanged }: Implementati
             )}
             <Box sx={{ flexGrow: 1 }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-                Ultimo run · {latestRun.status === "succeeded" ? "Riuscito" : "Fallito"}
+                {t("taskEngineering.implementation.lastRun", {
+                  outcome: latestRun.status === "succeeded"
+                    ? t("taskEngineering.implementation.succeeded")
+                    : t("taskEngineering.implementation.failed")
+                })}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {formatTaskDate(latestRun.completedAt)}
+                {formatTaskDate(latestRun.completedAt, i18n.language)}
               </Typography>
             </Box>
             <Chip
               size="small"
               color={latestRun.status === "succeeded" ? "success" : "error"}
-              label={`${latestRun.checks.filter((check) => check.ok).length}/${latestRun.checks.length} check`}
+              label={t("taskEngineering.implementation.checkChip", {
+                passed: latestRun.checks.filter((check) => check.ok).length,
+                total: latestRun.checks.length
+              })}
             />
           </Stack>
           <Divider />
@@ -162,7 +183,7 @@ export function ImplementationPanel({ projectId, task, onChanged }: Implementati
             {latestRun.error ? <Alert severity="error">{latestRun.error}</Alert> : null}
             {latestRun.status === "failed" ? (
               <Alert severity="warning">
-                Recovery disponibile: correggi istruzione o verifiche e avvia una nuova iterazione. Il context pack resta invariato.
+                {t("taskEngineering.implementation.recoveryNotice")}
               </Alert>
             ) : null}
             {latestRun.response ? (
@@ -174,7 +195,7 @@ export function ImplementationPanel({ projectId, task, onChanged }: Implementati
                 {latestRun.response}
               </Typography>
             ) : null}
-            <Stack spacing={0.75} aria-label="Risultati delle verifiche">
+            <Stack spacing={0.75} aria-label={t("taskEngineering.implementation.checkResults")}>
               {latestRun.checks.map((check) => (
                 <Accordion
                   key={check.id}
@@ -205,14 +226,16 @@ export function ImplementationPanel({ projectId, task, onChanged }: Implementati
                   </AccordionSummary>
                   <AccordionDetails sx={{ borderTop: "1px solid", borderColor: "divider", bgcolor: "var(--rc-surface-1)" }}>
                     <Typography variant="caption" color="text.secondary">
-                      Exit code: {check.exitCode ?? "n/d"}
+                      {t("taskEngineering.implementation.exitCode", {
+                        code: check.exitCode ?? t("taskEngineering.implementation.notAvailable")
+                      })}
                     </Typography>
                     <Typography
                       component="pre"
                       variant="caption"
                       sx={{ m: 0, mt: 1, maxHeight: 260, overflow: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "var(--rc-font-mono)" }}
                     >
-                      {check.output || "Nessun output prodotto dal comando."}
+                      {check.output || t("taskEngineering.implementation.noOutput")}
                     </Typography>
                   </AccordionDetails>
                 </Accordion>

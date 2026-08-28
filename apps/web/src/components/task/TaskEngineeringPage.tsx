@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { fetchBrainTasks } from "../../api/brain";
 import type { BrainTaskStatus } from "../../types/brain";
 import type { ProjectSummary } from "../../types/projects";
@@ -31,6 +32,7 @@ type TaskEngineeringPageProps = {
 type ComposerStage = "intent" | "planning" | "review";
 
 export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [projectId, setProjectId] = React.useState(projects[0]?.id ?? "");
   const [selectedTaskId, setSelectedTaskId] = React.useState<string | null>(null);
@@ -74,18 +76,20 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
         alignItems={{ md: "flex-end" }}
       >
         <Box>
-          <Typography variant="overline" color="primary.light" component="div">AI workbench</Typography>
-          <Typography component="h1" variant="h1">Task engineering</Typography>
+          <Typography variant="overline" color="primary.light" component="div">
+            {t("taskEngineering.eyebrow")}
+          </Typography>
+          <Typography component="h1" variant="h1">{t("taskEngineering.title")}</Typography>
           <Typography color="text.secondary" variant="body2" sx={{ mt: 0.4 }}>
-            Dall’intento alle verifiche, con approvazioni esplicite e il repository come fonte di verità.
+            {t("taskEngineering.subtitle")}
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ width: { xs: "100%", md: "auto" } }}>
           <FormControl size="small" sx={{ minWidth: { xs: 0, sm: 260 }, flexGrow: { xs: 1, md: 0 } }}>
-            <InputLabel id="task-project-label">Repository</InputLabel>
+            <InputLabel id="task-project-label">{t("common.repository")}</InputLabel>
             <Select
               labelId="task-project-label"
-              label="Repository"
+              label={t("common.repository")}
               value={projectId}
               onChange={(event) => {
                 setProjectId(event.target.value);
@@ -99,11 +103,11 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
               ))}
             </Select>
           </FormControl>
-          <Tooltip title="Aggiorna task">
+          <Tooltip title={t("taskEngineering.refreshTasks")}>
             <span>
               <Button
                 variant="outlined"
-                aria-label="Aggiorna task"
+                aria-label={t("taskEngineering.refreshTasks")}
                 onClick={() => void tasksQuery.refetch()}
                 disabled={tasksQuery.isFetching || !projectId}
                 sx={{ minWidth: 40, px: 1 }}
@@ -121,7 +125,7 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
             }}
             disabled={!projectId || creating}
           >
-            Nuovo task
+            {t("taskEngineering.newTask")}
           </Button>
         </Stack>
       </Stack>
@@ -186,15 +190,17 @@ export function TaskEngineeringPage({ projects }: TaskEngineeringPageProps) {
   );
 }
 
-const TASK_FLOW_STEPS = ["Intento", "Piano", "Review", "Gate", "Implementazione", "Verifiche"] as const;
+// Stable step ids; the visible name comes from taskEngineering.flow.<id>.
+const TASK_FLOW_STEPS = ["intent", "plan", "review", "gate", "implementation", "verification"] as const;
 
 function TaskFlow({ status, composerStage }: { status: BrainTaskStatus | null; composerStage: ComposerStage }) {
+  const { t } = useTranslation();
   const activeIndex = status === null ? getComposerFlowIndex(composerStage) : getTaskFlowIndex(status);
 
   return (
     <Box
       component="nav"
-      aria-label="Flusso Task engineering"
+      aria-label={t("taskEngineering.flowAriaLabel")}
       sx={{
         overflowX: "auto",
         border: "1px solid var(--rc-border)",
@@ -204,12 +210,12 @@ function TaskFlow({ status, composerStage }: { status: BrainTaskStatus | null; c
       }}
     >
       <Stack direction="row" sx={{ minWidth: 650 }}>
-        {TASK_FLOW_STEPS.map((label, index) => {
+        {TASK_FLOW_STEPS.map((step, index) => {
           const completed = index < activeIndex;
           const active = index === activeIndex;
           return (
             <Stack
-              key={label}
+              key={step}
               direction="row"
               alignItems="center"
               spacing={0.75}
@@ -249,7 +255,7 @@ function TaskFlow({ status, composerStage }: { status: BrainTaskStatus | null; c
                 {completed ? <CheckRoundedIcon sx={{ fontSize: 12 }} /> : index + 1}
               </Box>
               <Typography sx={{ fontSize: 10.5, fontWeight: active ? 600 : 500, whiteSpace: "nowrap" }}>
-                {label}
+                {t(`taskEngineering.flow.${step}`)}
               </Typography>
             </Stack>
           );

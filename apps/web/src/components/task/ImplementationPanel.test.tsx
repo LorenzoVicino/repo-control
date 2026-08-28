@@ -78,19 +78,19 @@ describe("ImplementationPanel", () => {
     const user = userEvent.setup();
     const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
     const { onChanged } = renderPanel();
-    expect(screen.getByText("Ultimo run · Riuscito")).toBeVisible();
-    expect(screen.getByText("2/2 check")).toBeVisible();
+    expect(screen.getByText("Last run · Succeeded")).toBeVisible();
+    expect(screen.getByText("2/2 checks")).toBeVisible();
     await user.click(screen.getByText("npm test"));
     expect(screen.getAllByText("Exit code: 0")[0]).toBeVisible();
     expect(screen.getAllByText("output")[0]).toBeVisible();
     fireEvent.click(screen.getByText("Context pack").closest("button")!);
     expect(await screen.findByText("# Context pack")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Copia context pack" }));
+    await user.click(screen.getByRole("button", { name: "Copy context pack" }));
     expect(writeText).toHaveBeenCalledWith("# Context pack");
 
-    fireEvent.change(screen.getByRole("textbox", { name: "Istruzione aggiuntiva" }), { target: { value: "Only safe changes" } });
-    fireEvent.change(screen.getByRole("textbox", { name: "Comandi di verifica" }), { target: { value: " npm test \n\n npm run build " } });
-    await user.click(screen.getByRole("button", { name: "Avvia iterazione" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Additional instruction" }), { target: { value: "Only safe changes" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Verification commands" }), { target: { value: " npm test \n\n npm run build " } });
+    await user.click(screen.getByRole("button", { name: "Start iteration" }));
     await waitFor(() => expect(runBrainTask).toHaveBeenCalledWith("alpha", "task-1", {
       prompt: "Only safe changes",
       checks: ["npm test", "npm run build"]
@@ -104,17 +104,17 @@ describe("ImplementationPanel", () => {
     vi.mocked(runBrainTask).mockRejectedValueOnce("runner offline");
     const failed = task({ implementation: { log: [], runs: [taskRun("failed")] } });
     const view = renderPanel(failed);
-    expect(screen.getByText("Ultimo run · Fallito")).toBeVisible();
+    expect(screen.getByText("Last run · Failed")).toBeVisible();
     expect(screen.getByText("Tests failed")).toBeVisible();
     fireEvent.click(screen.getByText("Context pack").closest("button")!);
     expect(await screen.findByText("context offline")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Avvia iterazione" }));
-    expect(await screen.findByText("Operazione non riuscita")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Start iteration" }));
+    expect(await screen.findByText("Operation failed")).toBeVisible();
     view.unmount();
 
     renderPanel(task({ status: "design", verificationChecks: [], implementation: { log: [], runs: [] } }));
-    expect(screen.getByRole("button", { name: "Avvia iterazione" })).toBeDisabled();
-    fireEvent.change(screen.getByRole("textbox", { name: "Comandi di verifica" }), { target: { value: "" } });
-    expect(screen.getByRole("button", { name: "Avvia iterazione" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Start iteration" })).toBeDisabled();
+    fireEvent.change(screen.getByRole("textbox", { name: "Verification commands" }), { target: { value: "" } });
+    expect(screen.getByRole("button", { name: "Start iteration" })).toBeDisabled();
   });
 });

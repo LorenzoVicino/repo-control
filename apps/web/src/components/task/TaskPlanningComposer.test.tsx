@@ -106,14 +106,14 @@ describe("TaskPlanningComposer", () => {
   it("plans, refines, approves and returns to the brief", async () => {
     const user = userEvent.setup();
     const { props } = renderComposer();
-    const analyze = screen.getByRole("button", { name: "Analizza e prepara il piano" });
+    const analyze = screen.getByRole("button", { name: "Analyze and prepare the plan" });
     expect(analyze).toBeDisabled();
-    fireEvent.change(screen.getByRole("textbox", { name: "Cosa vuoi cambiare o ottenere?" }), {
+    fireEvent.change(screen.getByRole("textbox", { name: "What do you want to change or achieve?" }), {
       target: { value: "Raise coverage safely" }
     });
-    await user.click(screen.getByText("Contesto e preferenze"));
+    await user.click(screen.getByText("Context and preferences"));
     fireEvent.mouseDown(screen.getAllByRole("combobox")[0]!);
-    await user.click(screen.getByRole("option", { name: "Completo" }));
+    await user.click(screen.getByRole("option", { name: "Complete" }));
     await user.click(analyze);
     expect(await screen.findByTestId("plan-review")).toHaveAttribute("data-title", draft.title);
 
@@ -148,7 +148,7 @@ describe("TaskPlanningComposer", () => {
       expect.objectContaining({ client: expect.any(QueryClient) })
     );
     await user.click(screen.getByText("review-back"));
-    expect(screen.getByRole("button", { name: "Analizza e prepara il piano" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Analyze and prepare the plan" })).toBeVisible();
   }, 20_000);
 
   it("surfaces planning and creation failures", async () => {
@@ -158,12 +158,12 @@ describe("TaskPlanningComposer", () => {
       .mockResolvedValueOnce(draft);
     vi.mocked(createBrainTaskFromPlan).mockRejectedValueOnce(new Error("create failed"));
     renderComposer();
-    fireEvent.change(screen.getByRole("textbox", { name: "Cosa vuoi cambiare o ottenere?" }), {
+    fireEvent.change(screen.getByRole("textbox", { name: "What do you want to change or achieve?" }), {
       target: { value: "Raise coverage safely" }
     });
-    await user.click(screen.getByRole("button", { name: "Analizza e prepara il piano" }));
-    expect(await screen.findByText("Operazione non riuscita")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Analizza e prepara il piano" }));
+    await user.click(screen.getByRole("button", { name: "Analyze and prepare the plan" }));
+    expect(await screen.findByText("Operation failed")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Analyze and prepare the plan" }));
     expect(await screen.findByTestId("plan-review")).toBeVisible();
     await user.click(screen.getByText("review-approve"));
     expect(await screen.findByTestId("plan-review")).toHaveAttribute("data-error", "create failed");
@@ -183,11 +183,11 @@ describe("TaskPlanningComposer", () => {
       });
     });
     const { props } = renderComposer();
-    fireEvent.change(screen.getByRole("textbox", { name: "Cosa vuoi cambiare o ottenere?" }), {
+    fireEvent.change(screen.getByRole("textbox", { name: "What do you want to change or achieve?" }), {
       target: { value: "Raise coverage safely" }
     });
-    await user.click(screen.getByRole("button", { name: "Analizza e prepara il piano" }));
-    await user.click(await screen.findByRole("button", { name: "Interrompi analisi" }));
+    await user.click(screen.getByRole("button", { name: "Analyze and prepare the plan" }));
+    await user.click(await screen.findByRole("button", { name: "Stop analysis" }));
     expect(capturedSignal?.aborted).toBe(true);
     expect(cancelBrainTaskPlanning).toHaveBeenCalledWith(
       "alpha",
