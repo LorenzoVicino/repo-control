@@ -6,6 +6,7 @@ import SyncIcon from "@mui/icons-material/Sync";
 import SearchIcon from "@mui/icons-material/Search";
 import { Box, Button, Chip, CircularProgress, Stack, TextField, Typography } from "@mui/material";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { runProjectAction } from "../../api/projects";
 import { ActionButton } from "../shared/ActionButton";
 import { EmptyPanel } from "../shared/EmptyPanel";
@@ -27,6 +28,7 @@ type BranchesPanelProps = {
 };
 
 export function BranchesPanel({ projectId, details, isLoading, onResult, onCompleted }: BranchesPanelProps) {
+  const { t } = useTranslation();
   const [newBranchName, setNewBranchName] = React.useState("");
   const [runningBranchAction, setRunningBranchAction] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
@@ -59,15 +61,15 @@ export function BranchesPanel({ projectId, details, isLoading, onResult, onCompl
       return;
     }
 
-    void runBranchAction("create", `Create branch ${branch}`, "git/branch", { branch });
+    void runBranchAction("create", t("project.branches.createAction", { branch }), "git/branch", { branch });
   }
 
   if (isLoading) {
-    return <LoadingPanel label="Caricamento branches" />;
+    return <LoadingPanel label={t("project.branches.loading")} />;
   }
 
   if (!details) {
-    return <EmptyPanel label="Branches non disponibili" />;
+    return <EmptyPanel label={t("project.branches.unavailable")} />;
   }
 
   return (
@@ -75,15 +77,19 @@ export function BranchesPanel({ projectId, details, isLoading, onResult, onCompl
       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
         <Chip color="primary" label={details.status.current} />
         {details.status.tracking ? <Chip variant="outlined" label={details.status.tracking} /> : null}
-        {details.branches.defaultBranch ? <Chip variant="outlined" label={`default: ${details.branches.defaultBranch}`} /> : null}
-        {details.status.ahead > 0 ? <Chip color="info" label={`ahead ${details.status.ahead}`} /> : null}
-        {details.status.behind > 0 ? <Chip color="secondary" label={`behind ${details.status.behind}`} /> : null}
-        {isDirty ? <Chip color="warning" label="checkout bloccato: dirty" /> : null}
+        {details.branches.defaultBranch ? <Chip variant="outlined" label={t("project.branches.defaultBranch", { branch: details.branches.defaultBranch })} /> : null}
+        {details.status.ahead > 0
+          ? <Chip color="info" label={t("project.branches.ahead", { total: details.status.ahead })} />
+          : null}
+        {details.status.behind > 0
+          ? <Chip color="secondary" label={t("project.branches.behind", { total: details.status.behind })} />
+          : null}
+        {isDirty ? <Chip color="warning" label={t("project.branches.dirtyBlocked")} /> : null}
         <Box sx={{ flexGrow: 1 }} />
         <ActionButton
           projectId={projectId}
           actionPath="git/fetch"
-          label="Fetch"
+          label={t("project.branches.fetch")}
           icon={<CloudDownloadIcon fontSize="small" />}
           onResult={onResult}
           onCompleted={onCompleted}
@@ -91,7 +97,7 @@ export function BranchesPanel({ projectId, details, isLoading, onResult, onCompl
         <ActionButton
           projectId={projectId}
           actionPath="git/pull"
-          label="Pull ff-only"
+          label={t("project.branches.pullFfOnly")}
           icon={<SyncIcon fontSize="small" />}
           disabled={!details.status.tracking}
           onResult={onResult}
@@ -103,7 +109,7 @@ export function BranchesPanel({ projectId, details, isLoading, onResult, onCompl
         <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
           <TextField
             size="small"
-            label="Cerca branch"
+            label={t("project.branches.searchBranch")}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             InputProps={{ startAdornment: <SearchIcon fontSize="small" sx={{ mr: 0.75, color: "text.secondary" }} /> }}
@@ -111,7 +117,7 @@ export function BranchesPanel({ projectId, details, isLoading, onResult, onCompl
           />
           <TextField
             size="small"
-            label="Nuovo branch"
+            label={t("project.branches.newBranch")}
             value={newBranchName}
             onChange={(event) => setNewBranchName(event.target.value)}
             disabled={isDirty}
@@ -124,7 +130,7 @@ export function BranchesPanel({ projectId, details, isLoading, onResult, onCompl
             disabled={isDirty || newBranchName.trim().length === 0 || runningBranchAction === "create"}
             sx={{ minWidth: 138 }}
           >
-            Create
+            {t("project.branches.create")}
           </Button>
         </Stack>
       </Box>
@@ -137,27 +143,31 @@ export function BranchesPanel({ projectId, details, isLoading, onResult, onCompl
         }}
       >
         <BranchGroup
-          title="Local branches"
+          title={t("project.branches.local")}
           branches={filterBranches(details.branches.local, search)}
           isDirty={isDirty}
           runningBranchAction={runningBranchAction}
           onCheckout={(branch) =>
-            runBranchAction(`checkout:${branch.name}`, `Checkout ${branch.name}`, "git/checkout", {
-              branch: branch.name,
-              remote: false
-            })
+            runBranchAction(
+              `checkout:${branch.name}`,
+              t("project.branches.checkoutAction", { branch: branch.name }),
+              "git/checkout",
+              { branch: branch.name, remote: false }
+            )
           }
         />
         <BranchGroup
-          title="Remote branches"
+          title={t("project.branches.remote")}
           branches={filterBranches(details.branches.remote, search)}
           isDirty={isDirty}
           runningBranchAction={runningBranchAction}
           onCheckout={(branch) =>
-            runBranchAction(`checkout:${branch.name}`, `Checkout ${branch.name}`, "git/checkout", {
-              branch: branch.name,
-              remote: true
-            })
+            runBranchAction(
+              `checkout:${branch.name}`,
+              t("project.branches.checkoutAction", { branch: branch.name }),
+              "git/checkout",
+              { branch: branch.name, remote: true }
+            )
           }
         />
       </Box>
@@ -174,6 +184,7 @@ type BranchGroupProps = {
 };
 
 function BranchGroup({ title, branches, isDirty, runningBranchAction, onCheckout }: BranchGroupProps) {
+  const { t } = useTranslation();
   const [visibleBranchCount, setVisibleBranchCount] = React.useState(INITIAL_VISIBLE_BRANCHES);
   const [, startRevealTransition] = React.useTransition();
   const visibleBranches = branches.slice(0, visibleBranchCount);
@@ -208,7 +219,7 @@ function BranchGroup({ title, branches, isDirty, runningBranchAction, onCheckout
           ))
         ) : (
           <Typography variant="caption" color="text.secondary">
-            Nessun branch
+            {t("project.branches.noBranch")}
           </Typography>
         )}
         {hiddenBranchCount > 0 ? (
@@ -223,7 +234,9 @@ function BranchGroup({ title, branches, isDirty, runningBranchAction, onCheckout
             }}
             sx={{ alignSelf: "stretch" }}
           >
-            Mostra altri {Math.min(hiddenBranchCount, BRANCH_REVEAL_BATCH_SIZE)}
+            {t("project.branches.showMore", {
+              total: Math.min(hiddenBranchCount, BRANCH_REVEAL_BATCH_SIZE)
+            })}
           </Button>
         ) : null}
       </Stack>
@@ -239,6 +252,8 @@ type BranchRowProps = {
 };
 
 const BranchRow = React.memo(function BranchRow({ branch, isDirty, isRunning, onCheckout }: BranchRowProps) {
+  const { t } = useTranslation();
+
   return (
     <Box
       sx={{
@@ -259,12 +274,16 @@ const BranchRow = React.memo(function BranchRow({ branch, isDirty, isRunning, on
             </Typography>
           ) : null}
           <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 0.5 }}>
-            {branch.current ? <Chip size="small" color="primary" label="current" /> : null}
-            {branch.remote ? <Chip size="small" variant="outlined" label="remote" /> : null}
+            {branch.current
+              ? <Chip size="small" color="primary" label={t("project.branches.chipCurrent")} />
+              : null}
+            {branch.remote
+              ? <Chip size="small" variant="outlined" label={t("project.branches.chipRemote")} />
+              : null}
             {branch.upstream ? <Chip size="small" variant="outlined" label={branch.upstream} /> : null}
-            {branch.ahead > 0 ? <Chip size="small" color="info" label={`ahead ${branch.ahead}`} /> : null}
-            {branch.behind > 0 ? <Chip size="small" color="secondary" label={`behind ${branch.behind}`} /> : null}
-            {branch.merged && !branch.current ? <Chip size="small" color="success" variant="outlined" label="merged" /> : null}
+            {branch.ahead > 0 ? <Chip size="small" color="info" label={t("project.branches.ahead", { total: branch.ahead })} /> : null}
+            {branch.behind > 0 ? <Chip size="small" color="secondary" label={t("project.branches.behind", { total: branch.behind })} /> : null}
+            {branch.merged && !branch.current ? <Chip size="small" color="success" variant="outlined" label={t("project.branches.chipMerged")} /> : null}
           </Stack>
         </Box>
         <Button
@@ -275,7 +294,7 @@ const BranchRow = React.memo(function BranchRow({ branch, isDirty, isRunning, on
           startIcon={isRunning ? <CircularProgress size={14} /> : <AccountTreeIcon fontSize="small" />}
           sx={{ minWidth: 106 }}
         >
-          Checkout
+          {t("project.branches.checkout")}
         </Button>
       </Stack>
     </Box>

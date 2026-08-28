@@ -3,6 +3,7 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import { alpha, Box, ButtonBase, IconButton, Tooltip, Typography } from "@mui/material";
 import React, { type KeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
 import type { ProjectSummary } from "../../types/projects";
 import { getProjectPanelId, getProjectTabId } from "./projectWorkspaceIds";
 
@@ -19,6 +20,8 @@ export const ProjectWorkspaceTabs = React.memo(function ProjectWorkspaceTabs({
   onActiveProjectChange,
   onCloseProject
 }: ProjectWorkspaceTabsProps) {
+  const { t } = useTranslation();
+
   if (projects.length === 0) {
     return null;
   }
@@ -57,7 +60,7 @@ export const ProjectWorkspaceTabs = React.memo(function ProjectWorkspaceTabs({
     >
       <Box
         role="tablist"
-        aria-label="Repository aperti"
+        aria-label={t("project.tabs.openRepositories")}
         sx={{
           width: "100%",
           maxWidth: 1680,
@@ -151,16 +154,16 @@ export const ProjectWorkspaceTabs = React.memo(function ProjectWorkspaceTabs({
                 </Box>
                 {!project.isClean ? (
                   <WarningAmberRoundedIcon
-                    aria-label="Repository con modifiche locali"
+                    aria-label={t("project.tabs.localChanges")}
                     sx={{ ml: "auto", flexShrink: 0, fontSize: 15, color: "warning.main" }}
                   />
                 ) : null}
               </ButtonBase>
 
-              <Tooltip title={`Chiudi ${project.name}`}>
+              <Tooltip title={t("project.tabs.close", { name: project.name })}>
                 <IconButton
                   size="small"
-                  aria-label={`Chiudi ${project.name}`}
+                  aria-label={t("project.tabs.close", { name: project.name })}
                   onMouseDown={(event) => event.stopPropagation()}
                   onClick={(event) => {
                     event.stopPropagation();

@@ -7,6 +7,7 @@ import StopCircleOutlinedIcon from "@mui/icons-material/StopCircleOutlined";
 import { Box, ButtonBase, Chip, CircularProgress, IconButton, Link, Paper, Stack, Tooltip, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { fetchDockerServiceLogs } from "../../api/docker";
 import type { CommandResult } from "../../types/common";
 import type { DockerComposeProjectResponse, DockerComposeService } from "../../types/docker";
@@ -24,6 +25,7 @@ type DockerDetailPanelProps = {
 };
 
 export function DockerDetailPanel({ projectId, compose, isLoading, onResult, onCompleted }: DockerDetailPanelProps) {
+  const { t } = useTranslation();
   const [selectedService, setSelectedService] = React.useState<string | null>(null);
   const runningServices = compose?.services.filter((service) => service.state.toLowerCase() === "running").length ?? 0;
   const selected = compose?.services.some((service) => service.name === selectedService)
@@ -35,9 +37,9 @@ export function DockerDetailPanel({ projectId, compose, isLoading, onResult, onC
     enabled: Boolean(selected && compose?.ok)
   });
 
-  if (isLoading && !compose) return <LoadingPanel label="Caricamento Docker Compose" />;
-  if (!compose) return <EmptyPanel label="Docker Compose non disponibile" />;
-  if (!compose.ok) return <EmptyPanel label={compose.error ?? "Docker Compose non disponibile"} />;
+  if (isLoading && !compose) return <LoadingPanel label={t("project.docker.loading")} />;
+  if (!compose) return <EmptyPanel label={t("project.docker.unavailable")} />;
+  if (!compose.ok) return <EmptyPanel label={compose.error ?? t("project.docker.unavailable")} />;
 
   return (
     <Stack spacing={1.5}>
@@ -46,17 +48,19 @@ export function DockerDetailPanel({ projectId, compose, isLoading, onResult, onC
           <Stack direction="row" spacing={0.75} alignItems="center">
             <Inventory2OutlinedIcon color="primary" fontSize="small" />
             <Typography variant="subtitle1">{compose.name}</Typography>
-            <Chip size="small" label={`${runningServices}/${compose.services.length} running`} color={runningServices > 0 ? "success" : "default"} />
+            <Chip size="small" label={t("project.docker.running", { running: runningServices, total: compose.services.length })} color={runningServices > 0 ? "success" : "default"} />
           </Stack>
-          <Typography variant="caption" color="text.secondary">Aggiornato {formatDate(compose.checkedAt)}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {t("project.docker.updatedAt", { date: formatDate(compose.checkedAt) })}
+          </Typography>
         </Box>
         <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
           {runningServices === 0 ? (
-            <ActionButton projectId={projectId} actionPath="docker/up" label="Avvia stack" icon={<PlayArrowIcon />} variant="contained" onResult={onResult} onCompleted={onCompleted} />
+            <ActionButton projectId={projectId} actionPath="docker/up" label={t("project.docker.startStack")} icon={<PlayArrowIcon />} variant="contained" onResult={onResult} onCompleted={onCompleted} />
           ) : (
-            <ActionButton projectId={projectId} actionPath="docker/stop" label="Ferma stack" icon={<StopCircleOutlinedIcon />} onResult={onResult} onCompleted={onCompleted} />
+            <ActionButton projectId={projectId} actionPath="docker/stop" label={t("project.docker.stopStack")} icon={<StopCircleOutlinedIcon />} onResult={onResult} onCompleted={onCompleted} />
           )}
-          <ActionButton projectId={projectId} actionPath="docker/rebuild" label="Rebuild" icon={<BuildOutlinedIcon />} onResult={onResult} onCompleted={onCompleted} />
+          <ActionButton projectId={projectId} actionPath="docker/rebuild" label={t("project.docker.rebuild")} icon={<BuildOutlinedIcon />} onResult={onResult} onCompleted={onCompleted} />
         </Stack>
       </Stack>
 
@@ -76,7 +80,13 @@ export function DockerDetailPanel({ projectId, compose, isLoading, onResult, onC
                   borderColor: "divider"
                 }}
               >
-                {['Servizio', 'Stato', 'Immagine', 'Porte', ''].map((label, index) => (
+                {([
+                  t("project.docker.columnService"),
+                  t("project.docker.columnState"),
+                  t("project.docker.columnImage"),
+                  t("project.docker.columnPorts"),
+                  ""
+                ]).map((label, index) => (
                   <Typography key={`${label}-${index}`} variant="overline" color="text.secondary">{label}</Typography>
                 ))}
               </Box>
@@ -90,7 +100,7 @@ export function DockerDetailPanel({ projectId, compose, isLoading, onResult, onC
                     <ActionButton
                       projectId={projectId}
                       actionPath="docker/restart-service"
-                      label="Restart"
+                      label={t("project.docker.restart")}
                       icon={<RestartAltIcon fontSize="small" />}
                       body={{ service: service.name }}
                       disabled={service.state.toLowerCase() !== "running"}
@@ -107,12 +117,14 @@ export function DockerDetailPanel({ projectId, compose, isLoading, onResult, onC
         <Paper variant="outlined" sx={{ minHeight: 320, display: "grid", gridTemplateRows: "auto minmax(0, 1fr)", overflow: "hidden" }}>
           <Stack direction="row" alignItems="center" sx={{ px: 1.3, py: 1, borderBottom: "1px solid", borderColor: "divider" }}>
             <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Typography variant="subtitle1" noWrap>Log · {selected ?? "servizio"}</Typography>
-              <Typography variant="caption" color="text.secondary">Ultime 200 righe</Typography>
+              <Typography variant="subtitle1" noWrap>
+                {t("project.docker.logsTitle", { service: selected ?? t("project.docker.logsFallbackService") })}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">{t("project.docker.lastLines")}</Typography>
             </Box>
-            <Tooltip title="Aggiorna log">
+            <Tooltip title={t("project.docker.refreshLogs")}>
               <span>
-                <IconButton size="small" aria-label="Aggiorna log" onClick={() => void logsQuery.refetch()} disabled={!selected || logsQuery.isFetching}>
+                <IconButton size="small" aria-label={t("project.docker.refreshLogs")} onClick={() => void logsQuery.refetch()} disabled={!selected || logsQuery.isFetching}>
                   {logsQuery.isFetching ? <CircularProgress size={15} /> : <RefreshIcon fontSize="small" />}
                 </IconButton>
               </span>
@@ -137,7 +149,8 @@ export function DockerDetailPanel({ projectId, compose, isLoading, onResult, onC
           >
             {logsQuery.error instanceof Error
               ? logsQuery.error.message
-              : logsQuery.data?.output || (logsQuery.isFetching ? "Caricamento log…" : "Nessun log disponibile.")}
+              : logsQuery.data?.output
+                || (logsQuery.isFetching ? t("project.docker.loadingLogs") : t("project.docker.noLogs"))}
           </Box>
         </Paper>
       </Box>
@@ -156,7 +169,9 @@ function DockerServiceRow({
   onSelect: () => void;
   restartAction: React.ReactNode;
 }) {
+  const { t } = useTranslation();
   const running = service.state.toLowerCase() === "running";
+
   return (
     <Box
       sx={{
@@ -177,7 +192,7 @@ function DockerServiceRow({
         sx={{ minWidth: 0, display: "block", textAlign: "left", borderRadius: 0.75, p: 0.35, ml: -0.35 }}
       >
         <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>{service.name}</Typography>
-        <Typography variant="caption" color="text.secondary" noWrap component="div">{service.containerName ?? "Container non creato"}</Typography>
+        <Typography variant="caption" color="text.secondary" noWrap component="div">{service.containerName ?? t("project.docker.containerNotCreated")}</Typography>
       </ButtonBase>
       <Box>
         <Chip size="small" label={service.health ?? service.state} color={service.health === "unhealthy" ? "error" : running ? "success" : "default"} />

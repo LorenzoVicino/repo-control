@@ -89,14 +89,14 @@ describe("RepositoryOverviewPanel", () => {
       />
     );
 
-    expect(screen.getByText("Richiede attenzione")).toBeVisible();
-    expect(screen.getByText(/1 file in conflitto/)).toBeVisible();
-    expect(screen.getByText(/2 commit behind/)).toBeVisible();
-    expect(screen.getByText(/1 servizi Docker risultano unhealthy/)).toBeVisible();
+    expect(screen.getByText("Needs attention")).toBeVisible();
+    expect(screen.getByText(/1 conflicted files are blocking/)).toBeVisible();
+    expect(screen.getByText(/2 commits behind/)).toBeVisible();
+    expect(screen.getByText(/1 Docker services are unhealthy/)).toBeVisible();
     expect(screen.getByText("1/1 running")).toBeVisible();
     expect(screen.getAllByText("Ship overview").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Apri in VS Code" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Ferma stack" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Open in VS Code" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Stop stack" })).toBeVisible();
   });
 
   it("uses the workspace snapshot for attention signals when live Git details are unavailable", () => {
@@ -115,9 +115,9 @@ describe("RepositoryOverviewPanel", () => {
       />
     );
 
-    expect(screen.getByText("Richiede attenzione")).toBeVisible();
-    expect(screen.getByText(/2 commit behind/)).toBeVisible();
-    expect(screen.getByText(/2 modifiche non sono ancora staged/)).toBeVisible();
-    expect(screen.queryByText("Repository in ordine")).not.toBeInTheDocument();
+    expect(screen.getByText("Needs attention")).toBeVisible();
+    expect(screen.getByText(/2 commits behind/)).toBeVisible();
+    expect(screen.getByText(/2 changes are not staged yet/)).toBeVisible();
+    expect(screen.queryByText("Repository in order")).not.toBeInTheDocument();
   });
 });

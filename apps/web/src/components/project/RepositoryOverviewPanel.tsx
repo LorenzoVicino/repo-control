@@ -8,7 +8,9 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopCircleOutlinedIcon from "@mui/icons-material/StopCircleOutlined";
 import { alpha, Box, Button, Chip, CircularProgress, Paper, Stack, Typography } from "@mui/material";
+import type { TFunction } from "i18next";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { CommandResult } from "../../types/common";
 import type { DockerComposeProjectResponse } from "../../types/docker";
 import type { GitActivityCommit, GitDetails } from "../../types/git";
@@ -41,13 +43,14 @@ export function RepositoryOverviewPanel({
   onResult,
   onCompleted
 }: RepositoryOverviewPanelProps) {
+  const { t } = useTranslation();
   const staged = details?.status.files.staged.length ?? project.staged;
   const unstaged = details?.status.files.unstaged.length ?? project.modified + project.untracked;
   const conflicts = details?.status.files.unstaged.filter((file) => file.status === "conflicted").length ?? 0;
   const runningServices = dockerProject?.services.filter((service) => service.state.toLowerCase() === "running").length ?? 0;
   const unhealthyServices = dockerProject?.services.filter((service) => service.health === "unhealthy").length ?? 0;
   const totalServices = dockerProject?.services.length ?? 0;
-  const attentionItems = getAttentionItems(project, details, conflicts, unhealthyServices);
+  const attentionItems = getAttentionItems(t, project, details, conflicts, unhealthyServices);
   const canStartDocker = project.hasDockerCompose && dockerProject?.ok === true && runningServices === 0;
   const canStopDocker = project.hasDockerCompose && dockerProject?.ok === true && runningServices > 0;
 
@@ -65,7 +68,7 @@ export function RepositoryOverviewPanel({
           <Stack direction="row" spacing={1} alignItems="flex-start">
             <ErrorOutlineIcon color="warning" fontSize="small" sx={{ mt: 0.15 }} />
             <Box>
-              <Typography variant="subtitle1">Richiede attenzione</Typography>
+              <Typography variant="subtitle1">{t("project.overview.attentionTitle")}</Typography>
               <Stack component="ul" spacing={0.35} sx={{ m: 0, mt: 0.5, pl: 2.25 }}>
                 {attentionItems.map((item) => (
                   <Typography key={item} component="li" variant="body2" color="text.secondary">
@@ -81,8 +84,10 @@ export function RepositoryOverviewPanel({
           <Stack direction="row" spacing={1} alignItems="center">
             <CheckCircleOutlineIcon color="success" fontSize="small" />
             <Box>
-              <Typography variant="subtitle1">Repository in ordine</Typography>
-              <Typography variant="body2" color="text.secondary">Nessun blocco operativo rilevato.</Typography>
+              <Typography variant="subtitle1">{t("project.overview.healthyTitle")}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {t("project.overview.healthyDescription")}
+              </Typography>
             </Box>
           </Stack>
         </Paper>
@@ -97,30 +102,41 @@ export function RepositoryOverviewPanel({
       >
         <OverviewMetric
           icon={<CodeOutlinedIcon />}
-          label="Working tree"
-          value={staged + unstaged === 0 ? "Pulito" : `${staged + unstaged} modifiche`}
-          detail={`${staged} staged · ${unstaged} unstaged`}
+          label={t("project.overview.workingTree")}
+          value={staged + unstaged === 0
+            ? t("project.overview.clean")
+            : t("project.overview.changesCount", { total: staged + unstaged })}
+          detail={t("project.overview.stagedUnstaged", { staged, unstaged })}
           tone={staged + unstaged === 0 ? "success" : "warning"}
         />
         <OverviewMetric
           icon={<CloudDownloadOutlinedIcon />}
-          label="Sincronizzazione"
-          value={details?.status.tracking ?? "Nessun upstream"}
-          detail={`${details?.status.ahead ?? project.ahead} ahead · ${details?.status.behind ?? project.behind} behind`}
+          label={t("project.overview.sync")}
+          value={details?.status.tracking ?? t("project.overview.noUpstream")}
+          detail={t("project.overview.aheadBehind", {
+            ahead: details?.status.ahead ?? project.ahead,
+            behind: details?.status.behind ?? project.behind
+          })}
           tone={(details?.status.behind ?? project.behind) > 0 ? "warning" : "primary"}
         />
         <OverviewMetric
           icon={<Inventory2OutlinedIcon />}
-          label="Docker Compose"
-          value={!project.hasDockerCompose ? "Non rilevato" : `${runningServices}/${totalServices || "–"} running`}
-          detail={unhealthyServices > 0 ? `${unhealthyServices} unhealthy` : dockerProject?.error ?? "Stato servizi locale"}
+          label={t("project.overview.docker")}
+          value={!project.hasDockerCompose
+            ? t("project.overview.dockerNotDetected")
+            : t("project.overview.dockerRunning", { running: runningServices, total: totalServices || "–" })}
+          detail={unhealthyServices > 0
+            ? t("project.overview.unhealthyCount", { total: unhealthyServices })
+            : dockerProject?.error ?? t("project.overview.localServiceState")}
           tone={unhealthyServices > 0 ? "error" : runningServices > 0 ? "success" : "primary"}
         />
         <OverviewMetric
           icon={<CommitOutlinedIcon />}
-          label="Ultimo commit"
-          value={project.lastCommit?.message ?? "Nessun commit"}
-          detail={project.lastCommit ? `${project.lastCommit.hash} · ${formatDate(project.lastCommit.date)}` : "Cronologia vuota"}
+          label={t("project.overview.lastCommit")}
+          value={project.lastCommit?.message ?? t("project.overview.noCommit")}
+          detail={project.lastCommit
+            ? `${project.lastCommit.hash} · ${formatDate(project.lastCommit.date)}`
+            : t("project.overview.emptyHistory")}
           tone="primary"
         />
       </Box>
@@ -129,8 +145,10 @@ export function RepositoryOverviewPanel({
         <Paper variant="outlined" sx={{ overflow: "hidden" }}>
           <Stack direction="row" alignItems="center" sx={{ px: 1.5, py: 1.15, borderBottom: "1px solid", borderColor: "divider" }}>
             <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="subtitle1">Attività recente</Typography>
-              <Typography variant="caption" color="text.secondary">Cronologia Git del repository</Typography>
+              <Typography variant="subtitle1">{t("project.overview.recentActivity")}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {t("project.overview.recentActivitySubtitle")}
+              </Typography>
             </Box>
             {isLoading ? <CircularProgress size={17} /> : null}
           </Stack>
@@ -138,24 +156,28 @@ export function RepositoryOverviewPanel({
             {commits.length > 0 ? commits.map((commit, index) => (
               <RecentCommitRow key={commit.hash} commit={commit} isLast={index === commits.length - 1 && !hasMore} />
             )) : !isLoading ? (
-              <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>Nessun commit disponibile.</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>
+                {t("project.overview.noCommits")}
+              </Typography>
             ) : null}
           </Stack>
           {hasMore ? (
             <Button fullWidth onClick={onLoadMore} disabled={isLoadingMore} sx={{ borderTop: "1px solid", borderColor: "divider", borderRadius: 0 }}>
-              {isLoadingMore ? "Caricamento…" : "Mostra altri commit"}
+              {isLoadingMore ? t("project.overview.loadingMore") : t("project.overview.showMoreCommits")}
             </Button>
           ) : null}
         </Paper>
 
         <Paper variant="outlined" sx={{ p: 1.5, alignSelf: "start" }}>
-          <Typography variant="subtitle1">Azioni rapide</Typography>
-          <Typography variant="caption" color="text.secondary">Comandi contestuali e sicuri</Typography>
+          <Typography variant="subtitle1">{t("project.overview.quickActions")}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {t("project.overview.quickActionsSubtitle")}
+          </Typography>
           <Stack spacing={0.85} sx={{ mt: 1.25 }}>
             <ActionButton
               projectId={project.id}
               actionPath="open-vscode"
-              label="Apri in VS Code"
+              label={t("project.overview.openInVSCode")}
               icon={<OpenInNewIcon fontSize="small" />}
               variant="contained"
               fullWidth
@@ -165,7 +187,7 @@ export function RepositoryOverviewPanel({
               <ActionButton
                 projectId={project.id}
                 actionPath="docker/up"
-                label="Avvia stack"
+                label={t("project.docker.startStack")}
                 icon={<PlayArrowIcon fontSize="small" />}
                 fullWidth
                 onResult={onResult}
@@ -176,7 +198,7 @@ export function RepositoryOverviewPanel({
               <ActionButton
                 projectId={project.id}
                 actionPath="docker/stop"
-                label="Ferma stack"
+                label={t("project.docker.stopStack")}
                 icon={<StopCircleOutlinedIcon fontSize="small" />}
                 fullWidth
                 onResult={onResult}
@@ -255,6 +277,7 @@ function RecentCommitRow({ commit, isLast }: { commit: GitActivityCommit; isLast
 }
 
 function getAttentionItems(
+  t: TFunction,
   project: ProjectSummary,
   details: GitDetails | undefined,
   conflicts: number,
@@ -266,10 +289,12 @@ function getAttentionItems(
     ? details.status.files.unstaged.length
     : project.modified + project.untracked;
   const tracking = details ? details.status.tracking : project.upstream;
-  if (conflicts > 0) items.push(`${conflicts} file in conflitto bloccano le operazioni Git.`);
-  if (behind > 0) items.push(`Il branch è ${behind} commit behind rispetto all'upstream.`);
-  if (unstaged > 0) items.push(`${unstaged} modifiche non sono ancora staged.`);
-  if (unhealthyServices > 0) items.push(`${unhealthyServices} servizi Docker risultano unhealthy.`);
-  if (!tracking) items.push("Il branch corrente non ha un upstream configurato.");
+  if (conflicts > 0) items.push(t("project.overview.attention.conflicts", { total: conflicts }));
+  if (behind > 0) items.push(t("project.overview.attention.behind", { total: behind }));
+  if (unstaged > 0) items.push(t("project.overview.attention.unstaged", { total: unstaged }));
+  if (unhealthyServices > 0) {
+    items.push(t("project.overview.attention.unhealthy", { total: unhealthyServices }));
+  }
+  if (!tracking) items.push(t("project.overview.attention.noUpstream"));
   return items;
 }

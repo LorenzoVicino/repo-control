@@ -47,7 +47,7 @@ describe("ProjectWorkspaceTabs", () => {
     expect(tabs[0]).toHaveAttribute("tabindex", "-1");
     expect(tabs[1]).toHaveAttribute("aria-selected", "true");
     expect(tabs[1]).toHaveAttribute("tabindex", "0");
-    expect(screen.getByLabelText("Repository con modifiche locali")).toBeVisible();
+    expect(screen.getByLabelText("Repository with local changes")).toBeVisible();
     expect(screen.getByText("feature/tests")).toBeVisible();
   });
 
@@ -96,7 +96,7 @@ describe("ProjectWorkspaceTabs", () => {
       />
     );
 
-    const closeBeta = screen.getByRole("button", { name: "Chiudi Beta" });
+    const closeBeta = screen.getByRole("button", { name: "Close Beta" });
     fireEvent.mouseDown(closeBeta);
     await user.click(closeBeta);
     expect(onCloseProject).toHaveBeenCalledWith("beta");
@@ -116,7 +116,7 @@ describe("ProjectWorkspaceTabs", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Chiudi Beta" }));
+    await user.click(screen.getByRole("button", { name: "Close Beta" }));
     expect(screen.getAllByRole("tab")[0]).toHaveFocus();
 
     view.rerender(
@@ -127,7 +127,7 @@ describe("ProjectWorkspaceTabs", () => {
         onCloseProject={onCloseProject}
       />
     );
-    await user.click(screen.getByRole("button", { name: "Chiudi Alpha" }));
+    await user.click(screen.getByRole("button", { name: "Close Alpha" }));
     expect(onCloseProject).toHaveBeenLastCalledWith("alpha");
   });
 });
