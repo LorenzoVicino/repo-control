@@ -229,7 +229,7 @@ test("renders the refactored repository, favorites, task and Docker workspaces r
 
   await page.locator('[data-dashboard-section="tasks"]').first().click();
   await expect(page.getByRole("heading", { name: "Task engineering", exact: true })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Flusso Task engineering" })).toContainText("Verifiche");
+  await expect(page.getByRole("navigation", { name: "Task engineering flow" })).toContainText("Checks");
   await waitForInterfaceMotion(page);
   await page.screenshot({ path: testInfo.outputPath("task-engineering.png"), fullPage: true });
 

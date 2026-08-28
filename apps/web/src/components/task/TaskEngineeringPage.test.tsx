@@ -76,16 +76,16 @@ describe("TaskEngineeringPage", () => {
     renderPage();
     expect(await screen.findByTestId("workbench-task-1")).toBeVisible();
     await user.click(screen.getByText("workbench-refresh"));
-    await user.click(screen.getByRole("button", { name: "Aggiorna task" }));
+    await user.click(screen.getByRole("button", { name: "Refresh tasks" }));
 
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "Repository" }));
     await user.click(screen.getByRole("option", { name: "beta" }));
     expect(await screen.findByTestId("composer-beta")).toBeVisible();
 
-    await user.click(screen.getByRole("button", { name: "Nuovo task" }));
+    await user.click(screen.getByRole("button", { name: "New task" }));
     expect(screen.getByTestId("composer-beta")).toHaveAttribute("data-cancel", "false");
     await user.click(screen.getByText("composer-cancel"));
-    await user.click(screen.getByRole("button", { name: "Nuovo task" }));
+    await user.click(screen.getByRole("button", { name: "New task" }));
     await user.click(screen.getByText("composer-created"));
     expect(fetchBrainTasks).toHaveBeenCalledWith("beta");
   });
@@ -97,7 +97,7 @@ describe("TaskEngineeringPage", () => {
     first.unmount();
 
     renderPage([]);
-    expect(screen.getByRole("button", { name: "Nuovo task" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "New task" })).toBeDisabled();
     expect(screen.getByTestId("composer-")).toBeVisible();
   });
 });

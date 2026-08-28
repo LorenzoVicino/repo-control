@@ -24,8 +24,14 @@ import {
   Typography,
   alpha
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import type { BrainTaskProfile, BrainTaskType, TaskPlanDraft } from "../../types/brain";
-import { TASK_PROFILE_LABELS, TASK_TYPE_LABELS } from "./taskEngineeringConfig";
+import {
+  getTaskProfileLabel,
+  getTaskTypeLabel,
+  TASK_PROFILE_IDS,
+  TASK_TYPE_IDS
+} from "./taskEngineeringConfig";
 
 type TaskPlanReviewProps = {
   draft: TaskPlanDraft;
@@ -58,6 +64,7 @@ export function TaskPlanReview({
   onApprove,
   onBack
 }: TaskPlanReviewProps) {
+  const { t } = useTranslation();
   const allQuestionsAnswered = draft.questions.every((question) => Boolean(answers[question.id]));
   const canApprove = Boolean(
     draft.title.trim()
@@ -101,15 +108,19 @@ export function TaskPlanReview({
               <AutoAwesomeOutlinedIcon fontSize="small" />
             </Box>
             <Box>
-              <Typography variant="h2">Rivedi il piano</Typography>
+              <Typography variant="h2">{t("taskEngineering.review.heading")}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>
-                Claude ha preparato una proposta basata sul repository. Modifica solo ciò che serve.
+                {t("taskEngineering.review.description")}
               </Typography>
             </Box>
           </Stack>
           <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
-            <Chip size="small" color="primary" label={`${draft.providerLabel} · sola lettura`} />
-            <Chip size="small" variant="outlined" label={TASK_PROFILE_LABELS[draft.profile]} />
+            <Chip
+              size="small"
+              color="primary"
+              label={t("taskEngineering.review.providerChip", { provider: draft.providerLabel })}
+            />
+            <Chip size="small" variant="outlined" label={getTaskProfileLabel(t, draft.profile)} />
           </Stack>
         </Stack>
       </Box>
@@ -122,9 +133,9 @@ export function TaskPlanReview({
             variant="outlined"
             sx={{ p: 2, borderColor: "warning.light", bgcolor: (theme) => alpha(theme.palette.warning.main, 0.055) }}
           >
-            <Typography variant="h3">Prima di approvare</Typography>
+            <Typography variant="h3">{t("taskEngineering.review.beforeApproving")}</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4, mb: 2 }}>
-              Bastano queste decisioni per eliminare le ambiguità che cambiano davvero il piano.
+              {t("taskEngineering.review.beforeApprovingDescription")}
             </Typography>
             <Stack spacing={2.25}>
               {draft.questions.map((question) => (
@@ -144,7 +155,7 @@ export function TaskPlanReview({
                           <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
                             <Typography variant="body2">{option}</Typography>
                             {option === question.recommendedOption ? (
-                              <Chip size="small" color="primary" variant="outlined" label="Consigliata" />
+                              <Chip size="small" color="primary" variant="outlined" label={t("taskEngineering.review.recommended")} />
                             ) : null}
                           </Stack>
                         }
@@ -157,7 +168,7 @@ export function TaskPlanReview({
           </Paper>
         ) : (
           <Alert severity="success" icon={<CheckCircleOutlineIcon />}>
-            Il brief e il repository contengono abbastanza informazioni: non servono altri chiarimenti.
+            {t("taskEngineering.review.noQuestions")}
           </Alert>
         )}
 
@@ -165,43 +176,52 @@ export function TaskPlanReview({
           <Paper variant="outlined" sx={{ overflow: "hidden", alignSelf: "start" }}>
           <Stack spacing={0}>
             <Card sx={reviewSectionSx}>
-              <CardHeader title="Obiettivo" subheader="Il risultato che deve essere vero quando il task è completato." />
+              <CardHeader
+                title={t("taskEngineering.review.goalTitle")}
+                subheader={t("taskEngineering.review.goalSubtitle")}
+              />
               <CardContent sx={{ pt: 0 }}>
                 <Stack spacing={2}>
                   <TextField
-                    label="Titolo"
+                    label={t("taskEngineering.review.titleLabel")}
                     value={draft.title}
                     onChange={(event) => updateDraft({ title: event.target.value })}
                     fullWidth
                   />
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                     <FormControl size="small" fullWidth>
-                      <FormLabel id="planned-task-type-label" sx={{ mb: 0.75 }}>Tipo</FormLabel>
+                      <FormLabel id="planned-task-type-label" sx={{ mb: 0.75 }}>
+                        {t("taskEngineering.review.typeLabel")}
+                      </FormLabel>
                       <Select
                         aria-labelledby="planned-task-type-label"
                         value={draft.type}
                         onChange={(event) => updateDraft({ type: event.target.value as BrainTaskType })}
                       >
-                        {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
-                          <MenuItem key={value} value={value}>{label}</MenuItem>
+                        {TASK_TYPE_IDS.map((typeId) => (
+                          <MenuItem key={typeId} value={typeId}>{getTaskTypeLabel(t, typeId)}</MenuItem>
                         ))}
                       </Select>
                     </FormControl>
                     <FormControl size="small" fullWidth>
-                      <FormLabel id="planned-task-profile-label" sx={{ mb: 0.75 }}>Profilo</FormLabel>
+                      <FormLabel id="planned-task-profile-label" sx={{ mb: 0.75 }}>
+                        {t("taskEngineering.review.profileLabel")}
+                      </FormLabel>
                       <Select
                         aria-labelledby="planned-task-profile-label"
                         value={draft.profile}
                         onChange={(event) => updateDraft({ profile: event.target.value as BrainTaskProfile })}
                       >
-                        {Object.entries(TASK_PROFILE_LABELS).map(([value, label]) => (
-                          <MenuItem key={value} value={value}>{label}</MenuItem>
+                        {TASK_PROFILE_IDS.map((profileId) => (
+                          <MenuItem key={profileId} value={profileId}>
+                            {getTaskProfileLabel(t, profileId)}
+                          </MenuItem>
                         ))}
                       </Select>
                     </FormControl>
                   </Stack>
                   <TextField
-                    label="Problema e risultato desiderato"
+                    label={t("taskEngineering.review.problemLabel")}
                     value={draft.description}
                     onChange={(event) => updateDraft({ description: event.target.value })}
                     multiline
@@ -210,7 +230,7 @@ export function TaskPlanReview({
                     fullWidth
                   />
                   <TextField
-                    label="Motivazione"
+                    label={t("taskEngineering.review.motivationLabel")}
                     value={draft.motivation}
                     onChange={(event) => updateDraft({ motivation: event.target.value })}
                     multiline
@@ -223,7 +243,10 @@ export function TaskPlanReview({
             </Card>
 
             <Card sx={reviewSectionSx}>
-              <CardHeader title="Requisiti e criteri di accettazione" subheader="Comportamenti osservabili e condizioni verificabili." />
+              <CardHeader
+                title={t("taskEngineering.review.requirementsTitle")}
+                subheader={t("taskEngineering.review.requirementsSubtitle")}
+              />
               <CardContent sx={{ pt: 0 }}>
                 <TextField
                   value={draft.requirements}
@@ -232,13 +255,16 @@ export function TaskPlanReview({
                   minRows={10}
                   maxRows={18}
                   fullWidth
-                  inputProps={{ "aria-label": "Requisiti e criteri di accettazione" }}
+                  inputProps={{ "aria-label": t("taskEngineering.review.requirementsTitle") }}
                 />
               </CardContent>
             </Card>
 
             <Card sx={reviewSectionSx}>
-              <CardHeader title="Approccio tecnico" subheader="Aree impattate, rischi e assunzioni emersi dall’analisi." />
+              <CardHeader
+                title={t("taskEngineering.review.designTitle")}
+                subheader={t("taskEngineering.review.designSubtitle")}
+              />
               <CardContent sx={{ pt: 0 }}>
                 <TextField
                   value={draft.design}
@@ -247,13 +273,16 @@ export function TaskPlanReview({
                   minRows={10}
                   maxRows={18}
                   fullWidth
-                  inputProps={{ "aria-label": "Approccio tecnico" }}
+                  inputProps={{ "aria-label": t("taskEngineering.review.designTitle") }}
                 />
               </CardContent>
             </Card>
 
             <Card sx={reviewSectionSx}>
-              <CardHeader title="Passi di implementazione" subheader="Sequenza operativa che verrà consegnata all’agente." />
+              <CardHeader
+                title={t("taskEngineering.review.breakdownTitle")}
+                subheader={t("taskEngineering.review.breakdownSubtitle")}
+              />
               <CardContent sx={{ pt: 0 }}>
                 <TextField
                   value={draft.breakdown}
@@ -262,13 +291,16 @@ export function TaskPlanReview({
                   minRows={10}
                   maxRows={18}
                   fullWidth
-                  inputProps={{ "aria-label": "Passi di implementazione" }}
+                  inputProps={{ "aria-label": t("taskEngineering.review.breakdownTitle") }}
                 />
               </CardContent>
             </Card>
 
             <Card sx={reviewSectionSx}>
-              <CardHeader title="Verifiche" subheader="Un comando sicuro per riga. Verranno eseguiti dopo l’implementazione." />
+              <CardHeader
+                title={t("taskEngineering.review.checksTitle")}
+                subheader={t("taskEngineering.review.checksSubtitle")}
+              />
               <CardContent sx={{ pt: 0 }}>
                 <TextField
                   value={draft.checks.join("\n")}
@@ -280,7 +312,7 @@ export function TaskPlanReview({
                   maxRows={8}
                   fullWidth
                   inputProps={{
-                    "aria-label": "Comandi di verifica",
+                    "aria-label": t("taskEngineering.review.verificationCommands"),
                     style: { fontFamily: "var(--rc-font-mono)" }
                   }}
                 />
@@ -291,7 +323,9 @@ export function TaskPlanReview({
 
           <Stack spacing={2} sx={{ alignSelf: "start", position: { xl: "sticky" }, top: { xl: 92 } }}>
             <Paper variant="outlined" sx={{ p: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Assunzioni esplicite</Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+                {t("taskEngineering.review.assumptionsTitle")}
+              </Typography>
               {draft.assumptions.length > 0 ? (
                 <Stack component="ul" spacing={1} sx={{ pl: 2.25, mb: 0, color: "text.secondary" }}>
                   {draft.assumptions.map((assumption) => (
@@ -300,15 +334,17 @@ export function TaskPlanReview({
                 </Stack>
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Nessuna assunzione rilevante dichiarata.
+                  {t("taskEngineering.review.noAssumptions")}
                 </Typography>
               )}
             </Paper>
 
             <Paper variant="outlined" sx={{ p: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Chiedi una modifica</Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+                {t("taskEngineering.review.requestChange")}
+              </Typography>
               <Typography variant="caption" color="text.secondary">
-                Per esempio: “riduci lo scope”, “mantieni questa API” o “aggiungi un test di regressione”.
+                {t("taskEngineering.review.requestChangeHint")}
               </Typography>
               <TextField
                 value={feedback}
@@ -316,7 +352,7 @@ export function TaskPlanReview({
                 multiline
                 minRows={3}
                 fullWidth
-                inputProps={{ "aria-label": "Feedback per Claude" }}
+                inputProps={{ "aria-label": t("taskEngineering.review.feedbackLabel") }}
                 sx={{ mt: 1.5 }}
               />
               <Button
@@ -327,7 +363,7 @@ export function TaskPlanReview({
                 fullWidth
                 sx={{ mt: 1.25 }}
               >
-                Aggiorna con Claude
+                {t("taskEngineering.review.refine")}
               </Button>
             </Paper>
           </Stack>
@@ -351,7 +387,7 @@ export function TaskPlanReview({
       >
         <Stack direction={{ xs: "column-reverse", sm: "row" }} spacing={1} justifyContent="space-between">
           <Button startIcon={<ArrowBackIcon />} onClick={onBack} disabled={creating}>
-            {planning ? "Interrompi e torna al brief" : "Torna al brief"}
+            {planning ? t("taskEngineering.review.stopAndBack") : t("taskEngineering.review.backToBrief")}
           </Button>
           <Button
             variant="contained"
@@ -360,7 +396,7 @@ export function TaskPlanReview({
             onClick={onApprove}
             disabled={busy || !canApprove}
           >
-            {busy ? "Creazione task" : "Approva piano e prepara l’implementazione"}
+            {busy ? t("taskEngineering.review.creating") : t("taskEngineering.review.approve")}
           </Button>
         </Stack>
       </Paper>

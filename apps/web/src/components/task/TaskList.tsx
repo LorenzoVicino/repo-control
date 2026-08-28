@@ -12,8 +12,9 @@ import {
   Stack,
   Typography
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import type { BrainTask } from "../../types/brain";
-import { TASK_STATUS_LABELS, TASK_TYPE_LABELS } from "./taskEngineeringConfig";
+import { getTaskStatusLabel, getTaskTypeLabel } from "./taskEngineeringConfig";
 import { formatTaskDate } from "./taskEngineeringUtils";
 
 type TaskListProps = {
@@ -24,6 +25,8 @@ type TaskListProps = {
 };
 
 export function TaskList({ tasks, selectedTaskId, loading, onSelect }: TaskListProps) {
+  const { t, i18n } = useTranslation();
+
   return (
     <Paper
       variant="outlined"
@@ -31,8 +34,12 @@ export function TaskList({ tasks, selectedTaskId, loading, onSelect }: TaskListP
     >
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1.5, py: 1.25 }}>
         <Box>
-          <Typography variant="overline" color="text.disabled" component="div">Task rail</Typography>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Lavoro del repository</Typography>
+          <Typography variant="overline" color="text.disabled" component="div">
+            {t("taskEngineering.list.rail")}
+          </Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+            {t("taskEngineering.list.repositoryWork")}
+          </Typography>
         </Box>
         <Chip size="small" variant="outlined" label={tasks.length} />
       </Stack>
@@ -43,7 +50,7 @@ export function TaskList({ tasks, selectedTaskId, loading, onSelect }: TaskListP
         </Box>
       ) : tasks.length === 0 ? (
         <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-          Nessun task per questo repository.
+          {t("taskEngineering.list.empty")}
         </Typography>
       ) : (
         <List disablePadding sx={{ maxHeight: { lg: "calc(100dvh - 250px)" }, overflowY: "auto" }}>
@@ -79,13 +86,15 @@ export function TaskList({ tasks, selectedTaskId, loading, onSelect }: TaskListP
                   <Stack component="span" spacing={0.65} sx={{ mt: 0.6 }}>
                     <Stack component="span" direction="row" spacing={0.65} alignItems="center">
                       <Typography component="span" sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 9.5, color: "text.disabled" }}>
-                        {TASK_TYPE_LABELS[task.type]}
+                        {getTaskTypeLabel(t, task.type)}
                       </Typography>
                       <Typography component="span" sx={{ fontSize: 9.5, color: "text.disabled" }}>·</Typography>
                       <Stack component="span" direction="row" spacing={0.35} alignItems="center" sx={{ color: task.planning.provider === "manual" ? "text.disabled" : "primary.light" }}>
                         {task.planning.provider !== "manual" ? <AutoAwesomeOutlinedIcon sx={{ fontSize: 11 }} /> : null}
                         <Typography component="span" sx={{ fontSize: 9.5 }}>
-                          {task.planning.provider === "manual" ? "Manuale" : "Proposta AI"}
+                          {task.planning.provider === "manual"
+                            ? t("taskEngineering.list.manual")
+                            : t("taskEngineering.list.aiProposal")}
                         </Typography>
                       </Stack>
                     </Stack>
@@ -99,10 +108,10 @@ export function TaskList({ tasks, selectedTaskId, loading, onSelect }: TaskListP
                         )}
                       </Box>
                       <Typography component="span" sx={{ color: "text.secondary", fontSize: 10.5 }}>
-                        {TASK_STATUS_LABELS[task.status]}
+                        {getTaskStatusLabel(t, task.status)}
                       </Typography>
                       <Typography component="span" sx={{ ml: "auto !important", color: "text.disabled", fontSize: 9.5 }}>
-                        {formatTaskDate(task.updatedAt)}
+                        {formatTaskDate(task.updatedAt, i18n.language)}
                       </Typography>
                     </Stack>
                   </Stack>

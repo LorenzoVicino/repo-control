@@ -18,13 +18,13 @@ export function haveSameProjectIds(left: string[], right: string[]): boolean {
     && sortedLeft.every((projectId, index) => projectId === sortedRight[index]);
 }
 
-export function formatTaskDate(value: string): string {
-  return new Intl.DateTimeFormat("it-IT", {
+export function formatTaskDate(value: string, language: string): string {
+  return new Intl.DateTimeFormat(language, {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
 }
 
-export function getTaskErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Operazione non riuscita";
+export function getTaskErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
 }

@@ -81,21 +81,21 @@ describe("task supporting components", () => {
     expect(screen.getByText("Review warning")).toBeVisible();
     await user.click(screen.getByRole("radio", { name: "SQLite" }));
     expect(callbacks.onAnswerChange).toHaveBeenCalledWith("database", "SQLite");
-    fireEvent.change(screen.getByRole("textbox", { name: "Titolo" }), { target: { value: "Coverage 80" } });
-    fireEvent.change(screen.getByRole("textbox", { name: "Problema e risultato desiderato" }), { target: { value: "New description" } });
-    fireEvent.change(screen.getByRole("textbox", { name: "Motivazione" }), { target: { value: "New motivation" } });
-    fireEvent.change(screen.getByRole("textbox", { name: "Requisiti e criteri di accettazione" }), { target: { value: "New requirements" } });
-    fireEvent.change(screen.getByRole("textbox", { name: "Approccio tecnico" }), { target: { value: "New design" } });
-    fireEvent.change(screen.getByRole("textbox", { name: "Passi di implementazione" }), { target: { value: "New steps" } });
-    fireEvent.change(screen.getByRole("textbox", { name: "Comandi di verifica" }), { target: { value: " npm test \n\n npm run build " } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Title" }), { target: { value: "Coverage 80" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Problem and desired outcome" }), { target: { value: "New description" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Motivation" }), { target: { value: "New motivation" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Requirements and acceptance criteria" }), { target: { value: "New requirements" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Technical approach" }), { target: { value: "New design" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Implementation steps" }), { target: { value: "New steps" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Verification commands" }), { target: { value: " npm test \n\n npm run build " } });
     fireEvent.mouseDown(screen.getAllByRole("combobox")[0]!);
     await user.click(screen.getByRole("option", { name: "Fix" }));
     fireEvent.mouseDown(screen.getAllByRole("combobox")[1]!);
-    await user.click(screen.getByRole("option", { name: "Rapido" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Feedback per Claude" }), { target: { value: "More tests" } });
-    await user.click(screen.getByRole("button", { name: "Aggiorna con Claude" }));
-    await user.click(screen.getByRole("button", { name: "Torna al brief" }));
-    await user.click(screen.getByRole("button", { name: "Approva piano e prepara l’implementazione" }));
+    await user.click(screen.getByRole("option", { name: "Quick" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Feedback for Claude" }), { target: { value: "More tests" } });
+    await user.click(screen.getByRole("button", { name: "Update with Claude" }));
+    await user.click(screen.getByRole("button", { name: "Return to the brief" }));
+    await user.click(screen.getByRole("button", { name: "Approve the plan and prepare the implementation" }));
 
     expect(callbacks.onDraftChange).toHaveBeenCalledWith(expect.objectContaining({ checks: ["npm test", "npm run build"] }));
     expect(callbacks.onFeedbackChange).toHaveBeenCalledWith("More tests");
@@ -125,11 +125,11 @@ describe("task supporting components", () => {
         {...callbacks}
       />
     );
-    expect(screen.getByText(/non servono altri chiarimenti/)).toBeVisible();
-    expect(screen.getByText("Nessuna assunzione rilevante dichiarata.")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Aggiorna con Claude" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Interrompi e torna al brief" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Creazione task" })).toBeDisabled();
+    expect(screen.getByText(/no further clarification is needed/)).toBeVisible();
+    expect(screen.getByText("No relevant assumptions declared.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Update with Claude" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Stop and return to the brief" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Creating task" })).toBeDisabled();
   });
 
   it("renders loading, empty and selectable task lists", async () => {
@@ -140,7 +140,7 @@ describe("task supporting components", () => {
     loading.unmount();
 
     const empty = renderWithTheme(<TaskList tasks={[]} selectedTaskId={null} loading={false} onSelect={onSelect} />);
-    expect(screen.getByText("Nessun task per questo repository.")).toBeVisible();
+    expect(screen.getByText("No tasks for this repository.")).toBeVisible();
     empty.unmount();
 
     renderWithTheme(
@@ -156,7 +156,7 @@ describe("task supporting components", () => {
     );
     await user.click(screen.getByText("Manual task"));
     expect(onSelect).toHaveBeenCalledWith("task-2");
-    expect(screen.getByText("Completato")).toBeVisible();
+    expect(screen.getByText("Completed")).toBeVisible();
   });
 
   it("normalizes context IDs, comparisons, dates and unknown errors", () => {
@@ -168,8 +168,8 @@ describe("task supporting components", () => {
     expect(haveSameProjectIds(["beta", "alpha"], ["alpha", "beta"])).toBe(true);
     expect(haveSameProjectIds(["alpha"], ["alpha", "beta"])).toBe(false);
     expect(haveSameProjectIds(["alpha"], ["beta"])).toBe(false);
-    expect(formatTaskDate("2026-08-03T09:00:00.000Z")).toMatch(/2026/);
-    expect(getTaskErrorMessage(new Error("specific"))).toBe("specific");
-    expect(getTaskErrorMessage("unknown")).toBe("Operazione non riuscita");
+    expect(formatTaskDate("2026-08-03T09:00:00.000Z", "en")).toMatch(/2026/);
+    expect(getTaskErrorMessage(new Error("specific"), "fallback")).toBe("specific");
+    expect(getTaskErrorMessage("unknown", "fallback")).toBe("fallback");
   });
 });
