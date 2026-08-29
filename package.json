@@ -1,6 +1,6 @@
 {
   "name": "repo-control",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "private": true,
   "license": "MIT",
   "description": "Local-first command center for inspecting, operating and automating multi-repository workspaces.",
