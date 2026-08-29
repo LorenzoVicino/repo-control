@@ -26,9 +26,3 @@ export type ProjectsResponse = {
 
 export type ProjectDetailTab = "overview" | "git" | "branches" | "terminal" | "docker";
 
-export type ProjectTone = {
-  label: string;
-  chipColor: "success" | "warning" | "secondary" | "info";
-  borderColor: string;
-  background: string;
-};

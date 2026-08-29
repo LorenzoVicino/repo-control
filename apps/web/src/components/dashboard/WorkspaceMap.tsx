@@ -10,7 +10,7 @@ import React, { type ReactNode } from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { ProjectSummary } from "../../types/projects";
-import { formatDate, getProjectTone, groupProjects } from "../../utils/projects";
+import { formatDate, getProjectAccentColor, groupProjects } from "../../utils/projects";
 
 const EMPTY_PROJECT_IDS: string[] = [];
 
@@ -307,7 +307,7 @@ const ProjectCard = React.memo(function ProjectCard({
 }: ProjectCardProps) {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
-  const tone = getProjectTone(project, theme.palette.mode);
+  const accentColor = getProjectAccentColor(project);
   const localChanges = project.modified + project.staged + project.untracked;
 
   return (
@@ -332,10 +332,10 @@ const ProjectCard = React.memo(function ProjectCard({
           position: "absolute",
           inset: "10px auto 10px 0",
           width: 2,
-          bgcolor: tone.borderColor
+          bgcolor: accentColor
         },
         "&:hover": {
-          borderColor: alpha(tone.borderColor, 0.55),
+          borderColor: alpha(accentColor, 0.55),
           bgcolor: "var(--rc-surface-2)"
         },
         "@media (prefers-reduced-motion: reduce)": {
@@ -369,8 +369,8 @@ const ProjectCard = React.memo(function ProjectCard({
               placeItems: "center",
               flexShrink: 0,
               borderRadius: 1,
-              color: tone.borderColor,
-              bgcolor: alpha(tone.borderColor, 0.1)
+              color: accentColor,
+              bgcolor: alpha(accentColor, 0.1)
             }}
           >
             <AccountTreeIcon sx={{ fontSize: 19 }} />
