@@ -98,7 +98,7 @@ The browser never chooses an arbitrary working directory for a project command. 
 
 ## Try it in under two minutes
 
-Requirements: Git and Node.js 20.19+, 22.13+ or 24+ (Node 24 recommended).
+Requirements: Git and Node.js 20.19+, 22.13+ or 24+ (Node 24 recommended). The npm version is pinned via `packageManager` and installed by CI; match it locally before regenerating the lockfile.
 
 ```bash
 git clone https://github.com/LorenzoVicino/repo-control.git

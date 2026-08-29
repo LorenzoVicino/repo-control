@@ -5,6 +5,7 @@
   "license": "MIT",
   "description": "Local-first command center for inspecting, operating and automating multi-repository workspaces.",
   "type": "module",
+  "packageManager": "npm@11.4.2",
   "engines": {
     "node": "^20.19.0 || ^22.13.0 || >=24"
   },
