@@ -68,7 +68,7 @@ describe("TerminalPanel", () => {
     expect(screen.getByText("12ms")).toBeVisible();
     expect(onResult).toHaveBeenCalledWith(result);
     expect(onCompleted).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("button", { name: "Interrompi comando" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Stop command" })).not.toBeInTheDocument();
     expect(input).toHaveFocus();
   });
 
@@ -81,7 +81,7 @@ describe("TerminalPanel", () => {
     await user.type(input, "git status");
     await user.click(screen.getByRole("button", { name: "Run command" }));
 
-    expect(await screen.findByText("Comando completato senza output.")).toBeVisible();
+    expect(await screen.findByText("Command completed with no output.")).toBeVisible();
     expect(screen.getByText("done")).toBeVisible();
     expect(screen.getByText("0ms")).toBeVisible();
     expect(screen.getByTitle(".../work/repo-control")).toBeVisible();
@@ -98,7 +98,7 @@ describe("TerminalPanel", () => {
     expect(screen.getByText("running")).toBeVisible();
     expect(input).not.toBeDisabled();
     expect(screen.getByRole("button", { name: "Run command" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Pulisci" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Clear" })).toBeDisabled();
     fireEvent.change(input, { target: { value: "npm run build" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(runTerminalCommand).toHaveBeenCalledOnce();
@@ -119,12 +119,12 @@ describe("TerminalPanel", () => {
     renderTerminal();
 
     await user.type(screen.getByPlaceholderText("type a command"), "npm test{enter}");
-    await user.click(screen.getByRole("button", { name: "Interrompi comando" }));
+    await user.click(screen.getByRole("button", { name: "Stop command" }));
 
     expect(cancelTerminalCommand).toHaveBeenCalledWith("alpha");
     expect(await screen.findByText("Command cancelled")).toBeVisible();
-    expect(screen.getByText("interrotto")).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Interrompi comando" })).not.toBeInTheDocument();
+    expect(screen.getByText("interrupted")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Stop command" })).not.toBeInTheDocument();
   });
 
   it("converts thrown errors into terminal results without completing", async () => {
@@ -168,18 +168,18 @@ describe("TerminalPanel", () => {
     expect(input).toHaveValue("");
 
     fireEvent.keyDown(input, { key: "l", ctrlKey: true });
-    expect(screen.getByRole("dialog", { name: "Pulisci il transcript?" })).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Pulisci transcript" }));
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Pulisci il transcript?" })).not.toBeInTheDocument());
+    expect(screen.getByRole("dialog", { name: "Clear the transcript?" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Clear transcript" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Clear the transcript?" })).not.toBeInTheDocument());
     expect(screen.getByText(/repo-control terminal/)).toBeVisible();
-    expect(screen.getByRole("button", { name: "Pulisci" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Clear" })).toBeDisabled();
 
     fireEvent.change(input, { target: { value: "three" } });
     fireEvent.keyDown(input, { key: "Enter" });
     await screen.findByText("result");
-    await user.click(screen.getByRole("button", { name: "Pulisci" }));
-    await user.click(screen.getByRole("button", { name: "Pulisci transcript" }));
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Pulisci il transcript?" })).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+    await user.click(screen.getByRole("button", { name: "Clear transcript" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Clear the transcript?" })).not.toBeInTheDocument());
     expect(screen.getByText(/repo-control terminal/)).toBeVisible();
   });
 
@@ -203,11 +203,11 @@ describe("TerminalPanel", () => {
     fetchTerminalSuggestions.mockResolvedValue({ suggestions: ["npm run test", "npm run build"] });
     renderTerminal();
 
-    await user.type(screen.getByLabelText("Comando terminale"), "npm");
+    await user.type(screen.getByLabelText("Terminal command"), "npm");
     expect(await screen.findByRole("button", { name: "npm run test" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "npm run test" }));
 
-    expect(screen.getByLabelText("Comando terminale")).toHaveValue("npm run test");
+    expect(screen.getByLabelText("Terminal command")).toHaveValue("npm run test");
     expect(fetchTerminalSuggestions).toHaveBeenCalledWith("alpha", "npm");
   });
 
@@ -218,14 +218,14 @@ describe("TerminalPanel", () => {
     runTerminalCommand.mockResolvedValue(commandResult({ output: "copied output" }));
     renderTerminal();
 
-    await user.type(screen.getByLabelText("Comando terminale"), "pwd{enter}");
+    await user.type(screen.getByLabelText("Terminal command"), "pwd{enter}");
     await screen.findByText("copied output");
-    await user.click(screen.getByRole("button", { name: "Copia tutto" }));
+    await user.click(screen.getByRole("button", { name: "Copy all" }));
 
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("$ pwd\ncopied output\nexit 0 · 12ms"));
-    expect(screen.getByRole("button", { name: "Copiato" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Copied" })).toBeVisible();
 
-    const wrapButton = screen.getByRole("button", { name: "A capo" });
+    const wrapButton = screen.getByRole("button", { name: "Wrap" });
     expect(wrapButton).toHaveAttribute("aria-pressed", "true");
     await user.click(wrapButton);
     expect(wrapButton).toHaveAttribute("aria-pressed", "false");
