@@ -252,10 +252,16 @@ export async function startWorkflowRun(
     const abortController = new AbortController();
     activeRuns.set(run.id, { workflowId, abortController });
 
-    void runWorkflowInBackground(run, prepared, context, abortController.signal).finally(() => {
+    const releaseReservation = (): void => {
       activeRuns.delete(run.id);
       activeWorkflowIds.delete(workflowId);
-    });
+    };
+
+    // The reservation is also released here as a safety net. Both deletes are idempotent,
+    // so releasing twice is harmless; this only matters if the background task throws
+    // before it reaches its own release.
+    void runWorkflowInBackground(run, prepared, context, abortController.signal, releaseReservation)
+      .finally(releaseReservation);
 
     return run;
   } catch (error) {
@@ -271,9 +277,14 @@ async function runWorkflowInBackground(
   run: WorkflowRun,
   prepared: PreparedWorkflowRun,
   context: WorkflowExecutionContext,
-  signal: AbortSignal
+  signal: AbortSignal,
+  releaseReservation: () => void
 ): Promise<void> {
   const startedAtMs = Date.now();
+  // Built inside the try/catch, applied afterwards, so the reservation can be released
+  // before the terminal status becomes visible. See the note above the release below.
+  // Both branches assign, so it is definitely set by the time it is used.
+  let applyTerminalStatus: (current: WorkflowRun) => WorkflowRun;
 
   try {
     await updateWorkflowRun(run.id, (current) => ({ ...current, status: "running" }));
@@ -297,25 +308,31 @@ async function runWorkflowInBackground(
           ? "warning"
           : "success";
 
-    await updateWorkflowRun(run.id, (current) => ({
+    applyTerminalStatus = (current) => ({
       ...current,
       status,
       statusMessage: status === "cancelled" ? "Cancelled by user" : null,
       completedAt: new Date().toISOString(),
       durationMs: Date.now() - startedAtMs,
       summary
-    }));
+    });
   } catch (error) {
     // Last-resort safety net: never leave a record stuck at pending/running because of an
     // unexpected error in the loop above.
-    await updateWorkflowRun(run.id, (current) => ({
+    applyTerminalStatus = (current) => ({
       ...current,
       status: "failed",
       statusMessage: error instanceof Error ? error.message : "Unexpected error while running the workflow",
       completedAt: new Date().toISOString(),
       durationMs: Date.now() - startedAtMs
-    }));
+    });
   }
+
+  // Released before the terminal status is published, so that observing a run as finished
+  // is enough to know the next one can start. Releasing afterwards left a window where the
+  // API reported the run as complete while a new start still returned 409.
+  releaseReservation();
+  await updateWorkflowRun(run.id, applyTerminalStatus);
 }
 
 async function runWorkflowNodes(
