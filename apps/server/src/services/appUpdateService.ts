@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { appRootPath as installedAppRootPath } from "../lib/appPaths.js";
 import { runProjectCommand } from "../lib/commandRunner.js";
 import type { CommandResult, CommandRunner } from "../lib/commandRunner.js";
 import { getNpmCommand } from "../runtime.js";
@@ -12,6 +13,11 @@ export type AppUpdateResult = CommandResult & {
 // process, so it is the one service that cannot be exercised for real in a test. Both
 // entry points therefore take their command runner and root path by injection, the same
 // way workflowService receives runProjectCommand through its context.
+//
+// The default root is the installed package directory, never process.cwd(): under npx the
+// cwd is the user's workspace, and defaulting to it would point git pull and npm install
+// at one of their repositories. An installed package has no .git, so both entry points
+// then correctly report that repo-control is not running from a Git checkout.
 export type AppUpdateDependencies = {
   runCommand?: CommandRunner;
   appRootPath?: string;
@@ -29,7 +35,7 @@ export async function readAppUpdateStatus(
   dependencies: AppUpdateDependencies = {}
 ): Promise<AppUpdateStatus> {
   const runCommand = dependencies.runCommand ?? runProjectCommand;
-  const appRootPath = dependencies.appRootPath ?? path.resolve(process.cwd());
+  const appRootPath = dependencies.appRootPath ?? installedAppRootPath;
   const currentVersion = await readLocalAppVersion(appRootPath);
   const checkedAt = new Date().toISOString();
 
@@ -72,7 +78,7 @@ export async function updateApplication(
   dependencies: AppUpdateDependencies = {}
 ): Promise<AppUpdateResult> {
   const runCommand = dependencies.runCommand ?? runProjectCommand;
-  const appRootPath = dependencies.appRootPath ?? path.resolve(process.cwd());
+  const appRootPath = dependencies.appRootPath ?? installedAppRootPath;
   const gitDir = path.join(appRootPath, ".git");
 
   try {
