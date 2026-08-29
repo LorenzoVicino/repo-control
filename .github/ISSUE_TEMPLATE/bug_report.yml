@@ -1,0 +1,57 @@
+name: Bug report
+description: Something in repo-control behaves incorrectly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        repo-control reads your real workspace, so please scrub repository names, paths
+        and command output before pasting them.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The observed behaviour, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Point repo-control at a workspace with ...
+        2. Open the ... panel
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: repo-control version
+      description: From package.json, or the version shown in the update dialog.
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      description: Output of `node --version`.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - WSL
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: Server output or browser console errors. Scrub paths and secrets.
+      render: shell

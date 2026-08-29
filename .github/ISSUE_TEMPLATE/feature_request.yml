@@ -1,0 +1,30 @@
+name: Feature request
+description: Suggest a capability for repo-control
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What multi-repository workflow is awkward today? Describe the situation, not the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What you want to be true
+      description: The end state. How would you know this worked?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do instead today
+      description: The scripts, tools or manual steps this would replace.
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Fit with repo-control
+      options:
+        - label: This works against real local state rather than simulating a project-management view
+        - label: This keeps operations scoped to a discovered repository
