@@ -6,6 +6,22 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.10.0] - 2026-08-29
+
+### Added
+
+- Publish repo-control to npm as a runnable command. `npx repo-control ~/projects` installs the package, starts the API, serves the built dashboard from the same port and opens it in a browser; `--port`, `--host`, `--no-open`, `--version` and `--help` cover the rest. Trying repo-control previously meant cloning the repository and starting the Vite dev server, which is a contributor workflow rather than an install.
+
+### Changed
+
+- Ship only the five packages the server imports at runtime. React, MUI, Emotion, i18next, xyflow and the font packages are compiled into the dashboard bundle at build time and moved to `devDependencies`, so an install pulls 93 packages and 33 MB instead of 330 and 566 MB. `npm ci` still installs everything a checkout needs, leaving the development workflow and CI unchanged.
+- Serve the built dashboard from the API process when `REPO_CONTROL_SERVE_WEB` is set, which the `repo-control` binary and `npm start` both do. Unmatched GET routes return the application shell so a refresh on a client-side route works, while `/api` misses stay JSON. The flag is opt-in rather than derived from the presence of a build, so `npm run dev` is unaffected and Vite continues to own the UI there.
+- Report the address the interface is actually served from in the startup banner instead of always naming the Vite development port.
+
+### Fixed
+
+- Resolve repo-control's own directory from the module location rather than the working directory. The self-updater defaulted to `process.cwd()`, which is repo-control's checkout during development but the user's workspace when started through npx: checking for updates, and then `git pull --ff-only` and `npm install`, would have run against one of their repositories. An installed package has no checkout to update and now says so.
+
 ## [0.9.0] - 2026-08-29
 
 ### Security
