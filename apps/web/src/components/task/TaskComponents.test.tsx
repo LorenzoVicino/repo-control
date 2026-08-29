@@ -10,7 +10,7 @@ import {
   formatTaskDate,
   getContextProjectIds,
   getTaskErrorMessage,
-  haveSameProjectIds
+  haveSameProjectIdSelection
 } from "./taskEngineeringUtils";
 
 const draft: TaskPlanDraft = {
@@ -165,9 +165,11 @@ describe("task supporting components", () => {
       createProjectFixture("beta", { path: "/workspace/beta" })
     ];
     expect(getContextProjectIds(projects, ["/workspace/beta", "/missing"])).toEqual(["beta"]);
-    expect(haveSameProjectIds(["beta", "alpha"], ["alpha", "beta"])).toBe(true);
-    expect(haveSameProjectIds(["alpha"], ["alpha", "beta"])).toBe(false);
-    expect(haveSameProjectIds(["alpha"], ["beta"])).toBe(false);
+    // Order-insensitive by design: the selection comes from a multi-select, so reordering
+    // is not a change. This is what distinguishes it from areProjectIdListsEqual.
+    expect(haveSameProjectIdSelection(["beta", "alpha"], ["alpha", "beta"])).toBe(true);
+    expect(haveSameProjectIdSelection(["alpha"], ["alpha", "beta"])).toBe(false);
+    expect(haveSameProjectIdSelection(["alpha"], ["beta"])).toBe(false);
     expect(formatTaskDate("2026-08-03T09:00:00.000Z", "en")).toMatch(/2026/);
     expect(getTaskErrorMessage(new Error("specific"), "fallback")).toBe("specific");
     expect(getTaskErrorMessage("unknown", "fallback")).toBe("fallback");
