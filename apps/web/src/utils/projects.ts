@@ -1,5 +1,4 @@
-import type { ColorMode } from "../types/common";
-import type { ProjectSummary, ProjectTone } from "../types/projects";
+import type { ProjectSummary } from "../types/projects";
 
 export function isProject(project: ProjectSummary | undefined): project is ProjectSummary {
   return project !== undefined;
@@ -45,44 +44,16 @@ export function groupProjects(projects: ProjectSummary[], root: string) {
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
-export function getProjectTone(project: ProjectSummary, colorMode: ColorMode): ProjectTone {
-  if (!project.isClean) {
-    return {
-      label: "modificato",
-      chipColor: "warning",
-      borderColor: "#d97706",
-      background: colorMode === "light" ? "#fffbeb" : "#2a1d0b"
-    };
-  }
-
-  if (project.behind > 0) {
-    return {
-      label: "behind",
-      chipColor: "secondary",
-      borderColor: "#e11d48",
-      background: colorMode === "light" ? "#fff1f2" : "#2a1119"
-    };
-  }
-
-  if (project.ahead > 0) {
-    return {
-      label: "ahead",
-      chipColor: "info",
-      borderColor: "#0ea5e9",
-      background: colorMode === "light" ? "#f0f9ff" : "#0b2133"
-    };
-  }
-
-  return {
-    label: "pulito",
-    chipColor: "success",
-    borderColor: "#059669",
-    background: colorMode === "light" ? "#ecfdf5" : "#0c251d"
-  };
+// Only the accent colour is consumed. This previously returned a four-field tone object
+// whose label, chipColor and background were all unused - and colorMode existed solely to
+// pick the dead background.
+export function getProjectAccentColor(project: ProjectSummary): string {
+  if (!project.isClean) return "#d97706";
+  if (project.behind > 0) return "#e11d48";
+  if (project.ahead > 0) return "#0ea5e9";
+  return "#059669";
 }
 
-// `language` follows the app's interface language. It stays optional so callers that
-// have no translation context keep the previous behaviour (the browser locale).
 export function formatDate(value: string, language?: string): string {
   return new Intl.DateTimeFormat(language, {
     dateStyle: "medium",

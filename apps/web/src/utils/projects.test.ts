@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createProjectFixture } from "../test/projectFixture";
 import {
   filterProjects,
-  getProjectTone,
+  getProjectAccentColor,
   getStats,
   groupProjects,
   isProject
@@ -46,10 +46,12 @@ describe("project utilities", () => {
     ]);
   });
 
-  it("assigns distinct visual tones for every repository state", () => {
-    expect(getProjectTone(dirty, "light")).toMatchObject({ label: "modificato", chipColor: "warning" });
-    expect(getProjectTone(behind, "dark")).toMatchObject({ label: "behind", chipColor: "secondary" });
-    expect(getProjectTone(ahead, "light")).toMatchObject({ label: "ahead", chipColor: "info" });
-    expect(getProjectTone(clean, "dark")).toMatchObject({ label: "pulito", chipColor: "success" });
+  it("assigns a distinct accent colour to every repository state", () => {
+    const colors = [dirty, behind, ahead, clean].map(getProjectAccentColor);
+
+    // Dirty outranks behind, which outranks ahead: the checks are ordered, so a dirty
+    // repository that is also behind must still read as dirty.
+    expect(colors).toEqual(["#d97706", "#e11d48", "#0ea5e9", "#059669"]);
+    expect(new Set(colors).size).toBe(4);
   });
 });
