@@ -37,7 +37,7 @@ repo-control keeps the convenience of a dashboard without moving control to a re
 
 1. Point repo-control at a workspace folder. It discovers Git repositories recursively while skipping common dependency and build directories.
 2. Triage clean, modified, behind and ahead repositories from the Dashboard.
-3. Jump to a project with `Ctrl+P`; its Panoramica surfaces working-tree health, sync drift, Docker state and recent commits before any action is needed.
+3. Jump to a project with `Ctrl+P`; its Overview surfaces working-tree health, sync drift, Docker state and recent commits before any action is needed.
 4. Inspect a file diff, prepare a commit, work with branches, run a terminal command or operate Docker without leaving the selected repository boundary.
 5. Find a local agent conversation associated with a discovered repository and resume it in a native terminal.
 6. Turn repeated operations into visual workflows that can be previewed, monitored and cancelled.

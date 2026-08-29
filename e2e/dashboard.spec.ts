@@ -257,10 +257,10 @@ test("detects local coding agents and opens the unified session history", async 
   const sessionsPayload = await sessionsResponse.json();
   expect(sessionsResponse.status()).toBe(200);
   await expect(page.getByRole("heading", { name: "Agent sessions", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Agent rilevati")).toContainText("Claude Code");
-  await expect(page.getByLabel("Agent rilevati")).toContainText("Codex");
-  await expect(page.getByLabel("Agent rilevati")).toContainText("Gemini CLI");
-  await expect(page.getByText(/più recenti/)).toBeVisible();
+  await expect(page.getByLabel("Detected agents")).toContainText("Claude Code");
+  await expect(page.getByLabel("Detected agents")).toContainText("Codex");
+  await expect(page.getByLabel("Detected agents")).toContainText("Gemini CLI");
+  await expect(page.getByText(/most recent/)).toBeVisible();
 
   const firstSession = sessionsPayload.sessions[0] as { title: string } | undefined;
 
@@ -269,7 +269,7 @@ test("detects local coding agents and opens the unified session history", async 
       response.url().includes("/api/agent-sessions?search=") && response.request().method() === "GET"
     );
     const sessionSearch = page.getByRole("textbox", {
-      name: "Cerca nei titoli e nel contenuto delle chat"
+      name: "Search in chat titles and content"
     });
     await sessionSearch.fill(firstSession.title);
 
@@ -301,7 +301,7 @@ test("detects local coding agents and opens the unified session history", async 
     await page.getByRole("button", {
       name: new RegExp(`Filtra per ${providerWithSessions.label}`)
     }).click();
-    const sessionRows = page.getByRole("list", { name: "Sessioni agent" }).getByRole("listitem");
+    const sessionRows = page.getByRole("list", { name: "Agent sessions" }).getByRole("listitem");
     await expect(sessionRows.first()).toBeVisible();
     await expect(sessionRows).toHaveCount(providerWithSessions.sessionCount);
     expect(

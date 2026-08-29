@@ -5,23 +5,24 @@ import type {
 } from "../types/agentSessions";
 import { jsonRequest, requestJson } from "./http";
 
-export function fetchAgentSessions(search = ""): Promise<AgentSessionsResponse> {
+export function fetchAgentSessions(search = "", fallbackMessage: string): Promise<AgentSessionsResponse> {
   const normalizedSearch = search.trim();
   const query = normalizedSearch
     ? `?${new URLSearchParams({ search: normalizedSearch }).toString()}`
     : "";
 
-  return requestJson(`/api/agent-sessions${query}`, "Impossibile rilevare le sessioni degli agent");
+  return requestJson(`/api/agent-sessions${query}`, fallbackMessage);
 }
 
 export function resumeAgentSession(
   provider: AgentSessionProvider,
   sessionId: string,
-  projectId: string
+  projectId: string,
+  fallbackMessage: string
 ): Promise<AgentSessionResumeResponse> {
   return requestJson(
     `/api/agent-sessions/${provider}/${encodeURIComponent(sessionId)}/resume`,
-    "Impossibile aprire la sessione nel terminale",
+    fallbackMessage,
     jsonRequest("POST", { projectId })
   );
 }

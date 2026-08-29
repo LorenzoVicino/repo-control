@@ -243,14 +243,14 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
           </Typography>
         </Box>
         {(isFetchingGitDetails || isFetchingGitActivity || isFetchingDocker) ? <CircularProgress size={17} /> : null}
-        <Tooltip title="Aggiorna repository">
-          <IconButton onClick={refreshCurrentTab} aria-label="Aggiorna repository"><RefreshIcon /></IconButton>
+        <Tooltip title={t("project.detail.refresh")}>
+          <IconButton onClick={refreshCurrentTab} aria-label={t("project.detail.refresh")}><RefreshIcon /></IconButton>
         </Tooltip>
-        <Tooltip title={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}>
+        <Tooltip title={isFavorite ? t("dashboard.map.removeFavorite") : t("dashboard.map.addFavorite")}>
           <IconButton
             onClick={() => onToggleFavorite(project.id)}
             color={isFavorite ? "warning" : "default"}
-            aria-label={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
+            aria-label={isFavorite ? t("dashboard.map.removeFavorite") : t("dashboard.map.addFavorite")}
           >
             {isFavorite ? <StarIcon /> : <StarBorderIcon />}
           </IconButton>
@@ -405,24 +405,30 @@ function ProjectDetailTabs({
   dockerTotal,
   onChange
 }: ProjectDetailTabsProps) {
+  const { t } = useTranslation();
   const tabs: Array<{ value: ProjectDetailTab; label: React.ReactNode; icon: React.ReactElement }> = [
-    { value: "overview", label: "Panoramica", icon: <DashboardOutlinedIcon /> },
+    { value: "overview", label: t("project.detailTabs.overview"), icon: <DashboardOutlinedIcon /> },
     {
       value: "git",
-      label: <TabLabel label="Modifiche" badge={changeCount > 0 ? String(changeCount) : null} />,
+      label: <TabLabel label={t("project.detailTabs.changes")} badge={changeCount > 0 ? String(changeCount) : null} />,
       icon: <CommitIcon />
     },
     {
       value: "branches",
-      label: <TabLabel label="Branch" badge={behindCount > 0 ? `↓${behindCount}` : null} />,
+      label: <TabLabel label={t("project.detailTabs.branches")} badge={behindCount > 0 ? `↓${behindCount}` : null} />,
       icon: <AccountTreeIcon />
     },
-    { value: "terminal", label: "Terminale", icon: <TerminalIcon /> }
+    { value: "terminal", label: t("project.detailTabs.terminal"), icon: <TerminalIcon /> }
   ];
   if (hasDockerCompose) {
     tabs.push({
       value: "docker",
-      label: <TabLabel label="Docker" badge={dockerTotal > 0 ? `${dockerRunning}/${dockerTotal}` : null} />,
+      label: (
+        <TabLabel
+          label={t("project.detailTabs.docker")}
+          badge={dockerTotal > 0 ? `${dockerRunning}/${dockerTotal}` : null}
+        />
+      ),
       icon: <Inventory2OutlinedIcon />
     });
   }
@@ -433,7 +439,7 @@ function ProjectDetailTabs({
       onChange={(_, nextTab: ProjectDetailTab) => onChange(nextTab)}
       variant="scrollable"
       scrollButtons="auto"
-      aria-label="Sezioni progetto"
+      aria-label={t("project.detail.sections")}
       sx={{
         minHeight: 42,
         px: { xs: 0.5, md: 1.25 },
