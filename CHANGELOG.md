@@ -6,6 +6,29 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.9.0] - 2026-08-29
+
+### Security
+
+- Validate the `Host` header on every API request and reject anything that is not a loopback name or the configured bind host. Binding to `127.0.0.1` does not keep browsers out: a page on any origin can re-resolve its own hostname to loopback, at which point the browser treats API calls as same-origin and neither CORS nor the origin allowlist applies. The check runs before routing, so a rebound request cannot widen the workspace root, enumerate repositories or start a terminal command. `ALLOWED_HOSTS` accepts additional hostnames.
+
+### Added
+
+- Translate the entire interface. Every user-facing surface now follows the language toggle in both English and Italian: Automation, Task engineering, Git changes, Terminal, Branches, Docker, the repository catalog, Favorites, the command palette and Agent sessions. Previously only the application shell was translated, so the toggle changed the navigation and left the working surfaces in Italian.
+- Add contribution scaffolding: CODEOWNERS marking the trust-boundary paths, a pull request template that asks for an explicit note when a change touches command execution or path resolution, and issue forms that route security reports to the private process instead of a public issue.
+
+### Changed
+
+- Separate display language from identity in workflow and task data. Node groups, workflow validation issues, task phases and run statuses are now stable identifiers resolved through the active locale, rather than Italian strings used as both label and key.
+- Format every date, relative timestamp and duration with the active interface language instead of a hardcoded `it-IT` locale or the browser default.
+- Run the CI matrix once per pull request. An unfiltered `push` trigger alongside `pull_request` ran the full three-version matrix and the browser suite twice for every commit on a branch with an open pull request.
+
+### Fixed
+
+- Release the workflow reservation before publishing a run's terminal status. The reservation was released after the status was already visible, so starting a new run immediately after watching one finish could be refused with "already has a run in progress".
+- Recover from favorite preference failures. Favorite saves are serialized with a sequence guard, rollback targets the last server-confirmed selection rather than current local state, and load, migration and save failures each surface an explicit retry.
+- Clear legacy local favorites only once the server confirms the migration, so a failed migration is retried on the next load.
+
 ## [0.8.2] - 2026-08-27
 
 ### Fixed
