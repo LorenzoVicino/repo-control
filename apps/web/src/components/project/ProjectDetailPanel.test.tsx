@@ -104,12 +104,12 @@ describe("ProjectDetailPanel", () => {
     expect(screen.queryByRole("tab", { name: /Deploy/ })).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Docker/ })).toBeVisible();
 
-    await user.click(screen.getByRole("tab", { name: /Terminale/ }));
+    await user.click(screen.getByRole("tab", { name: /Terminal/ }));
     await user.click(screen.getByRole("button", { name: "Terminal state 0" }));
     expect(screen.getByRole("button", { name: "Terminal state 1" })).toBeVisible();
-    await user.click(screen.getByRole("tab", { name: /Modifiche/ }));
+    await user.click(screen.getByRole("tab", { name: /Changes/ }));
     expect(screen.getByText("Changes content")).toBeVisible();
-    await user.click(screen.getByRole("tab", { name: /Terminale/ }));
+    await user.click(screen.getByRole("tab", { name: /Terminal/ }));
     expect(screen.getByRole("button", { name: "Terminal state 1" })).toBeVisible();
 
     await waitFor(() => expect(fetchGitDetails).toHaveBeenCalledWith("alpha"));
@@ -131,7 +131,7 @@ describe("ProjectDetailPanel", () => {
     expect(overviewNotice).toHaveTextContent("Git details offline");
     expect(screen.getByText("Overview content")).toBeVisible();
 
-    await user.click(screen.getByRole("tab", { name: /Modifiche/ }));
+    await user.click(screen.getByRole("tab", { name: /Changes/ }));
     const unavailable = await screen.findByRole("alert");
     expect(unavailable).toHaveTextContent(/Git details unavailable|Dati non disponibili: Dettagli Git/i);
     expect(unavailable).toHaveTextContent("Git details offline");
@@ -178,12 +178,12 @@ describe("ProjectDetailPanel", () => {
     renderPanel();
     await waitFor(() => expect(fetchGitDetails).toHaveBeenCalledOnce());
     failNextGitRefresh = true;
-    await user.click(screen.getByRole("button", { name: "Aggiorna repository" }));
+    await user.click(screen.getByRole("button", { name: "Refresh repository" }));
 
     await waitFor(() => expect(fetchGitDetails).toHaveBeenCalledTimes(2));
     await screen.findByText(/Some live project data is unavailable|Alcuni dati live del progetto non sono disponibili/i);
     expect(screen.getByRole("status")).toHaveTextContent("Git refresh offline");
-    await user.click(screen.getByRole("tab", { name: /Modifiche/ }));
+    await user.click(screen.getByRole("tab", { name: /Changes/ }));
     const staleNotice = screen.getByRole("status");
     expect(staleNotice).toHaveTextContent("Git refresh offline");
     expect(screen.getByText("Changes content")).toBeVisible();

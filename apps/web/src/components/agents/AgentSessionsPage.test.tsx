@@ -106,7 +106,7 @@ describe("AgentSessionsPage", () => {
     expect(screen.queryByText("Correggi il checkout")).not.toBeInTheDocument();
     expect(screen.getByText("Aggiungi rate limiting")).toBeVisible();
 
-    await user.click(screen.getByRole("button", { name: "Riprendi" }));
+    await user.click(screen.getByRole("button", { name: "Resume" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(fetchMock.mock.calls[1]).toEqual([
       "/api/agent-sessions/codex/codex-session/resume",
@@ -191,7 +191,7 @@ describe("AgentSessionsPage", () => {
     );
 
     const searchInput = await screen.findByRole("textbox", {
-      name: "Cerca nei titoli e nel contenuto delle chat"
+      name: "Search in chat titles and content"
     });
     await user.type(searchInput, "retry budget");
 
@@ -201,7 +201,7 @@ describe("AgentSessionsPage", () => {
         undefined
       );
     }, { timeout: 1500 });
-    expect(await screen.findByText("Nella chat")).toBeVisible();
+    expect(await screen.findByText("In the chat")).toBeVisible();
     expect(screen.getByText(/Ho configurato il/)).toHaveTextContent(
       "Ho configurato il retry budget per le chiamate."
     );

@@ -24,6 +24,8 @@ import {
 } from "@mui/material";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import React from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import { fetchAgentSessions, resumeAgentSession } from "../../api/agentSessions";
 import type { AgentInstallation, AgentSessionProvider, AgentSessionSummary } from "../../types/agentSessions";
 
@@ -42,6 +44,7 @@ const AGENT_PLACEHOLDERS: AgentInstallation[] = [
 ];
 
 export function AgentSessionsPage() {
+  const { t } = useTranslation();
   const [providerFilter, setProviderFilter] = React.useState<ProviderFilter>("all");
   const [search, setSearch] = React.useState("");
   const [selectedSessionKey, setSelectedSessionKey] = React.useState<string | null>(null);
@@ -50,7 +53,7 @@ export function AgentSessionsPage() {
   const [notice, setNotice] = React.useState<Notice | null>(null);
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["agent-sessions", debouncedSearch],
-    queryFn: () => fetchAgentSessions(debouncedSearch),
+    queryFn: () => fetchAgentSessions(debouncedSearch, t("agents.detectError")),
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000
   });
@@ -76,12 +79,17 @@ export function AgentSessionsPage() {
     setNotice(null);
 
     try {
-      const result = await resumeAgentSession(session.provider, session.id, session.projectId);
+      const result = await resumeAgentSession(
+        session.provider,
+        session.id,
+        session.projectId,
+        t("agents.resumeError")
+      );
       setNotice({ severity: "success", message: result.message });
     } catch (resumeError) {
       setNotice({
         severity: "error",
-        message: resumeError instanceof Error ? resumeError.message : "Impossibile aprire la sessione nel terminale"
+        message: resumeError instanceof Error ? resumeError.message : t("agents.resumeError")
       });
     } finally {
       setResumingSessionKey(null);
@@ -98,13 +106,13 @@ export function AgentSessionsPage() {
         sx={{ pb: 1.75, borderBottom: "1px solid", borderColor: "divider" }}
       >
         <Box>
-          <Typography variant="overline" color="text.secondary">Storici locali</Typography>
+          <Typography variant="overline" color="text.secondary">{t("agents.eyebrow")}</Typography>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.25 }}>
-            <Typography id="agent-sessions-title" component="h1" variant="h1">Agent sessions</Typography>
+            <Typography id="agent-sessions-title" component="h1" variant="h1">{t("agents.title")}</Typography>
             {data ? <Chip size="small" variant="outlined" label={totalSessionCount} /> : null}
           </Stack>
           <Typography color="text.secondary" variant="body2" sx={{ mt: 0.55, maxWidth: 720 }}>
-            Cerca e riprendi conversazioni Codex, Claude Code e Gemini CLI nel loro contesto repository.
+            {t("agents.description")}
           </Typography>
         </Box>
         <Button
@@ -113,18 +121,18 @@ export function AgentSessionsPage() {
           disabled={isFetching}
           onClick={() => void refetch()}
         >
-          Rileva di nuovo
+          {t("agents.detectAgain")}
         </Button>
       </Stack>
 
       {error ? (
         <Alert severity="error" sx={{ mt: 1.25 }}>
-          {error instanceof Error ? error.message : "Impossibile rilevare le sessioni degli agent"}
+          {error instanceof Error ? error.message : t("agents.detectError")}
         </Alert>
       ) : null}
       {data?.warnings.length ? (
         <Alert severity="warning" sx={{ mt: 1.25 }}>
-          Rilevazione parziale: {data.warnings.join(" · ")}
+          {t("agents.partialDetection", { warnings: data.warnings.join(" · ") })}
         </Alert>
       ) : null}
 
@@ -138,10 +146,10 @@ export function AgentSessionsPage() {
         }}
       >
         <Box
-          aria-label="Agent rilevati"
+          aria-label={t("agents.detectedAgents")}
           sx={{ overflow: "hidden", border: "1px solid", borderColor: "divider", borderRadius: "var(--rc-radius-panel)", bgcolor: "background.paper" }}
         >
-          <PanelTitle label="Provider" meta={`${data?.agents.filter((agent) => agent.installed).length ?? 0}/3`} />
+          <PanelTitle label={t("agents.provider")} meta={`${data?.agents.filter((agent) => agent.installed).length ?? 0}/3`} />
           <Stack sx={{ p: 0.75 }} spacing={0.5}>
             {(data?.agents ?? AGENT_PLACEHOLDERS).map((agent) => (
               <AgentStatusCard
@@ -155,25 +163,25 @@ export function AgentSessionsPage() {
           </Stack>
           {providerFilter !== "all" ? (
             <Button size="small" variant="text" fullWidth onClick={() => setProviderFilter("all")} sx={{ borderTop: "1px solid", borderColor: "divider", borderRadius: 0 }}>
-              Mostra tutti
+              {t("agents.showAll")}
             </Button>
           ) : null}
         </Box>
 
         <Stack spacing={1} sx={{ minWidth: 0 }}>
-          <Box component="search" aria-label="Ricerca nelle conversazioni degli agent">
+          <Box component="search" aria-label={t("agents.searchAria")}>
             <TextField
               fullWidth
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Cerca nei titoli e nel contenuto delle chat…"
-              inputProps={{ "aria-label": "Cerca nei titoli e nel contenuto delle chat", maxLength: 200 }}
+              placeholder={t("agents.searchPlaceholder")}
+              inputProps={{ "aria-label": t("agents.searchLabel"), maxLength: 200 }}
               InputProps={{
                 startAdornment: <InputAdornment position="start"><SearchRoundedIcon sx={{ fontSize: 17 }} /></InputAdornment>,
                 endAdornment: (
                   <InputAdornment position="end">
-                    {isSearchPending ? <CircularProgress size={16} aria-label="Ricerca in corso" /> : search ? (
-                      <IconButton size="small" aria-label="Cancella ricerca" onClick={() => setSearch("")} edge="end">
+                    {isSearchPending ? <CircularProgress size={16} aria-label={t("agents.searching")} /> : search ? (
+                      <IconButton size="small" aria-label={t("agents.clearSearch")} onClick={() => setSearch("")} edge="end">
                         <CloseRoundedIcon fontSize="small" />
                       </IconButton>
                     ) : null}
@@ -186,19 +194,21 @@ export function AgentSessionsPage() {
 
           <Box sx={{ overflow: "hidden", border: "1px solid", borderColor: "divider", borderRadius: "var(--rc-radius-panel)", bgcolor: "background.paper" }}>
             <PanelTitle
-              label="Conversazioni"
-              meta={debouncedSearch ? `${filteredSessions.length} risultati per “${debouncedSearch}”` : `${filteredSessions.length} · più recenti`}
+              label={t("agents.conversations")}
+              meta={debouncedSearch
+                ? t("agents.resultsFor", { total: filteredSessions.length, query: debouncedSearch })
+                : t("agents.mostRecent", { total: filteredSessions.length })}
               icon={<SortRoundedIcon sx={{ fontSize: 14 }} />}
             />
             {isLoading ? (
               <Box sx={{ minHeight: 280, display: "grid", placeItems: "center" }}>
                 <Stack alignItems="center" spacing={1}>
                   <CircularProgress size={24} />
-                  <Typography variant="body2" color="text.secondary">Cerco gli storici locali…</Typography>
+                  <Typography variant="body2" color="text.secondary">{t("agents.loadingHistories")}</Typography>
                 </Stack>
               </Box>
             ) : filteredSessions.length > 0 ? (
-              <Stack component="ul" aria-label="Sessioni agent" sx={{ m: 0, p: 0, listStyle: "none" }}>
+              <Stack component="ul" aria-label={t("agents.sessionList")} sx={{ m: 0, p: 0, listStyle: "none" }}>
                 {filteredSessions.map((session) => {
                   const sessionKey = getSessionKey(session);
                   return (
@@ -259,8 +269,9 @@ type AgentStatusCardProps = {
 };
 
 function AgentStatusCard({ agent, active, loading, onSelect }: AgentStatusCardProps) {
+  const { t } = useTranslation();
   const tone = PROVIDER_TONES[agent.id];
-  const status = getAgentStatus(agent);
+  const status = getAgentStatus(t, agent);
 
   return (
     <ButtonBase
@@ -291,7 +302,7 @@ function AgentStatusCard({ agent, active, loading, onSelect }: AgentStatusCardPr
         <Stack direction="row" alignItems="center" spacing={0.4}>
           {status.positive ? <CheckCircleRoundedIcon color="success" sx={{ fontSize: 11 }} /> : null}
           <Typography noWrap color="text.secondary" sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 8.75 }}>
-            {loading ? "rilevamento…" : status.label}
+            {loading ? t("agents.detecting") : status.label}
           </Typography>
         </Stack>
       </Box>
@@ -310,6 +321,7 @@ type AgentSessionRowProps = {
 };
 
 function AgentSessionRow({ session, agent, selected, resuming, searchTerm, onSelect, onResume }: AgentSessionRowProps) {
+  const { t, i18n } = useTranslation();
   const tone = PROVIDER_TONES[session.provider];
   const updatedAt = session.updatedAt ?? session.startedAt;
 
@@ -351,14 +363,16 @@ function AgentSessionRow({ session, agent, selected, resuming, searchTerm, onSel
           <Chip size="small" color={tone} variant="outlined" label={session.providerLabel} />
           <Chip size="small" variant="outlined" label={session.projectName} />
           {session.branch ? <Chip size="small" variant="outlined" icon={<CodeRoundedIcon />} label={session.branch} /> : null}
-          {updatedAt ? <Typography variant="caption" color="text.secondary" title={formatExactDate(updatedAt)}>{formatRelativeDate(updatedAt)}</Typography> : null}
+          {updatedAt ? <Typography variant="caption" color="text.secondary" title={formatExactDate(updatedAt, i18n.language)}>
+              {formatRelativeDate(t, updatedAt, i18n.language)}
+            </Typography> : null}
         </Stack>
         <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.4 }}>
           {session.match?.field === "title" ? <HighlightedText text={session.title} searchTerm={searchTerm} /> : session.title}
         </Typography>
         {session.match?.field === "content" ? (
           <Box sx={{ mt: 0.65, pl: 0.9, borderLeft: "2px solid", borderColor: "primary.main" }}>
-            <Typography variant="caption" color="primary.light" component="p" sx={{ m: 0, fontWeight: 500 }}>Nella chat</Typography>
+            <Typography variant="caption" color="primary.light" component="p" sx={{ m: 0, fontWeight: 500 }}>{t("agents.inChat")}</Typography>
             <Typography variant="caption" color="text.secondary" component="p" sx={{ m: 0, lineHeight: 1.55 }}>
               <HighlightedText text={session.match.snippet} searchTerm={searchTerm} />
             </Typography>
@@ -371,16 +385,18 @@ function AgentSessionRow({ session, agent, selected, resuming, searchTerm, onSel
       </Box>
 
       <Stack direction="row" spacing={0.5} sx={{ gridColumn: { xs: "1 / -1", md: "auto" }, justifySelf: { xs: "stretch", md: "end" } }}>
-        <Button size="small" variant="text" onClick={onSelect}>Dettagli</Button>
+        <Button size="small" variant="text" onClick={onSelect}>{t("agents.details")}</Button>
         <Button
           variant="outlined"
           size="small"
           startIcon={resuming ? <CircularProgress size={13} color="inherit" /> : <TerminalRoundedIcon />}
           onClick={onResume}
           disabled={resuming || !agent?.installed}
-          title={agent?.installed ? "Apri un terminale e riprendi questa sessione" : `${session.providerLabel} non installato`}
+          title={agent?.installed
+            ? t("agents.resumeTooltip")
+            : t("agents.notInstalled", { provider: session.providerLabel })}
         >
-          {resuming ? "Apertura…" : "Riprendi"}
+          {resuming ? t("agents.opening") : t("agents.resume")}
         </Button>
       </Stack>
     </Box>
@@ -388,13 +404,15 @@ function AgentSessionRow({ session, agent, selected, resuming, searchTerm, onSel
 }
 
 function AgentSessionDetail({ session, agent }: { session: AgentSessionSummary | null; agent: AgentInstallation | undefined }) {
+  const { t, i18n } = useTranslation();
+
   return (
     <Box sx={{ position: { lg: "sticky" }, top: { lg: 64 }, overflow: "hidden", border: "1px solid", borderColor: "divider", borderRadius: "var(--rc-radius-panel)", bgcolor: "background.paper" }}>
-      <PanelTitle label="Contesto sessione" meta={session?.providerLabel ?? "—"} />
+      <PanelTitle label={t("agents.sessionContext")} meta={session?.providerLabel ?? "—"} />
       {session ? (
         <Stack spacing={1.4} sx={{ p: 1.5 }}>
           <Box>
-            <Typography variant="overline" color="text.secondary">Repository</Typography>
+            <Typography variant="overline" color="text.secondary">{t("agents.repository")}</Typography>
             <Typography variant="body2" sx={{ mt: 0.25, fontWeight: 500 }}>{session.projectName}</Typography>
             <Typography
               color="text.secondary"
@@ -405,23 +423,32 @@ function AgentSessionDetail({ session, agent }: { session: AgentSessionSummary |
             </Typography>
           </Box>
           <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
-            <DetailField label="Branch" value={session.branch ?? "non rilevato"} mono />
-            <DetailField label="Aggiornata" value={session.updatedAt ? formatRelativeDate(session.updatedAt) : "sconosciuta"} />
+            <DetailField label={t("agents.branch")} value={session.branch ?? t("agents.branchNotDetected")} mono />
+            <DetailField
+              label={t("agents.updated")}
+              value={session.updatedAt
+                ? formatRelativeDate(t, session.updatedAt, i18n.language)
+                : t("agents.unknownUpdate")}
+            />
           </Box>
           <Box sx={{ px: 1, py: 0.85, borderLeft: "2px solid", borderColor: agent?.installed ? "success.main" : "warning.main", bgcolor: "var(--rc-surface-2)" }}>
             <Typography variant="caption" sx={{ fontWeight: 500 }}>
-              {agent?.installed ? `${session.providerLabel} disponibile` : `${session.providerLabel} non installato`}
+              {agent?.installed
+                ? t("agents.available", { provider: session.providerLabel })
+                : t("agents.notInstalled", { provider: session.providerLabel })}
             </Typography>
             <Typography variant="caption" color="text.secondary" component="p" sx={{ m: 0, mt: 0.2 }}>
-              La ripresa apre un terminale nel repository indicato e delega la conversazione alla CLI originale.
+              {t("agents.resumeNotice")}
             </Typography>
           </Box>
           <Typography variant="caption" color="text.secondary">
-            Il transcript completo resta sul disco locale e non viene caricato in questa vista.
+            {t("agents.transcriptNotice")}
           </Typography>
         </Stack>
       ) : (
-        <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>Seleziona una sessione per ispezionarne il contesto.</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>
+          {t("agents.selectSession")}
+        </Typography>
       )}
     </Box>
   );
@@ -445,12 +472,14 @@ function HighlightedText({ text, searchTerm }: { text: string; searchTerm: strin
 }
 
 function EmptySessions({ filtered }: { filtered: boolean }) {
+  const { t } = useTranslation();
+
   return (
     <Box sx={{ minHeight: 240, display: "grid", placeItems: "center", p: 3, textAlign: "center" }}>
       <Box>
-        <Typography variant="h2">{filtered ? "Nessuna sessione corrispondente" : "Nessuno storico rilevato"}</Typography>
+        <Typography variant="h2">{filtered ? t("agents.emptyFiltered") : t("agents.emptyNone")}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, maxWidth: 420 }}>
-          {filtered ? "Prova a rimuovere il filtro o a cambiare la ricerca." : "Avvia Codex, Claude Code o Gemini CLI in uno dei repository e poi ripeti la rilevazione."}
+          {filtered ? t("agents.emptyFilteredHint") : t("agents.emptyNoneHint")}
         </Typography>
       </Box>
     </Box>
@@ -466,11 +495,13 @@ function useDebouncedValue(value: string, delayMs: number): string {
   return debouncedValue;
 }
 
-function getAgentStatus(agent: AgentInstallation): { label: string; positive: boolean } {
-  if (agent.installed && agent.used) return { label: `${agent.sessionCount} ${agent.sessionCount === 1 ? "sessione" : "sessioni"}`, positive: true };
-  if (agent.installed) return { label: "nessuno storico", positive: true };
-  if (agent.used) return { label: "CLI non disponibile", positive: false };
-  return { label: "non rilevato", positive: false };
+function getAgentStatus(t: TFunction, agent: AgentInstallation): { label: string; positive: boolean } {
+  if (agent.installed && agent.used) {
+    return { label: t("agents.sessionCount", { count: agent.sessionCount }), positive: true };
+  }
+  if (agent.installed) return { label: t("agents.noHistory"), positive: true };
+  if (agent.used) return { label: t("agents.cliUnavailable"), positive: false };
+  return { label: t("agents.notDetected"), positive: false };
 }
 
 function getProviderIcon(provider: AgentSessionProvider) {
@@ -479,22 +510,23 @@ function getProviderIcon(provider: AgentSessionProvider) {
   return <TerminalRoundedIcon />;
 }
 
-function formatRelativeDate(value: string): string {
+function formatRelativeDate(t: TFunction, value: string, language: string): string {
   const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) return "Data sconosciuta";
+  if (!Number.isFinite(timestamp)) return t("agents.unknownDate");
+  const relativeFormatter = new Intl.RelativeTimeFormat(language, { numeric: "auto" });
   const elapsedMinutes = Math.round((timestamp - Date.now()) / (60 * 1000));
-  if (Math.abs(elapsedMinutes) < 60) return new Intl.RelativeTimeFormat("it", { numeric: "auto" }).format(elapsedMinutes, "minute");
+  if (Math.abs(elapsedMinutes) < 60) return relativeFormatter.format(elapsedMinutes, "minute");
   const elapsedHours = Math.round(elapsedMinutes / 60);
-  if (Math.abs(elapsedHours) < 24) return new Intl.RelativeTimeFormat("it", { numeric: "auto" }).format(elapsedHours, "hour");
+  if (Math.abs(elapsedHours) < 24) return relativeFormatter.format(elapsedHours, "hour");
   const elapsedDays = Math.round(elapsedHours / 24);
-  if (Math.abs(elapsedDays) < 30) return new Intl.RelativeTimeFormat("it", { numeric: "auto" }).format(elapsedDays, "day");
-  return formatExactDate(value);
+  if (Math.abs(elapsedDays) < 30) return relativeFormatter.format(elapsedDays, "day");
+  return formatExactDate(value, language);
 }
 
-function formatExactDate(value: string): string {
+function formatExactDate(value: string, language: string): string {
   const timestamp = Date.parse(value);
   return Number.isFinite(timestamp)
-    ? new Intl.DateTimeFormat("it-IT", { dateStyle: "medium", timeStyle: "short" }).format(timestamp)
+    ? new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" }).format(timestamp)
     : value;
 }
 

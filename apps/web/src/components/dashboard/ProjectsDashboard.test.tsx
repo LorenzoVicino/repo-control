@@ -337,7 +337,7 @@ describe("ProjectsDashboard orchestration", () => {
       { timeout: 10_000 }
     );
     expect(betaDetail).toBeVisible();
-    await user.click(within(betaDetail).getByRole("button", { name: /preferiti/ }));
+    await user.click(within(betaDetail).getByRole("button", { name: /favorites/ }));
 
     await user.click(screen.getByText("close-beta"));
     await user.click(screen.getByText("nav-overview"));
@@ -416,7 +416,7 @@ describe("ProjectsDashboard orchestration", () => {
       {},
       { timeout: 10_000 }
     );
-    await user.click(within(alphaDetail).getByRole("button", { name: /preferiti/ }));
+    await user.click(within(alphaDetail).getByRole("button", { name: /favorites/ }));
 
     await user.click(screen.getByText("nav-docker"));
     await user.click(await screen.findByText("docker-stop"));

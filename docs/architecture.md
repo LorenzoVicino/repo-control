@@ -98,7 +98,7 @@ Feature components import their own API module and domain types directly. Avoid 
 
 Large pages should orchestrate data and navigation. Extract independent panels, dialogs and pure domain logic once they have their own state, props or testable behavior.
 
-Repository details use a single full-width shell: Panoramica is the default and feature tabs are rendered only when their repository capability exists. Docker currently follows this rule through Compose-file detection. Deploy is intentionally absent; any future CI/CD tab must be backed by detected pipeline configuration and real status/actions rather than a static placeholder. Once opened, the terminal panel remains mounted while the repository workspace stays open so its transcript and active request survive navigation between repository tabs.
+Repository details use a single full-width shell: Overview is the default and feature tabs are rendered only when their repository capability exists. Docker currently follows this rule through Compose-file detection. Deploy is intentionally absent; any future CI/CD tab must be backed by detected pipeline configuration and real status/actions rather than a static placeholder. Once opened, the terminal panel remains mounted while the repository workspace stays open so its transcript and active request survive navigation between repository tabs.
 
 Dashboard sections are lazy-loaded. Task engineering still has code and server endpoints but is deliberately absent from the sidebar and quick actions; documentation and user-facing navigation should not present it as a current capability until the redesign is complete.
 
