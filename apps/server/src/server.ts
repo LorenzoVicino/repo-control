@@ -5,6 +5,7 @@ import type { ServerEnv } from "./config/env.js";
 import { runProjectCommand, runShellCommand } from "./lib/commandRunner.js";
 import { createProjectResolver } from "./lib/projectResolver.js";
 import type { ProjectResolver } from "./lib/projectResolver.js";
+import { getAllowedHostnames, isAllowedRequestHost } from "./lib/requestHost.js";
 import { registerAppRoutes } from "./routes/appRoutes.js";
 import { registerAgentSessionRoutes } from "./routes/agentSessionRoutes.js";
 import { registerBrainRoutes } from "./routes/brainRoutes.js";
@@ -46,6 +47,25 @@ export async function createServer(): Promise<{
 
   await app.register(cors, {
     origin: ["http://127.0.0.1:5173", "http://localhost:5173"]
+  });
+
+  // Runs before routing, so a rebound request is rejected before it can resolve a project
+  // or start a command. See lib/requestHost.ts for why the Host header is the check that
+  // holds once CORS has been bypassed.
+  const allowedHostnames = getAllowedHostnames(env.HOST, env.ALLOWED_HOSTS);
+
+  app.addHook("onRequest", async (request, reply) => {
+    if (isAllowedRequestHost(request.headers.host, allowedHostnames)) {
+      return;
+    }
+
+    request.log.warn({ host: request.headers.host, url: request.url }, "Rejected unexpected Host header");
+
+    return reply.code(403).send({
+      ok: false,
+      code: "FORBIDDEN_HOST",
+      message: "Request rejected: unexpected Host header."
+    });
   });
 
   app.addHook("onError", async (request, reply, error) => {

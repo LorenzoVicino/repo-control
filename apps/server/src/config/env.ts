@@ -4,7 +4,10 @@ const envSchema = z.object({
   HOST: z.string().default("127.0.0.1"),
   PORT: z.coerce.number().default(3747),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("error"),
-  REPO_CONTROL_ROOT: z.string().default(process.cwd())
+  REPO_CONTROL_ROOT: z.string().default(process.cwd()),
+  // Comma-separated extra hostnames accepted in the Host header, on top of the loopback
+  // names and HOST. Only needed when reaching the API through another name.
+  ALLOWED_HOSTS: z.string().optional()
 });
 
 export type ServerEnv = z.infer<typeof envSchema>;
