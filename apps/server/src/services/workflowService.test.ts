@@ -261,6 +261,35 @@ test("rejects a second concurrent run of the same workflow", async () => {
   });
 });
 
+test("accepts back-to-back runs of the same workflow", async () => {
+  await withTemporaryConfigAndRoot(async (context) => {
+    const workflow = await createWorkflow(terminalWorkflowDraft("Back to back", "echo hi"));
+
+    // Covers the user-facing shape of the reservation bug: watch a run finish, start the
+    // next one straight away. This does NOT deterministically reproduce the original
+    // race - that window sits between the terminal status reaching disk and the release
+    // continuation running, so whether a reader lands inside it depends on I/O
+    // scheduling. It reproduces on CI and not on a local tmpfs. Kept as a guard on the
+    // sequence rather than as proof of the fix.
+    async function spinUntilTerminal(runId: string): Promise<void> {
+      const deadline = Date.now() + 15_000;
+
+      while (Date.now() < deadline) {
+        const run = await readWorkflowRun(runId);
+        if (run && TERMINAL_RUN_STATUSES.has(run.status)) return;
+      }
+
+      throw new Error(`Run ${runId} did not reach a terminal status in time`);
+    }
+
+    for (let attempt = 0; attempt < 25; attempt += 1) {
+      const run = await startWorkflowRun(workflow.id, context);
+      assert.ok(run, `run ${attempt} should start`);
+      await spinUntilTerminal(run.id);
+    }
+  });
+});
+
 test("releases the workflow reservation when validation fails before execution", async () => {
   await withTemporaryConfigAndRoot(async (context) => {
     const invalidDraft = terminalWorkflowDraft("Initially invalid", "echo fixed");
