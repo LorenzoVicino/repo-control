@@ -41,10 +41,12 @@ jobs:
           cache: npm
 
       # Each Node version bundles a different npm, and a lockfile written by one is not
-      # always installable by an older one. Corepack pins every job to the npm in
+      # always installable by an older one. Every job installs the exact npm named in
       # package.json's packageManager field, so the lockfile has a single author.
+      # Corepack would be the idiomatic route, but the corepack bundled with Node 22.13
+      # carries stale registry signing keys and fails on `Cannot find matching keyid`.
       - name: Use the pinned npm
-        run: corepack enable npm
+        run: npm install -g "npm@$(node -p "require('./package.json').packageManager.split('@')[1]")"
 
       - name: Install dependencies
         run: npm ci
@@ -68,7 +70,7 @@ jobs:
           cache: npm
 
       - name: Use the pinned npm
-        run: corepack enable npm
+        run: npm install -g "npm@$(node -p "require('./package.json').packageManager.split('@')[1]")"
 
       - name: Install dependencies
         run: npm ci
