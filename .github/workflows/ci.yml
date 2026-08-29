@@ -1,7 +1,13 @@
 name: CI
 
 on:
+  # Unfiltered `push` plus `pull_request` runs the whole matrix twice for every commit on
+  # a branch with an open PR. The concurrency group below cannot dedupe them either,
+  # because github.ref differs (refs/heads/x vs refs/pull/N/merge). Limiting push to the
+  # default branch keeps main covered without doubling every PR.
   push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
 

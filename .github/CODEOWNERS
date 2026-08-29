@@ -1,0 +1,9 @@
+# Default owner for everything in the repository.
+*                       @LorenzoVicino
+
+# The local trust boundary: command execution, path scoping and Host validation.
+# Changes here need a deliberate security review, not a routine one.
+/apps/server/src/lib/   @LorenzoVicino
+/apps/server/src/config/ @LorenzoVicino
+/SECURITY.md            @LorenzoVicino
+/.github/workflows/     @LorenzoVicino
