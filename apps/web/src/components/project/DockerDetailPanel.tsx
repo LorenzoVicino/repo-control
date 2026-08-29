@@ -25,7 +25,7 @@ type DockerDetailPanelProps = {
 };
 
 export function DockerDetailPanel({ projectId, compose, isLoading, onResult, onCompleted }: DockerDetailPanelProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [selectedService, setSelectedService] = React.useState<string | null>(null);
   const runningServices = compose?.services.filter((service) => service.state.toLowerCase() === "running").length ?? 0;
   const selected = compose?.services.some((service) => service.name === selectedService)
@@ -51,7 +51,7 @@ export function DockerDetailPanel({ projectId, compose, isLoading, onResult, onC
             <Chip size="small" label={t("project.docker.running", { running: runningServices, total: compose.services.length })} color={runningServices > 0 ? "success" : "default"} />
           </Stack>
           <Typography variant="caption" color="text.secondary">
-            {t("project.docker.updatedAt", { date: formatDate(compose.checkedAt) })}
+            {t("project.docker.updatedAt", { date: formatDate(compose.checkedAt, i18n.language) })}
           </Typography>
         </Box>
         <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">

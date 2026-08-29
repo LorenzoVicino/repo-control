@@ -7,6 +7,8 @@ import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import { alpha, Box, Button, ButtonBase, Chip, Collapse, IconButton, Paper, Stack, ToggleButton, ToggleButtonGroup, Tooltip, Typography, useTheme } from "@mui/material";
 import React, { type ReactNode } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import type { ProjectSummary } from "../../types/projects";
 import { formatDate, getProjectTone, groupProjects } from "../../utils/projects";
 
@@ -33,9 +35,10 @@ export const WorkspaceMap = React.memo(function WorkspaceMap({
   onSelectProject,
   onToggleFavorite
 }: WorkspaceMapProps) {
+  const { t } = useTranslation();
   const groups = React.useMemo(
-    () => groupBy === "folder" ? groupProjects(projects, root) : groupProjectsByStatus(projects),
-    [groupBy, projects, root]
+    () => groupBy === "folder" ? groupProjects(projects, root) : groupProjectsByStatus(t, projects),
+    [groupBy, projects, root, t]
   );
   const favoriteProjectIdSet = React.useMemo(() => new Set(favoriteProjectIds), [favoriteProjectIds]);
   const openProjectIdSet = React.useMemo(() => new Set(openProjectIds), [openProjectIds]);
@@ -115,6 +118,7 @@ export const FavoriteProjects = React.memo(function FavoriteProjects({
   onDensityChange,
   onBrowseRepositories
 }: FavoriteProjectsProps) {
+  const { t } = useTranslation();
   const favoriteProjectIdSet = React.useMemo(() => new Set(favoriteProjectIds), [favoriteProjectIds]);
   const openProjectIdSet = React.useMemo(() => new Set(openProjectIds), [openProjectIds]);
   const favoriteProjects = React.useMemo(
@@ -123,19 +127,19 @@ export const FavoriteProjects = React.memo(function FavoriteProjects({
   );
 
   return (
-    <Box component="section" aria-label="Repository preferiti">
+    <Box component="section" aria-label={t("dashboard.favorites.ariaLabel")}>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "flex-end" }} justifyContent="space-between" sx={{ mb: 1.5 }}>
         <Box>
-          <Typography component="h1" variant="h1">Preferiti</Typography>
+          <Typography component="h1" variant="h1">{t("dashboard.favorites.title")}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>
-            Il tuo launchpad personale: stato, attività recente e accesso rapido.
+            {t("dashboard.favorites.description")}
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} alignItems="center">
           <Chip
             size="small"
             variant="outlined"
-            label={`${favoriteProjects.length} ${favoriteProjects.length === 1 ? "salvato" : "salvati"}`}
+            label={t("dashboard.favorites.savedCount", { count: favoriteProjects.length })}
           />
           {favoriteProjects.length > 0 ? (
             <ToggleButtonGroup
@@ -145,10 +149,14 @@ export const FavoriteProjects = React.memo(function FavoriteProjects({
               onChange={(_, value: "compact" | "comfortable" | null) => {
                 if (value) onDensityChange(value);
               }}
-              aria-label="Densità repository preferiti"
+              aria-label={t("dashboard.favorites.densityAria")}
             >
-              <ToggleButton value="compact" aria-label="Densità compatta">Compatta</ToggleButton>
-              <ToggleButton value="comfortable" aria-label="Densità comoda">Comoda</ToggleButton>
+              <ToggleButton value="compact" aria-label={t("dashboard.favorites.densityCompactAria")}>
+                {t("dashboard.favorites.densityCompact")}
+              </ToggleButton>
+              <ToggleButton value="comfortable" aria-label={t("dashboard.favorites.densityComfortableAria")}>
+                {t("dashboard.favorites.densityComfortable")}
+              </ToggleButton>
             </ToggleButtonGroup>
           ) : null}
         </Stack>
@@ -160,11 +168,15 @@ export const FavoriteProjects = React.memo(function FavoriteProjects({
             <Box sx={{ width: 44, height: 44, borderRadius: "50%", display: "grid", placeItems: "center", color: "warning.main", bgcolor: (theme) => alpha(theme.palette.warning.main, 0.1) }}>
               <StarBorderIcon />
             </Box>
-            <Typography variant="h3">Crea il tuo launchpad</Typography>
+            <Typography variant="h3">{t("dashboard.favorites.emptyTitle")}</Typography>
             <Typography variant="body2" color="text.secondary">
-              Aggiungi una stella ai repository che controlli più spesso. Compariranno qui con i segnali Git essenziali.
+              {t("dashboard.favorites.emptyDescription")}
             </Typography>
-            {onBrowseRepositories ? <Button variant="outlined" onClick={onBrowseRepositories}>Sfoglia repository</Button> : null}
+            {onBrowseRepositories ? (
+              <Button variant="outlined" onClick={onBrowseRepositories}>
+                {t("dashboard.favorites.browse")}
+              </Button>
+            ) : null}
           </Stack>
         </Paper>
       ) : (
@@ -293,6 +305,7 @@ const ProjectCard = React.memo(function ProjectCard({
   onSelectProject,
   onToggleFavorite
 }: ProjectCardProps) {
+  const { t, i18n } = useTranslation();
   const theme = useTheme();
   const tone = getProjectTone(project, theme.palette.mode);
   const localChanges = project.modified + project.staged + project.untracked;
@@ -367,15 +380,17 @@ const ProjectCard = React.memo(function ProjectCard({
               {project.name}
             </Typography>
             <Typography variant="caption" color="text.secondary" noWrap component="div">
-              {getStatusLabel(project)}
+              {getStatusLabel(t, project)}
             </Typography>
           </Box>
-          {isOpen ? <Chip size="small" color="primary" variant="outlined" label="Aperto" /> : null}
-          <Tooltip title={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}>
+          {isOpen ? <Chip size="small" color="primary" variant="outlined" label={t("dashboard.map.open")} /> : null}
+          <Tooltip title={isFavorite ? t("dashboard.map.removeFavorite") : t("dashboard.map.addFavorite")}>
             <IconButton
               size="small"
               color={isFavorite ? "warning" : "default"}
-              aria-label={isFavorite ? `Rimuovi ${project.name} dai preferiti` : `Aggiungi ${project.name} ai preferiti`}
+              aria-label={isFavorite
+                ? t("dashboard.map.removeFavoriteAria", { name: project.name })
+                : t("dashboard.map.addFavoriteAria", { name: project.name })}
               onClick={(event) => {
                 event.stopPropagation();
                 onToggleFavorite(project.id);
@@ -389,20 +404,36 @@ const ProjectCard = React.memo(function ProjectCard({
 
         <Stack direction="row" spacing={0.6} useFlexGap flexWrap="wrap">
           <Chip size="small" variant="outlined" icon={<CallSplitIcon />} label={project.branch} />
-          {project.ahead > 0 ? <Chip size="small" color="info" label={`+${project.ahead} ahead`} /> : null}
-          {project.behind > 0 ? <Chip size="small" color="error" variant="outlined" label={`${project.behind} behind`} /> : null}
-          {localChanges > 0 ? <Chip size="small" color="warning" variant="outlined" label={`${localChanges} modifiche`} /> : null}
+          {project.ahead > 0
+            ? <Chip size="small" color="info" label={t("dashboard.map.aheadChip", { total: project.ahead })} />
+            : null}
+          {project.behind > 0
+            ? <Chip
+                size="small"
+                color="error"
+                variant="outlined"
+                label={t("dashboard.map.behindChip", { total: project.behind })}
+              />
+            : null}
+          {localChanges > 0
+            ? <Chip
+                size="small"
+                color="warning"
+                variant="outlined"
+                label={t("dashboard.map.changesChip", { total: localChanges })}
+              />
+            : null}
         </Stack>
 
         <Box sx={{ flexGrow: 1 }} />
 
         <Box sx={{ minWidth: 0, pt: density === "compact" ? 0.6 : 0.9, borderTop: "1px solid", borderColor: "divider" }}>
           <Typography variant="caption" color="text.primary" noWrap component="div" sx={{ fontWeight: 600 }}>
-            {project.lastCommit ? project.lastCommit.message : "Nessun commit"}
+            {project.lastCommit ? project.lastCommit.message : t("dashboard.map.noCommit")}
           </Typography>
           {project.lastCommit && density === "comfortable" ? (
             <Typography variant="caption" color="text.secondary" noWrap component="div" sx={{ mt: 0.2 }}>
-              {project.lastCommit.author} · {formatDate(project.lastCommit.date)}
+              {project.lastCommit.author} · {formatDate(project.lastCommit.date, i18n.language)}
             </Typography>
           ) : null}
         </Box>
@@ -412,6 +443,8 @@ const ProjectCard = React.memo(function ProjectCard({
 });
 
 function WorkspaceEmptyState() {
+  const { t } = useTranslation();
+
   return (
     <Box
       sx={{
@@ -428,36 +461,45 @@ function WorkspaceEmptyState() {
     >
       <Stack spacing={1} alignItems="center">
         <AccountTreeIcon color="disabled" sx={{ fontSize: 32 }} />
-        <Typography variant="h6">Nessun repository trovato</Typography>
+        <Typography variant="h6">{t("dashboard.map.noRepositories")}</Typography>
         <Typography variant="body2" color="text.secondary">
-          Cambia workspace oppure modifica la ricerca corrente.
+          {t("dashboard.map.changeWorkspace")}
         </Typography>
       </Stack>
     </Box>
   );
 }
 
-function getStatusLabel(project: ProjectSummary): string {
+function getStatusLabel(t: TFunction, project: ProjectSummary): string {
   if (!project.isClean) {
-    return "Modifiche locali";
+    return t("dashboard.map.statusLocalChanges");
   }
 
   if (project.behind > 0) {
-    return "Aggiornamento remoto disponibile";
+    return t("dashboard.map.statusBehind");
   }
 
   if (project.ahead > 0) {
-    return "Commit locali da pubblicare";
+    return t("dashboard.map.statusAhead");
   }
 
-  return "Sincronizzato e pulito";
+  return t("dashboard.map.statusClean");
 }
 
-function groupProjectsByStatus(projects: ProjectSummary[]) {
+function groupProjectsByStatus(t: TFunction, projects: ProjectSummary[]) {
   const groups = [
-    { label: "Da controllare", projects: projects.filter((project) => !project.isClean || project.behind > 0) },
-    { label: "Commit da pubblicare", projects: projects.filter((project) => project.isClean && project.behind === 0 && project.ahead > 0) },
-    { label: "Puliti e sincronizzati", projects: projects.filter((project) => project.isClean && project.behind === 0 && project.ahead === 0) }
+    {
+      label: t("dashboard.map.groupAttention"),
+      projects: projects.filter((project) => !project.isClean || project.behind > 0)
+    },
+    {
+      label: t("dashboard.map.groupAhead"),
+      projects: projects.filter((project) => project.isClean && project.behind === 0 && project.ahead > 0)
+    },
+    {
+      label: t("dashboard.map.groupClean"),
+      projects: projects.filter((project) => project.isClean && project.behind === 0 && project.ahead === 0)
+    }
   ];
   return groups.filter((group) => group.projects.length > 0);
 }

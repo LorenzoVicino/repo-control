@@ -43,7 +43,7 @@ export function RepositoryOverviewPanel({
   onResult,
   onCompleted
 }: RepositoryOverviewPanelProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const staged = details?.status.files.staged.length ?? project.staged;
   const unstaged = details?.status.files.unstaged.length ?? project.modified + project.untracked;
   const conflicts = details?.status.files.unstaged.filter((file) => file.status === "conflicted").length ?? 0;
@@ -135,7 +135,7 @@ export function RepositoryOverviewPanel({
           label={t("project.overview.lastCommit")}
           value={project.lastCommit?.message ?? t("project.overview.noCommit")}
           detail={project.lastCommit
-            ? `${project.lastCommit.hash} · ${formatDate(project.lastCommit.date)}`
+            ? `${project.lastCommit.hash} · ${formatDate(project.lastCommit.date, i18n.language)}`
             : t("project.overview.emptyHistory")}
           tone="primary"
         />
@@ -254,6 +254,8 @@ function OverviewMetric({
 }
 
 function RecentCommitRow({ commit, isLast }: { commit: GitActivityCommit; isLast: boolean }) {
+  const { i18n } = useTranslation();
+
   return (
     <Stack
       direction="row"
@@ -269,7 +271,7 @@ function RecentCommitRow({ commit, isLast }: { commit: GitActivityCommit; isLast
           {commit.refs.slice(0, 2).map((ref) => <Chip key={`${commit.hash}-${ref}`} size="small" label={ref} />)}
         </Stack>
         <Typography variant="caption" color="text.secondary" noWrap component="div">
-          {commit.shortHash} · {commit.author} · {formatDate(commit.date)}
+          {commit.shortHash} · {commit.author} · {formatDate(commit.date, i18n.language)}
         </Typography>
       </Box>
     </Stack>

@@ -34,19 +34,19 @@ describe("WorkspaceMap", () => {
       />
     );
 
-    expect(screen.getByText("Modifiche locali")).toBeVisible();
-    expect(screen.getByText("Aggiornamento remoto disponibile")).toBeVisible();
-    expect(screen.getByText("Commit locali da pubblicare")).toBeVisible();
-    expect(screen.getByText("Sincronizzato e pulito")).toBeVisible();
+    expect(screen.getByText("Local changes")).toBeVisible();
+    expect(screen.getByText("Remote update available")).toBeVisible();
+    expect(screen.getByText("Local commits to publish")).toBeVisible();
+    expect(screen.getByText("Synchronized and clean")).toBeVisible();
     expect(screen.getByText("Dirty commit")).toBeVisible();
-    expect(screen.getAllByText("Nessun commit")).toHaveLength(3);
+    expect(screen.getAllByText("No commit")).toHaveLength(3);
     expect(screen.getByText("+3 ahead")).toBeVisible();
     expect(screen.getByText("2 behind")).toBeVisible();
-    expect(screen.getByText("3 modifiche")).toBeVisible();
+    expect(screen.getByText("3 changes")).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Apri dirty" }));
-    await user.click(screen.getByRole("button", { name: "Rimuovi dirty dai preferiti" }));
-    await user.click(screen.getByRole("button", { name: "Aggiungi behind ai preferiti" }));
+    await user.click(screen.getByRole("button", { name: "Remove dirty from favorites" }));
+    await user.click(screen.getByRole("button", { name: "Add behind to favorites" }));
     expect(onSelectProject).toHaveBeenCalledWith("dirty");
     expect(onToggleFavorite).toHaveBeenCalledTimes(2);
 
@@ -63,7 +63,7 @@ describe("WorkspaceMap", () => {
     const { rerender } = renderWithTheme(
       <WorkspaceMap root="/workspace" projects={[]} favoriteProjectIds={[]} {...callbacks} />
     );
-    expect(screen.getByText("Nessun repository trovato")).toBeVisible();
+    expect(screen.getByText("No repository found")).toBeVisible();
 
     rerender(
       <FavoriteProjects
@@ -74,8 +74,8 @@ describe("WorkspaceMap", () => {
         {...callbacks}
       />
     );
-    expect(screen.getByLabelText("Repository preferiti")).toBeVisible();
-    expect(screen.getByText("Crea il tuo launchpad")).toBeVisible();
+    expect(screen.getByLabelText("Favorite repositories")).toBeVisible();
+    expect(screen.getByText("Build your launchpad")).toBeVisible();
 
     const onDensityChange = vi.fn();
     rerender(
@@ -88,13 +88,13 @@ describe("WorkspaceMap", () => {
         {...callbacks}
       />
     );
-    const section = screen.getByLabelText("Repository preferiti");
+    const section = screen.getByLabelText("Favorite repositories");
     expect(section).toBeVisible();
-    expect(screen.getByText("Aperto")).toBeVisible();
-    expect(screen.getByRole("group", { name: "Densità repository preferiti" })).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Densità compatta" }));
+    expect(screen.getByText("Open")).toBeVisible();
+    expect(screen.getByRole("group", { name: "Favorite repository density" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Compact density" }));
     await user.click(screen.getByRole("button", { name: "Apri dirty" }));
-    await user.click(screen.getByRole("button", { name: "Rimuovi dirty dai preferiti" }));
+    await user.click(screen.getByRole("button", { name: "Remove dirty from favorites" }));
     expect(onDensityChange).toHaveBeenCalledWith("compact");
     expect(callbacks.onSelectProject).toHaveBeenCalledWith("dirty");
     expect(callbacks.onToggleFavorite).toHaveBeenCalledWith("dirty");
@@ -114,8 +114,8 @@ describe("WorkspaceMap", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: /Da controllare/ })).toBeVisible();
-    expect(screen.getByRole("button", { name: /Puliti e sincronizzati/ })).toBeVisible();
-    expect(screen.getByText("Aperto")).toBeVisible();
+    expect(screen.getByRole("button", { name: /Needs attention/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /Clean and synchronized/ })).toBeVisible();
+    expect(screen.getByText("Open")).toBeVisible();
   });
 });

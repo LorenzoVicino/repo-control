@@ -1,6 +1,7 @@
 import CloseIcon from "@mui/icons-material/Close";
 import SyncIcon from "@mui/icons-material/Sync";
 import { Alert, Box, CircularProgress, Dialog, DialogContent, IconButton, Stack, Typography } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { CommandOutput } from "../shared/CommandOutput";
 import type { AppUpdateResult } from "../../types/app";
 
@@ -12,6 +13,8 @@ type AppUpdateDialogProps = {
 };
 
 export function AppUpdateDialog({ open, isUpdating, result, onClose }: AppUpdateDialogProps) {
+  const { t } = useTranslation();
+
   return (
     <Dialog
       open={open}
@@ -29,32 +32,32 @@ export function AppUpdateDialog({ open, isUpdating, result, onClose }: AppUpdate
             <SyncIcon color="primary" />
             <Box sx={{ minWidth: 0, flexGrow: 1 }}>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                Aggiorna repo-control
+                {t("dashboard.update.title")}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Esegue git pull --ff-only, npm install e riavvia il server locale.
+                {t("dashboard.update.description")}
               </Typography>
             </Box>
-            <IconButton onClick={onClose} disabled={isUpdating} aria-label="Close update dialog">
+            <IconButton onClick={onClose} disabled={isUpdating} aria-label={t("dashboard.update.close")}>
               <CloseIcon />
             </IconButton>
           </Stack>
 
           {isUpdating ? (
             <Alert severity="info" icon={<CircularProgress size={18} />}>
-              Aggiornamento in corso. Non chiudere il terminale.
+              {t("dashboard.update.inProgress")}
             </Alert>
           ) : null}
 
           {result?.restartScheduled ? (
             <Alert severity="success">
-              Aggiornamento completato. Il server sta provando a riavviarsi automaticamente.
+              {t("dashboard.update.restarting")}
             </Alert>
           ) : null}
 
           {result && !result.ok ? (
             <Alert severity="warning">
-              Aggiornamento non completato. Controlla l'output e risolvi eventuali modifiche locali.
+              {t("dashboard.update.failed")}
             </Alert>
           ) : null}
 

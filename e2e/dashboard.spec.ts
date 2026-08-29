@@ -51,7 +51,7 @@ test("loads live workspace data and opens a repository from the keyboard palette
   await page.keyboard.press("Control+P");
   const palette = page.getByRole("dialog", { name: "Repository command palette" });
   await expect(palette).toBeVisible();
-  const searchInput = palette.getByPlaceholder("Cerca repository (Ctrl+P)");
+  const searchInput = palette.getByPlaceholder("Search repositories (Ctrl+P)");
   await expect(searchInput).toBeFocused();
   await searchInput.fill(workspaceRepositoryName);
   await expect(palette.getByText(workspaceRepositoryName, { exact: true })).toBeVisible();
@@ -222,8 +222,8 @@ test("renders the refactored repository, favorites, task and Docker workspaces r
   await page.setViewportSize({ width: 1280, height: 720 });
 
   await page.locator('[data-dashboard-section="favorites"]').first().click();
-  await expect(page.getByRole("heading", { name: "Preferiti", exact: true })).toBeVisible();
-  await expect(page.getByText(/launchpad personale/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Favorites", exact: true })).toBeVisible();
+  await expect(page.getByText(/personal launchpad/)).toBeVisible();
   await waitForInterfaceMotion(page);
   await page.screenshot({ path: testInfo.outputPath("favorites-launchpad.png"), fullPage: true });
 
@@ -235,7 +235,7 @@ test("renders the refactored repository, favorites, task and Docker workspaces r
 
   await page.locator('[data-dashboard-section="docker"]').first().click();
   await expect(page.getByRole("heading", { name: "Docker runtime", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Riepilogo Docker")).toContainText("Porte pubblicate");
+  await expect(page.getByLabel("Docker summary")).toContainText("Published ports");
   await expect(page.getByRole("link", { name: /3000→3000\/tcp/ })).toHaveAttribute("href", "http://localhost:3000");
   await waitForInterfaceMotion(page);
   await page.screenshot({ path: testInfo.outputPath("docker-runtime.png"), fullPage: true });
@@ -439,7 +439,7 @@ test.fixme("collects workflow text inputs and resolves them safely in a dry run"
       browserRequest.url().endsWith(`/api/workflows/${workflow.id}/dry-run`)
       && browserRequest.method() === "POST"
     );
-    await executionDialog.getByRole("button", { name: "Genera anteprima" }).click();
+    await executionDialog.getByRole("button", { name: "Generate preview" }).click();
     const dryRunRequest = await dryRunRequestPromise;
     expect(dryRunRequest.postDataJSON()).toEqual({
       inputs: { message: "release candidate" }

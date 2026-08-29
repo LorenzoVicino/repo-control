@@ -1,11 +1,6 @@
 import type { ColorMode } from "../types/common";
 import type { ProjectSummary, ProjectTone } from "../types/projects";
 
-const PROJECT_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short"
-});
-
 export function isProject(project: ProjectSummary | undefined): project is ProjectSummary {
   return project !== undefined;
 }
@@ -86,8 +81,13 @@ export function getProjectTone(project: ProjectSummary, colorMode: ColorMode): P
   };
 }
 
-export function formatDate(value: string): string {
-  return PROJECT_DATE_FORMATTER.format(new Date(value));
+// `language` follows the app's interface language. It stays optional so callers that
+// have no translation context keep the previous behaviour (the browser locale).
+export function formatDate(value: string, language?: string): string {
+  return new Intl.DateTimeFormat(language, {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
 }
 
 function getGroupLabel(project: ProjectSummary, root: string): string {

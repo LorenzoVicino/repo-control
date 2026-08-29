@@ -252,7 +252,7 @@ type BranchRowProps = {
 };
 
 const BranchRow = React.memo(function BranchRow({ branch, isDirty, isRunning, onCheckout }: BranchRowProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   return (
     <Box
@@ -270,7 +270,7 @@ const BranchRow = React.memo(function BranchRow({ branch, isDirty, isRunning, on
           </Typography>
           {branch.lastCommit ? (
             <Typography variant="caption" color="text.secondary" noWrap component="div" title={branch.lastCommit.message}>
-              {branch.lastCommit.hash} · {branch.lastCommit.message} · {formatDate(branch.lastCommit.date)}
+              {branch.lastCommit.hash} · {branch.lastCommit.message} · {formatDate(branch.lastCommit.date, i18n.language)}
             </Typography>
           ) : null}
           <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 0.5 }}>

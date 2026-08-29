@@ -25,6 +25,8 @@ import {
   Typography
 } from "@mui/material";
 import React from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import type { DockerContainer, DockerContainerGroup, DockerContainersResponse } from "../../types/docker";
 
 const MAX_VISIBLE_GROUPS = 5;
@@ -48,15 +50,16 @@ export function ControlCenter({
   onRefreshDocker,
   onStopDockerGroup
 }: ControlCenterProps) {
+  const { t } = useTranslation();
   const [showAllGroups, setShowAllGroups] = React.useState(false);
   const [pendingStopGroup, setPendingStopGroup] = React.useState<DockerContainerGroup | null>(null);
   const dockerGroups = dockerStatus?.groups ?? [];
   const visibleDockerGroups = showAllGroups ? dockerGroups : dockerGroups.slice(0, MAX_VISIBLE_GROUPS);
   const hiddenDockerGroupCount = dockerGroups.length - visibleDockerGroups.length;
-  const dockerStateLabel = getDockerStateLabel(dockerStatus, isLoadingDocker);
+  const dockerStateLabel = getDockerStateLabel(t, dockerStatus, isLoadingDocker);
   const dockerStateColor = dockerStatus?.ok ? "success" : dockerStatus ? "warning" : "default";
   const containers = dockerStatus?.containers ?? [];
-  const attentionCount = containers.filter((container) => getContainerState(container).tone !== "success").length;
+  const attentionCount = containers.filter((container) => getContainerState(t, container).tone !== "success").length;
   const publishedPortCount = new Set(containers.flatMap((container) => getPublishedPorts(container.ports).map((port) => port.label))).size;
 
   return (
@@ -80,21 +83,21 @@ export function ControlCenter({
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
               <Typography id="docker-runtime-title" component="h1" variant="h1">
-                Docker runtime
+                {t("dashboard.runtime.title")}
               </Typography>
               <Chip size="small" label={dockerStateLabel} color={dockerStateColor} variant="outlined" />
             </Stack>
             <Typography variant="caption" color="text.secondary" component="div">
-              Stato reale del daemon, scope Compose, servizi e porte pubblicate
+              {t("dashboard.runtime.subtitle")}
             </Typography>
           </Box>
         </Stack>
 
-        <Tooltip title="Aggiorna container Docker">
+        <Tooltip title={t("dashboard.runtime.refresh")}>
           <span>
             <IconButton
               size="small"
-              aria-label="Aggiorna container Docker"
+              aria-label={t("dashboard.runtime.refresh")}
               onClick={onRefreshDocker}
               disabled={isRefreshingDocker}
             >
@@ -106,7 +109,7 @@ export function ControlCenter({
 
       {dockerStatus?.ok ? (
         <Box
-          aria-label="Riepilogo Docker"
+          aria-label={t("dashboard.runtime.summaryAria")}
           sx={{
             mt: 1.5,
             display: "grid",
@@ -118,10 +121,14 @@ export function ControlCenter({
             bgcolor: "var(--rc-surface-1)"
           }}
         >
-          <RuntimeMetric label="Gruppi" value={dockerGroups.length} />
-          <RuntimeMetric label="Servizi" value={containers.length} />
-          <RuntimeMetric label="Da controllare" value={attentionCount} tone={attentionCount > 0 ? "warning.main" : "success.main"} />
-          <RuntimeMetric label="Porte pubblicate" value={publishedPortCount} />
+          <RuntimeMetric label={t("dashboard.runtime.groups")} value={dockerGroups.length} />
+          <RuntimeMetric label={t("dashboard.runtime.services")} value={containers.length} />
+          <RuntimeMetric
+            label={t("dashboard.runtime.needsAttention")}
+            value={attentionCount}
+            tone={attentionCount > 0 ? "warning.main" : "success.main"}
+          />
+          <RuntimeMetric label={t("dashboard.runtime.publishedPorts")} value={publishedPortCount} />
         </Box>
       ) : null}
 
@@ -144,11 +151,11 @@ export function ControlCenter({
             </Stack>
             {hiddenDockerGroupCount > 0 ? (
               <Button variant="outlined" onClick={() => setShowAllGroups(true)} sx={{ alignSelf: "flex-start" }}>
-                Mostra {hiddenDockerGroupCount} {hiddenDockerGroupCount === 1 ? "altro gruppo" : "altri gruppi"}
+                {t("dashboard.runtime.showMoreGroups", { count: hiddenDockerGroupCount })}
               </Button>
             ) : showAllGroups && dockerGroups.length > MAX_VISIBLE_GROUPS ? (
               <Button variant="text" onClick={() => setShowAllGroups(false)} sx={{ alignSelf: "flex-start" }}>
-                Mostra meno gruppi
+                {t("dashboard.runtime.showFewerGroups")}
               </Button>
             ) : null}
           </Stack>
@@ -169,7 +176,9 @@ export function ControlCenter({
           >
             {isLoadingDocker ? <CircularProgress size={17} /> : <PlayCircleOutlineIcon fontSize="small" />}
             <Typography variant="body2">
-              {isLoadingDocker ? "Lettura container Docker" : "Nessun container avviato"}
+              {isLoadingDocker
+                ? t("dashboard.runtime.readingContainers")
+                : t("dashboard.runtime.noContainers")}
             </Typography>
           </Stack>
         )}
@@ -178,14 +187,17 @@ export function ControlCenter({
       <Dialog open={Boolean(pendingStopGroup)} onClose={() => setPendingStopGroup(null)} maxWidth="xs" fullWidth>
         {pendingStopGroup ? (
           <>
-            <DialogTitle>Conferma arresto gruppo</DialogTitle>
+            <DialogTitle>{t("dashboard.runtime.confirmStopTitle")}</DialogTitle>
             <DialogContent>
               <Typography variant="body2" color="text.secondary">
-                Stai per fermare {formatServiceCount(pendingStopGroup.containers.length)} nel gruppo {pendingStopGroup.name}. Gli altri gruppi Docker non verranno toccati.
+                {t("dashboard.runtime.confirmStopBody", {
+                  services: formatServiceCount(t, pendingStopGroup.containers.length),
+                  group: pendingStopGroup.name
+                })}
               </Typography>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setPendingStopGroup(null)}>Annulla</Button>
+              <Button onClick={() => setPendingStopGroup(null)}>{t("common.cancel")}</Button>
               <Button
                 color="warning"
                 variant="contained"
@@ -194,7 +206,9 @@ export function ControlCenter({
                   setPendingStopGroup(null);
                 }}
               >
-                Ferma {formatServiceCount(pendingStopGroup.containers.length)}
+                {t("dashboard.runtime.stopServices", {
+                  services: formatServiceCount(t, pendingStopGroup.containers.length)
+                })}
               </Button>
             </DialogActions>
           </>
@@ -221,7 +235,8 @@ type DockerProjectGroupProps = {
 };
 
 function DockerProjectGroup({ group, defaultExpanded, isStopping, onRequestStop }: DockerProjectGroupProps) {
-  const attentionCount = group.containers.filter((container) => getContainerState(container).tone !== "success").length;
+  const { t } = useTranslation();
+  const attentionCount = group.containers.filter((container) => getContainerState(t, container).tone !== "success").length;
   const groupHealthy = attentionCount === 0;
 
   return (
@@ -243,18 +258,23 @@ function DockerProjectGroup({ group, defaultExpanded, isStopping, onRequestStop 
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="body2" fontWeight={700} noWrap>{group.name}</Typography>
             <Typography variant="caption" color="text.secondary" component="div" noWrap>
-              {group.workingDir ?? (group.composeProject ? `Compose · ${group.composeProject}` : "Container indipendente")}
+              {group.workingDir
+                ?? (group.composeProject
+                  ? `Compose · ${group.composeProject}`
+                  : t("dashboard.runtime.standaloneContainer"))}
             </Typography>
           </Box>
-          <Chip size="small" variant="outlined" color={groupHealthy ? "success" : "warning"} label={formatServiceCount(group.containers.length)} />
+          <Chip size="small" variant="outlined" color={groupHealthy ? "success" : "warning"} label={formatServiceCount(t, group.containers.length)} />
         </Stack>
       </AccordionSummary>
-      <Tooltip title={`Ferma solo ${group.name}`}>
+      <Tooltip title={t("dashboard.runtime.stopOnly", { group: group.name })}>
         <span style={{ position: "absolute", right: 44, top: "50%", transform: "translateY(-50%)" }}>
           <IconButton
             size="small"
             color="warning"
-            aria-label={group.composeProject ? `Ferma compose ${group.name}` : `Ferma container ${group.name}`}
+            aria-label={group.composeProject
+              ? t("dashboard.runtime.stopCompose", { group: group.name })
+              : t("dashboard.runtime.stopContainer", { group: group.name })}
             onClick={onRequestStop}
             disabled={isStopping}
           >
@@ -273,7 +293,8 @@ function DockerProjectGroup({ group, defaultExpanded, isStopping, onRequestStop 
 }
 
 function DockerServiceRow({ container }: { container: DockerContainer }) {
-  const state = getContainerState(container);
+  const { t } = useTranslation();
+  const state = getContainerState(t, container);
   const ports = getPublishedPorts(container.ports);
 
   return (
@@ -293,19 +314,35 @@ function DockerServiceRow({ container }: { container: DockerContainer }) {
           </Link>
         ) : (
           <Typography key={port.label} variant="caption" sx={{ fontFamily: "var(--rc-font-mono)" }}>{port.label}</Typography>
-        )) : <Typography variant="caption" color="text.secondary">Nessuna porta pubblicata</Typography>}
+        )) : (
+          <Typography variant="caption" color="text.secondary">
+            {t("dashboard.runtime.noPublishedPorts")}
+          </Typography>
+        )}
       </Stack>
     </Box>
   );
 }
 
-function getContainerState(container: DockerContainer): { label: string; tone: "success" | "warning" | "error" | "default" } {
+function getContainerState(
+  t: TFunction,
+  container: DockerContainer
+): { label: string; tone: "success" | "warning" | "error" | "default" } {
   const normalized = container.status.toLowerCase();
-  if (normalized.includes("unhealthy") || normalized.includes("dead") || normalized.includes("exited")) return { label: normalized.includes("unhealthy") ? "Unhealthy" : "Arrestato", tone: "error" };
-  if (normalized.includes("restarting") || normalized.includes("starting")) return { label: "In avvio", tone: "warning" };
-  if (normalized.includes("healthy")) return { label: "Healthy", tone: "success" };
-  if (normalized.startsWith("up")) return { label: "In esecuzione", tone: "success" };
-  return { label: container.status || "Sconosciuto", tone: "default" };
+  if (normalized.includes("unhealthy") || normalized.includes("dead") || normalized.includes("exited")) {
+    return {
+      label: normalized.includes("unhealthy")
+        ? t("dashboard.runtime.state.unhealthy")
+        : t("dashboard.runtime.state.stopped"),
+      tone: "error"
+    };
+  }
+  if (normalized.includes("restarting") || normalized.includes("starting")) {
+    return { label: t("dashboard.runtime.state.starting"), tone: "warning" };
+  }
+  if (normalized.includes("healthy")) return { label: t("dashboard.runtime.state.healthy"), tone: "success" };
+  if (normalized.startsWith("up")) return { label: t("dashboard.runtime.state.running"), tone: "success" };
+  return { label: container.status || t("dashboard.runtime.state.unknown"), tone: "default" };
 }
 
 type PublishedPort = { label: string; url: string | null };
@@ -325,15 +362,16 @@ function getPublishedPorts(rawPorts: string): PublishedPort[] {
 }
 
 function getDockerStateLabel(
+  t: TFunction,
   dockerStatus: DockerContainersResponse | undefined,
   isLoadingDocker: boolean
 ): string {
-  if (isLoadingDocker && !dockerStatus) return "lettura";
-  if (!dockerStatus) return "n/d";
-  if (!dockerStatus.ok) return "non disponibile";
-  return `${dockerStatus.groups.length} ${dockerStatus.groups.length === 1 ? "progetto" : "progetti"}`;
+  if (isLoadingDocker && !dockerStatus) return t("dashboard.runtime.reading");
+  if (!dockerStatus) return t("shared.notAvailable");
+  if (!dockerStatus.ok) return t("dashboard.runtime.unavailable");
+  return t("dashboard.runtime.projectCount", { count: dockerStatus.groups.length });
 }
 
-function formatServiceCount(count: number): string {
-  return `${count} ${count === 1 ? "servizio" : "servizi"}`;
+function formatServiceCount(t: TFunction, count: number): string {
+  return t("dashboard.runtime.serviceCount", { count });
 }
