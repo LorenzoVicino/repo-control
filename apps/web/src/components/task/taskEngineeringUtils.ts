@@ -10,7 +10,10 @@ export function getContextProjectIds(
     .map((project) => project.id);
 }
 
-export function haveSameProjectIds(left: string[], right: string[]): boolean {
+// Order-insensitive: the context repositories come from a multi-select, so a reordering
+// is not a change. Not the same comparison as areProjectIdListsEqual in
+// ProjectsDashboard, which is order-sensitive because it guards a state update.
+export function haveSameProjectIdSelection(left: string[], right: string[]): boolean {
   const sortedLeft = [...left].sort();
   const sortedRight = [...right].sort();
 

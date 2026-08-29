@@ -326,7 +326,7 @@ export function ProjectsDashboard({
 
     setWarmProjectIds((currentProjectIds) => {
       const validProjectIds = currentProjectIds.filter((projectId) => availableProjectIds.has(projectId));
-      return haveSameProjectIds(validProjectIds, currentProjectIds) ? currentProjectIds : validProjectIds;
+      return areProjectIdListsEqual(validProjectIds, currentProjectIds) ? currentProjectIds : validProjectIds;
     });
 
     if (activeProjectId && !availableProjectIds.has(activeProjectId)) {
@@ -1025,7 +1025,10 @@ function ViewEntrance({ children, fill = false }: React.PropsWithChildren<{ fill
   );
 }
 
-function haveSameProjectIds(left: string[], right: string[]): boolean {
+// Order-sensitive: this guards a state update, so it must only report equality when the
+// existing array can be kept by reference. Not the same comparison as
+// haveSameProjectIdSelection in taskEngineeringUtils, which ignores order.
+function areProjectIdListsEqual(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((projectId, index) => projectId === right[index]);
 }
 

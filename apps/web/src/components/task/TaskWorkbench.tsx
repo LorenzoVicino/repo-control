@@ -32,7 +32,7 @@ import {
   formatTaskDate,
   getContextProjectIds,
   getTaskErrorMessage,
-  haveSameProjectIds
+  haveSameProjectIdSelection
 } from "./taskEngineeringUtils";
 
 type TaskWorkbenchProps = {
@@ -60,7 +60,7 @@ export function TaskWorkbench({ projectId, projects, task, onChanged }: TaskWork
   const contextProjects = projects.filter((project) => project.id !== projectId);
   const selectedContextProjects = contextProjects.filter((project) => contextProjectIds.includes(project.id));
   const savedContextProjectIds = getContextProjectIds(projects, task.contextRepositoryPaths);
-  const contextChanged = !haveSameProjectIds(contextProjectIds, savedContextProjectIds);
+  const contextChanged = !haveSameProjectIdSelection(contextProjectIds, savedContextProjectIds);
   const primaryProject = projects.find((project) => project.id === projectId);
 
   React.useEffect(() => {
