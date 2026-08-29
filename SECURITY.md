@@ -4,6 +4,8 @@ repo-control is designed for a single trusted user on a local developer workstat
 
 The API and Vite development server bind to `127.0.0.1` by default. Keep both on localhost. Changing the bind address exposes an API that can run Git, Docker and terminal commands; CORS is not an authentication boundary.
 
+Binding to loopback alone does not keep browsers out. A page on any origin can re-resolve its own hostname to `127.0.0.1` (DNS rebinding); the browser then treats requests to the API as same-origin, so CORS never runs and the origin allowlist is not consulted. The API therefore validates the `Host` header on every request and rejects anything that is not a loopback name or the configured bind host with `403 FORBIDDEN_HOST`. Set `ALLOWED_HOSTS` (comma-separated) if you reach the API through another hostname.
+
 ## Supported trust boundary
 
 - Bind to `127.0.0.1`.
@@ -23,6 +25,7 @@ Command arguments, command output and agent transcript snippets may contain secr
 
 ## Execution safeguards and limits
 
+- The `Host` header is validated before routing, so a rebound request is rejected before it can resolve a project or start a command.
 - Project endpoints resolve an opaque project identifier against repositories discovered under the active workspace.
 - Git ref and file-path inputs are validated; pull is fast-forward-only and branch changes are blocked on dirty repositories.
 - Docker Compose actions require a Compose file in the selected repository.
