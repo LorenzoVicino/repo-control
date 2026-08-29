@@ -21,7 +21,7 @@ describe("RepositoryCommandPalette", () => {
       <PaletteHarness onClose={onClose} onOpenProject={onOpenProject} />
     );
 
-    const searchInput = screen.getByPlaceholderText("Cerca repository (Ctrl+P)");
+    const searchInput = screen.getByPlaceholderText("Search repositories (Ctrl+P)");
     await waitFor(() => expect(searchInput).toHaveFocus());
 
     await user.keyboard("{ArrowDown}{Enter}");
@@ -37,11 +37,11 @@ describe("RepositoryCommandPalette", () => {
       <PaletteHarness onClose={vi.fn()} onOpenProject={vi.fn()} />
     );
 
-    const searchInput = screen.getByPlaceholderText("Cerca repository (Ctrl+P)");
+    const searchInput = screen.getByPlaceholderText("Search repositories (Ctrl+P)");
     await user.clear(searchInput);
     await user.type(searchInput, "missing repository");
 
-    expect(screen.getByText("Nessun repository trovato")).toBeVisible();
+    expect(screen.getByText("No repository found")).toBeVisible();
     expect(screen.queryByText("Alpha API")).not.toBeInTheDocument();
   });
 });

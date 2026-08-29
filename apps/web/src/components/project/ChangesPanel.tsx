@@ -859,7 +859,7 @@ type StashRowProps = {
 };
 
 function StashRow({ projectId, stash, onResult, onCompleted }: StashRowProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [isRunning, setIsRunning] = React.useState(false);
 
   async function popStash() {
@@ -902,7 +902,7 @@ function StashRow({ projectId, stash, onResult, onCompleted }: StashRowProps) {
         </Stack>
         {stash.date ? (
           <Typography variant="caption" color="text.secondary" component="div" noWrap>
-            {formatDate(stash.date)}
+            {formatDate(stash.date, i18n.language)}
           </Typography>
         ) : null}
       </Box>

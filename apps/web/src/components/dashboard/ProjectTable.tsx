@@ -2,6 +2,7 @@ import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import CallSplitIcon from "@mui/icons-material/CallSplit";
 import { alpha, Box, Chip, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { StatusChips } from "../shared/StatusChips";
 import { SyncChips } from "../shared/SyncChips";
 import type { ProjectSummary } from "../../types/projects";
@@ -16,13 +17,14 @@ type ProjectTableProps = {
 };
 
 export const ProjectTable = React.memo(function ProjectTable({ projects, openProjectIds = EMPTY_PROJECT_IDS, density = "compact", onSelectProject }: ProjectTableProps) {
+  const { t } = useTranslation();
   const openProjectIdSet = React.useMemo(() => new Set(openProjectIds), [openProjectIds]);
   if (projects.length === 0) {
     return (
       <Box sx={{ p: 4, textAlign: "center" }}>
-        <Typography variant="h6">Nessun repository trovato</Typography>
+        <Typography variant="h6">{t("dashboard.table.noRepositories")}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Modifica la ricerca o seleziona un altro workspace.
+          {t("dashboard.table.refineSearch")}
         </Typography>
       </Box>
     );
@@ -33,12 +35,12 @@ export const ProjectTable = React.memo(function ProjectTable({ projects, openPro
       <Table size={density === "compact" ? "small" : "medium"} stickyHeader sx={{ minWidth: 1040 }}>
         <TableHead>
           <TableRow>
-            <TableCell>Repository</TableCell>
-            <TableCell>Branch</TableCell>
-            <TableCell>Stato</TableCell>
-            <TableCell>Sincronizzazione</TableCell>
-            <TableCell>Ultimo commit</TableCell>
-            <TableCell>Percorso</TableCell>
+            <TableCell>{t("dashboard.table.repository")}</TableCell>
+            <TableCell>{t("dashboard.table.branch")}</TableCell>
+            <TableCell>{t("dashboard.table.state")}</TableCell>
+            <TableCell>{t("dashboard.table.sync")}</TableCell>
+            <TableCell>{t("dashboard.table.lastCommit")}</TableCell>
+            <TableCell>{t("dashboard.table.path")}</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -88,7 +90,7 @@ export const ProjectTable = React.memo(function ProjectTable({ projects, openPro
                   <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
                     {project.name}
                   </Typography>
-                  {openProjectIdSet.has(project.id) ? <Chip size="small" color="primary" variant="outlined" label="Aperto" /> : null}
+                  {openProjectIdSet.has(project.id) ? <Chip size="small" color="primary" variant="outlined" label={t("dashboard.table.open")} /> : null}
                 </Stack>
               </TableCell>
               <TableCell>
@@ -117,7 +119,7 @@ export const ProjectTable = React.memo(function ProjectTable({ projects, openPro
                   </Box>
                 ) : (
                   <Typography variant="body2" color="text.secondary">
-                    Nessun commit
+                    {t("dashboard.table.noCommit")}
                   </Typography>
                 )}
               </TableCell>

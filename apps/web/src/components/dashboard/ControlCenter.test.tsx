@@ -51,21 +51,21 @@ describe("ControlCenter", () => {
       />
     );
 
-    expect(screen.getByText("6 progetti")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Mostra 1 altro gruppo" })).toBeVisible();
+    expect(screen.getByText("6 projects")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Show 1 more group" })).toBeVisible();
     expect(screen.getByText("service-4")).toBeVisible();
     expect(screen.getByRole("link", { name: /3000→3000\/tcp/ })).toHaveAttribute("href", "http://localhost:3000");
     expect(screen.getByText("Unhealthy")).toBeVisible();
     expect(screen.getByText("/workspace/project-0")).toBeVisible();
     expect(screen.getByText("stop fallito")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Aggiorna container Docker" }));
-    await user.click(screen.getByRole("button", { name: "Ferma compose project-0" }));
-    expect(screen.getByText(/Gli altri gruppi Docker non verranno toccati/)).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Ferma 5 servizi" }));
+    await user.click(screen.getByRole("button", { name: "Refresh Docker containers" }));
+    await user.click(screen.getByRole("button", { name: "Stop compose project-0" }));
+    expect(screen.getByText(/Other Docker groups are left untouched/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Stop 5 services" }));
     expect(onRefreshDocker).toHaveBeenCalledOnce();
     expect(onStopDockerGroup).toHaveBeenCalledWith(groups[0]);
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(screen.getByRole("button", { name: "Ferma container project-1" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Stop container project-1" })).toBeDisabled();
   });
 
   it("covers loading, empty and unavailable Docker states", () => {
@@ -79,15 +79,15 @@ describe("ControlCenter", () => {
       onStopDockerGroup: vi.fn()
     };
     const { rerender } = renderWithTheme(<ControlCenter {...props} />);
-    expect(screen.getByText("lettura")).toBeVisible();
-    expect(screen.getByText("Lettura container Docker")).toBeVisible();
+    expect(screen.getByText("reading")).toBeVisible();
+    expect(screen.getByText("Reading Docker containers")).toBeVisible();
 
     rerender(<ControlCenter {...props} isLoadingDocker={false} isRefreshingDocker={false} />);
-    expect(screen.getByText("n/d")).toBeVisible();
-    expect(screen.getByText("Nessun container avviato")).toBeVisible();
+    expect(screen.getByText("n/a")).toBeVisible();
+    expect(screen.getByText("No container running")).toBeVisible();
 
     rerender(<ControlCenter {...props} dockerStatus={{ ok: false, containers: [], groups: [], checkedAt: "", error: "daemon offline" }} isLoadingDocker={false} isRefreshingDocker={false} />);
-    expect(screen.getByText("non disponibile")).toBeVisible();
+    expect(screen.getByText("unavailable")).toBeVisible();
     expect(screen.getByText("daemon offline")).toBeVisible();
   });
 });

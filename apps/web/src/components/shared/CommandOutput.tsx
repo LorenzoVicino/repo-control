@@ -1,6 +1,7 @@
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { alpha, Box, Paper, Stack, Typography, useTheme } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import type { CommandResult } from "../../types/common";
 
 type CommandOutputProps = {
@@ -8,6 +9,7 @@ type CommandOutputProps = {
 };
 
 export function CommandOutput({ result }: CommandOutputProps) {
+  const { t } = useTranslation();
   const theme = useTheme();
   const statusColor = result.ok ? theme.palette.success.main : theme.palette.warning.main;
 
@@ -29,7 +31,10 @@ export function CommandOutput({ result }: CommandOutputProps) {
             {result.command}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            exit {result.exitCode ?? "n/a"} - {result.durationMs}ms
+            {t("shared.exitStatus", {
+              code: result.exitCode ?? t("shared.notAvailable"),
+              duration: result.durationMs
+            })}
           </Typography>
         </Box>
       </Stack>
@@ -52,7 +57,7 @@ export function CommandOutput({ result }: CommandOutputProps) {
       ) : (
         <Box sx={{ p: 1.5 }}>
           <Typography variant="body2" color="text.secondary">
-            Done
+            {t("shared.done")}
           </Typography>
         </Box>
       )}

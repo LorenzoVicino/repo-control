@@ -22,9 +22,9 @@ describe("ProjectTable", () => {
     renderWithTheme(<ProjectTable projects={projects} openProjectIds={["alpha"]} density="comfortable" onSelectProject={onSelectProject} />);
 
     expect(screen.getByText("Feature")).toBeVisible();
-    expect(screen.getByText("Aperto")).toBeVisible();
+    expect(screen.getByText("Open")).toBeVisible();
     expect(screen.getByText(/abc123/)).toBeVisible();
-    expect(screen.getByText("Nessun commit")).toBeVisible();
+    expect(screen.getByText("No commit")).toBeVisible();
     const rows = screen.getAllByRole("row").slice(1);
     await user.click(rows[0]!);
     fireEvent.keyDown(rows[1]!, { key: "Enter" });
@@ -37,6 +37,6 @@ describe("ProjectTable", () => {
 
   it("renders an empty result", () => {
     renderWithTheme(<ProjectTable projects={[]} onSelectProject={vi.fn()} />);
-    expect(screen.getByText("Nessun repository trovato")).toBeVisible();
+    expect(screen.getByText("No repository found")).toBeVisible();
   });
 });

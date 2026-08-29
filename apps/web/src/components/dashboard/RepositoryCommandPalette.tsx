@@ -14,6 +14,7 @@ import {
   Typography
 } from "@mui/material";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { ProjectSummary } from "../../types/projects";
 import { filterProjects } from "../../utils/projects";
 
@@ -36,6 +37,7 @@ export function RepositoryCommandPalette({
   onClose,
   onOpenProject
 }: RepositoryCommandPaletteProps) {
+  const { t } = useTranslation();
   const [activeIndex, setActiveIndex] = React.useState(0);
   const searchInputRef = React.useRef<HTMLInputElement | null>(null);
   const results = React.useMemo(() => filterProjects(projects, query).slice(0, MAX_RESULTS), [projects, query]);
@@ -100,7 +102,7 @@ export function RepositoryCommandPalette({
       maxWidth={false}
       transitionDuration={{ enter: 160, exit: 0 }}
       PaperProps={{
-        "aria-label": "Repository command palette",
+        "aria-label": t("dashboard.palette.ariaLabel"),
         sx: {
           width: "min(748px, calc(100vw - 24px))",
           mt: { xs: 2, sm: 9 },
@@ -129,7 +131,7 @@ export function RepositoryCommandPalette({
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Cerca repository (Ctrl+P)"
+          placeholder={t("dashboard.palette.search")}
           variant="standard"
           InputProps={{
             disableUnderline: true,
@@ -152,8 +154,12 @@ export function RepositoryCommandPalette({
         {results.length > 0 ? (
           <>
             <Stack direction="row" alignItems="center" sx={{ minHeight: 31, px: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
-              <Typography variant="overline" color="text.secondary" sx={{ flexGrow: 1 }}>Repository</Typography>
-              <Typography color="text.secondary" sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 9.5 }}>{results.length} risultati</Typography>
+              <Typography variant="overline" color="text.secondary" sx={{ flexGrow: 1 }}>
+                {t("dashboard.palette.repository")}
+              </Typography>
+              <Typography color="text.secondary" sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 9.5 }}>
+                {t("dashboard.palette.resultCount", { total: results.length })}
+              </Typography>
             </Stack>
             <List disablePadding sx={{ p: 0.75, maxHeight: 430, overflow: "auto" }}>
             {results.map((project, index) => (
@@ -209,15 +215,15 @@ export function RepositoryCommandPalette({
             ))}
             </List>
             <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minHeight: 34, px: 1.5, borderTop: "1px solid", borderColor: "divider", bgcolor: "var(--rc-surface-2)" }}>
-              <KeyHint keys="↑↓" label="naviga" />
-              <KeyHint keys="↵" label="apri" />
-              <KeyHint keys="esc" label="chiudi" />
+              <KeyHint keys="↑↓" label={t("dashboard.palette.navigate")} />
+              <KeyHint keys="↵" label={t("dashboard.palette.openHint")} />
+              <KeyHint keys="esc" label={t("dashboard.palette.close")} />
             </Stack>
           </>
         ) : (
           <Box sx={{ p: 3, textAlign: "center" }}>
             <Typography variant="body2" color="text.secondary">
-              Nessun repository trovato
+              {t("dashboard.palette.noRepositories")}
             </Typography>
           </Box>
         )}
@@ -240,17 +246,19 @@ type ProjectSignalProps = {
 };
 
 function ProjectSignal({ project }: ProjectSignalProps) {
+  const { t } = useTranslation();
+
   if (!project.isClean) {
-    return <Chip size="small" color="warning" label="modificato" />;
+    return <Chip size="small" color="warning" label={t("shared.modified")} />;
   }
 
   if (project.behind > 0) {
-    return <Chip size="small" color="secondary" label={`behind ${project.behind}`} />;
+    return <Chip size="small" color="secondary" label={t("shared.behind", { total: project.behind })} />;
   }
 
   if (project.ahead > 0) {
-    return <Chip size="small" color="info" label={`ahead ${project.ahead}`} />;
+    return <Chip size="small" color="info" label={t("shared.ahead", { total: project.ahead })} />;
   }
 
-  return <Chip size="small" color="success" label="pulito" />;
+  return <Chip size="small" color="success" label={t("shared.clean")} />;
 }
