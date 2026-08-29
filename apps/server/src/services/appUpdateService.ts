@@ -1,11 +1,20 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { runProjectCommand } from "../lib/commandRunner.js";
-import type { CommandResult } from "../lib/commandRunner.js";
+import type { CommandResult, CommandRunner } from "../lib/commandRunner.js";
 import { getNpmCommand } from "../runtime.js";
 
 export type AppUpdateResult = CommandResult & {
   restartScheduled: boolean;
+};
+
+// The updater runs git and npm against repo-control's own checkout and then restarts the
+// process, so it is the one service that cannot be exercised for real in a test. Both
+// entry points therefore take their command runner and root path by injection, the same
+// way workflowService receives runProjectCommand through its context.
+export type AppUpdateDependencies = {
+  runCommand?: CommandRunner;
+  appRootPath?: string;
 };
 
 export type AppUpdateStatus = {
@@ -16,8 +25,11 @@ export type AppUpdateStatus = {
   error: string | null;
 };
 
-export async function readAppUpdateStatus(): Promise<AppUpdateStatus> {
-  const appRootPath = path.resolve(process.cwd());
+export async function readAppUpdateStatus(
+  dependencies: AppUpdateDependencies = {}
+): Promise<AppUpdateStatus> {
+  const runCommand = dependencies.runCommand ?? runProjectCommand;
+  const appRootPath = dependencies.appRootPath ?? path.resolve(process.cwd());
   const currentVersion = await readLocalAppVersion(appRootPath);
   const checkedAt = new Date().toISOString();
 
@@ -33,7 +45,7 @@ export async function readAppUpdateStatus(): Promise<AppUpdateStatus> {
     };
   }
 
-  const tags = await runProjectCommand(appRootPath, "git", ["ls-remote", "--tags", "--refs", "origin"], 1000 * 20);
+  const tags = await runCommand(appRootPath, "git", ["ls-remote", "--tags", "--refs", "origin"], 1000 * 20);
 
   if (!tags.ok) {
     return {
@@ -56,8 +68,11 @@ export async function readAppUpdateStatus(): Promise<AppUpdateStatus> {
   };
 }
 
-export async function updateApplication(): Promise<AppUpdateResult> {
-  const appRootPath = path.resolve(process.cwd());
+export async function updateApplication(
+  dependencies: AppUpdateDependencies = {}
+): Promise<AppUpdateResult> {
+  const runCommand = dependencies.runCommand ?? runProjectCommand;
+  const appRootPath = dependencies.appRootPath ?? path.resolve(process.cwd());
   const gitDir = path.join(appRootPath, ".git");
 
   try {
@@ -75,7 +90,7 @@ export async function updateApplication(): Promise<AppUpdateResult> {
     };
   }
 
-  const updateStatus = await readAppUpdateStatus();
+  const updateStatus = await readAppUpdateStatus({ runCommand, appRootPath });
 
   if (!updateStatus.updateAvailable) {
     const message = updateStatus.error
@@ -94,7 +109,7 @@ export async function updateApplication(): Promise<AppUpdateResult> {
     };
   }
 
-  const status = await runProjectCommand(appRootPath, "git", ["status", "--porcelain"]);
+  const status = await runCommand(appRootPath, "git", ["status", "--porcelain"]);
 
   if (!status.ok) {
     return combineUpdateResults([status], false);
@@ -126,7 +141,7 @@ export async function updateApplication(): Promise<AppUpdateResult> {
   ];
 
   for (const step of commands) {
-    const result = await runProjectCommand(appRootPath, step.command, step.args, step.timeoutMs ?? 1000 * 60 * 3);
+    const result = await runCommand(appRootPath, step.command, step.args, step.timeoutMs ?? 1000 * 60 * 3);
     steps.push(result);
 
     if (!result.ok) {
