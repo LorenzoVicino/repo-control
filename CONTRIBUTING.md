@@ -6,6 +6,9 @@ repo-control is a local developer tool. Keep changes focused, local-first and sa
 
 - Git
 - Node.js 20.19+, 22.13+ or 24+ (Node 24 recommended)
+- The npm version is pinned in `package.json` under `packageManager`. Run `corepack enable npm`
+  once so your local npm matches the one CI uses. Different npm versions can write lockfiles
+  the others refuse to install, which is a confusing failure to debug from a red CI job.
 - Chromium installed through Playwright when running the browser suite
 
 ## Local setup
