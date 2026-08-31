@@ -20,6 +20,22 @@ import { reconcileStaleWorkflowRuns } from "./services/workflowService.js";
 
 const STARTUP_BANNER_CONTENT_WIDTH = 76;
 
+// The repo-control mark. Drawn as one block so every row shares a single left pad -
+// centring the rows individually would shear the shape.
+const STARTUP_BANNER_ART = [
+  "         @@@@@",
+  "       @@@@@@@@@",
+  "   @@@@@@@@@@@@@@@@@",
+  " @@@      @@@      @@@",
+  "@@@       @@@       @@@",
+  "@@@    @@@@@@@@@    @@@",
+  "@@@  @@@@@@@@@@@@@  @@@",
+  "@@@@@@@@       @@@@@@@@",
+  "@@@@@             @@@@@",
+  " @@@@@@@       @@@@@@@",
+  "     @@@@@@@@@@@@@"
+];
+
 export async function createServer(): Promise<{
   app: ReturnType<typeof Fastify>;
   env: ServerEnv;
@@ -128,7 +144,7 @@ export async function startServer(): Promise<void> {
   console.log(getStartupBanner(env, projectResolver.getActiveRootPath(), servesWeb));
 }
 
-function getStartupBanner(env: ServerEnv, activeRootPath: string, servesWeb: boolean): string {
+export function getStartupBanner(env: ServerEnv, activeRootPath: string, servesWeb: boolean): string {
   const apiHost = env.HOST === "127.0.0.1" ? "localhost" : env.HOST;
   // When this process serves the build, the UI lives on the API port. Otherwise the Vite
   // dev server owns it on its own port.
@@ -137,6 +153,8 @@ function getStartupBanner(env: ServerEnv, activeRootPath: string, servesWeb: boo
   return [
     "",
     bannerBorder("="),
+    bannerLine(),
+    ...bannerArt(),
     bannerLine(),
     bannerLine(centerBannerText("repo-control")),
     bannerLine(centerBannerText("local repository command center")),
@@ -162,6 +180,14 @@ function bannerLine(content = ""): string {
   const normalizedContent = content.slice(0, STARTUP_BANNER_CONTENT_WIDTH);
 
   return `  | ${normalizedContent.padEnd(STARTUP_BANNER_CONTENT_WIDTH)} |`;
+}
+
+function bannerArt(): string[] {
+  const artWidth = Math.max(...STARTUP_BANNER_ART.map((row) => row.length));
+  const leftPadding = Math.max(0, Math.floor((STARTUP_BANNER_CONTENT_WIDTH - artWidth) / 2));
+  const indent = " ".repeat(leftPadding);
+
+  return STARTUP_BANNER_ART.map((row) => bannerLine(`${indent}${row}`));
 }
 
 function centerBannerText(content: string): string {

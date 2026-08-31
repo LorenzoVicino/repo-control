@@ -6,7 +6,8 @@ import path from "node:path";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
-import { createServer } from "./server.js";
+import { readEnv } from "./config/env.js";
+import { createServer, getStartupBanner } from "./server.js";
 
 const execFileAsync = promisify(execFile);
 const TERMINAL_RUN_STATUSES = new Set(["success", "warning", "failed", "cancelled", "interrupted"]);
@@ -486,3 +487,28 @@ async function createRepository(repositoryPath: string): Promise<void> {
   await execFileAsync("git", ["add", "."], { cwd: repositoryPath });
   await execFileAsync("git", ["commit", "-m", "Initial fixture"], { cwd: repositoryPath });
 }
+
+test("the startup banner keeps the ascii mark aligned inside the box", () => {
+  const env = readEnv({ HOST: "127.0.0.1", PORT: "3747" });
+  const banner = getStartupBanner(env, "/tmp/workspace", false);
+  const rows = banner.split("\n").filter((row) => row.length > 0);
+
+  // A single row of the wrong width means the mark overflowed the content column.
+  assert.equal(new Set(rows.map((row) => row.length)).size, 1);
+
+  const artRows = rows.filter((row) => row.includes("@"));
+  assert.equal(artRows.length, 11);
+
+  // The mark is padded as one block, so every row lands centred to within the odd
+  // column left over by an even-width box. Per-row centring would shear the shape.
+  for (const row of artRows) {
+    const content = row.slice(row.indexOf("|") + 1, row.lastIndexOf("|"));
+    const leading = content.length - content.trimStart().length;
+    const trailing = content.length - content.trimEnd().length;
+
+    assert.ok(Math.abs(leading - trailing) <= 1, `mark row is off centre: ${row}`);
+  }
+
+  assert.ok(rows.some((row) => row.includes("repo-control")));
+  assert.ok(rows.some((row) => row.includes("/tmp/workspace")));
+});

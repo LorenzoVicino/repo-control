@@ -6,6 +6,10 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+### Added
+
+- Print the repo-control mark above the title in the startup banner. The banner already framed the URLs and workspace root, but nothing made the process identifiable at a glance in a terminal shared with the Vite dev server and whatever else is running. The mark is padded as one block so every row shares a single left indent, and a test asserts the box stays column-aligned.
+
 ## [0.10.0] - 2026-08-29
 
 ### Added
