@@ -506,6 +506,7 @@ export const en = {
     },
     terminal: {
       panelAria: "Repository terminal {{name}}",
+      backToOutput: "Back to output",
       cancelCommand: "Cancel command",
       emptyState: "repo-control terminal · scoped to this repository · commands start from the cwd shown",
       completedNoOutput: "Command completed with no output.",
@@ -1516,6 +1517,7 @@ export const it: TranslationSchema<typeof en> = {
     },
     terminal: {
       panelAria: "Terminale repository {{name}}",
+      backToOutput: "Torna all’output",
       cancelCommand: "Cancel command",
       emptyState: "repo-control terminal · scoped a questa repository · i comandi partono dalla cwd indicata",
       completedNoOutput: "Comando completato senza output.",

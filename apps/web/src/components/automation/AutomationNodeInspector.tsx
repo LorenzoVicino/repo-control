@@ -206,7 +206,7 @@ export function AutomationNodeInspector({
                 getOptionLabel={(project) => project.name}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
                 onChange={(_, nextProjects) => updateConfig({ projectIds: nextProjects.map((project) => project.id) })}
-                renderInput={(params) => <TextField {...params} size="small" label="Repository" />}
+                renderInput={(params) => <TextField {...params} size="small" label={t("common.repository")} />}
               />
             ) : null}
           </Stack>

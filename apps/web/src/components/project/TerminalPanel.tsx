@@ -345,7 +345,7 @@ export function TerminalPanel({
                 onClick={followLatestOutput}
                 sx={{ position: "absolute", right: 14, bottom: 12, boxShadow: 2 }}
               >
-                Torna all’output
+                {t("project.terminal.backToOutput")}
               </Button>
             ) : null}
           </Box>
