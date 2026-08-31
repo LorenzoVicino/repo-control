@@ -95,7 +95,6 @@ test("shares one motion backdrop across every dashboard section", async ({ page 
 
   const backdrop = page.locator("[data-app-motion-backdrop]");
   await expect(page.locator('[data-dashboard-section="docker"]')).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Docker: Controlla i servizi" })).toHaveCount(0);
 
   for (const section of ["favorites", "repositories", "overview", "automations"]) {
     const navigationButton = page.locator(`[data-dashboard-section="${section}"]`).first();
@@ -160,7 +159,7 @@ test("navigates between lazy dashboard sections without browser errors", async (
 
   await page.getByRole("button", { name: /Repositories/ }).first().click();
   await expect(page.getByRole("heading", { name: "Repositories", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: `Apri ${workspaceRepositoryName}` })).toBeVisible();
+  await expect(page.getByRole("button", { name: `Open ${workspaceRepositoryName}` })).toBeVisible();
 
   expect(browserErrors).toEqual([]);
 });
@@ -286,7 +285,7 @@ test("detects local coding agents and opens the unified session history", async 
   }
 
   for (const label of ["Claude Code", "Codex", "Gemini CLI"]) {
-    const providerFilter = page.getByRole("button", { name: new RegExp(`Filtra per ${label}`) });
+    const providerFilter = page.getByRole("button", { name: new RegExp(`Filter by ${label}`) });
     await providerFilter.click();
     await expect(providerFilter).toHaveAttribute("aria-pressed", "true");
     await providerFilter.click();
@@ -299,7 +298,7 @@ test("detects local coding agents and opens the unified session history", async 
 
   if (providerWithSessions) {
     await page.getByRole("button", {
-      name: new RegExp(`Filtra per ${providerWithSessions.label}`)
+      name: new RegExp(`Filter by ${providerWithSessions.label}`)
     }).click();
     const sessionRows = page.getByRole("list", { name: "Agent sessions" }).getByRole("listitem");
     await expect(sessionRows.first()).toBeVisible();
@@ -379,12 +378,12 @@ test.fixme("collects workflow text inputs and resolves them safely in a dry run"
         {
           id: "input-e2e-message",
           type: "input.text",
-          name: "Messaggio release",
+          name: "Release message",
           position: { x: 240, y: 0 },
           config: {
             key: "message",
-            label: "Messaggio release",
-            description: "Testo utilizzato dal comando",
+            label: "Release message",
+            description: "Text used by the command",
             placeholder: "release candidate",
             defaultValue: "",
             required: true,
@@ -394,7 +393,7 @@ test.fixme("collects workflow text inputs and resolves them safely in a dry run"
         {
           id: "input-e2e-repositories",
           type: "repository.select",
-          name: "Tutti i repository",
+          name: "All repositories",
           position: { x: 480, y: 0 },
           config: { mode: "all", projectIds: [] }
         },
@@ -408,7 +407,7 @@ test.fixme("collects workflow text inputs and resolves them safely in a dry run"
         {
           id: "input-e2e-summary",
           type: "output.summary",
-          name: "Riepilogo",
+          name: "Summary",
           position: { x: 960, y: 0 },
           config: {}
         }
@@ -433,7 +432,7 @@ test.fixme("collects workflow text inputs and resolves them safely in a dry run"
 
     const executionDialog = page.getByRole("dialog", { name: "Preview workflow" });
     await expect(executionDialog).toBeVisible();
-    await executionDialog.getByRole("textbox", { name: /Messaggio release/ }).fill("release candidate");
+    await executionDialog.getByRole("textbox", { name: /Release message/ }).fill("release candidate");
 
     const dryRunRequestPromise = page.waitForRequest((browserRequest) =>
       browserRequest.url().endsWith(`/api/workflows/${workflow.id}/dry-run`)

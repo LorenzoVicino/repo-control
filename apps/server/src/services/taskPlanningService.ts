@@ -10,6 +10,55 @@ import type {
 
 export type TaskPlanningProfilePreference = BrainTaskProfile | "auto";
 
+/** Languages the generated plan can be written in, mirroring the web app's i18n languages. */
+export const TASK_PLANNING_LANGUAGES = ["en", "it"] as const;
+export type TaskPlanningLanguage = (typeof TASK_PLANNING_LANGUAGES)[number];
+export const DEFAULT_TASK_PLANNING_LANGUAGE: TaskPlanningLanguage = "en";
+
+const PLAN_LANGUAGE_NAMES: Record<TaskPlanningLanguage, string> = {
+  en: "English",
+  it: "Italian"
+};
+
+/** Markdown headings of the generated plan document, in the language the plan is written in. */
+const PLAN_SECTION_LABELS: Record<TaskPlanningLanguage, {
+  requirements: string;
+  acceptanceCriteria: string;
+  approach: string;
+  impactedAreas: string;
+  risks: string;
+  assumptions: string;
+  steps: string;
+  checks: string;
+  clarifications: string;
+  draftTaskTitle: string;
+}> = {
+  en: {
+    requirements: "Requirements",
+    acceptanceCriteria: "Acceptance criteria",
+    approach: "Approach",
+    impactedAreas: "Impacted areas",
+    risks: "Risks and mitigations",
+    assumptions: "Assumptions",
+    steps: "Implementation steps",
+    checks: "Verifications",
+    clarifications: "Approved clarifications",
+    draftTaskTitle: "New task to plan"
+  },
+  it: {
+    requirements: "Requisiti",
+    acceptanceCriteria: "Criteri di accettazione",
+    approach: "Approccio",
+    impactedAreas: "Aree impattate",
+    risks: "Rischi e mitigazioni",
+    assumptions: "Assunzioni",
+    steps: "Passi di implementazione",
+    checks: "Verifiche",
+    clarifications: "Chiarimenti approvati",
+    draftTaskTitle: "Nuovo task da pianificare"
+  }
+};
+
 export type TaskPlanningQuestion = {
   id: string;
   question: string;
@@ -42,6 +91,7 @@ export type TaskPlanningInput = {
   feedback?: string;
   answers?: Record<string, string>;
   currentDraft?: TaskPlanDraft;
+  language?: TaskPlanningLanguage;
 };
 
 export class TaskPlanningError extends Error {
@@ -93,23 +143,24 @@ export async function planEngineeringTask(
   });
 
   if (!result.ok) {
-    throw new TaskPlanningError(result.error || `${provider.label} non è riuscito a preparare il piano.`);
+    throw new TaskPlanningError(result.error || `${provider.label} could not prepare the plan.`);
   }
 
   try {
-    return createTaskPlanDraft(result.response, provider.label, result.sessionId);
+    return createTaskPlanDraft(result.response, provider.label, result.sessionId, getPlanLanguage(input));
   } catch (error) {
-    const detail = error instanceof Error ? error.message : "risposta non valida";
-    throw new TaskPlanningError(`${provider.label} ha restituito un piano non valido: ${detail}`);
+    const detail = error instanceof Error ? error.message : "invalid response";
+    throw new TaskPlanningError(`${provider.label} returned an invalid plan: ${detail}`);
   }
 }
 
 export function createTaskPlanDraft(
   response: string,
   providerLabel = "Claude Code",
-  sessionId: string | null = null
+  sessionId: string | null = null,
+  language: TaskPlanningLanguage = DEFAULT_TASK_PLANNING_LANGUAGE
 ): TaskPlanDraft {
-  return toTaskPlanDraft(parseTaskPlanningResponse(response), "claude", providerLabel, sessionId);
+  return toTaskPlanDraft(parseTaskPlanningResponse(response), "claude", providerLabel, sessionId, language);
 }
 
 export function parseTaskPlanningResponse(response: string): z.infer<typeof rawPlanSchema> {
@@ -131,30 +182,30 @@ export function buildTaskPlanningPrompt(input: TaskPlanningInput, brainContext: 
   return [
     "You are the planning agent for repo-control. Inspect the repository in read-only mode and turn the user's brief into an implementation-ready engineering plan.",
     "Do not edit, create, delete, stage, or commit files. Use repository evidence instead of inventing paths, scripts, or architecture.",
-    "Write the content in Italian. Keep file paths, commands, identifiers, and technical names unchanged.",
+    `Write the content in ${PLAN_LANGUAGE_NAMES[getPlanLanguage(input)]}. Keep file paths, commands, identifiers, and technical names unchanged.`,
     `Requested planning profile: ${input.profile}. Choose lean for small fixes/chores, full for features/refactors, and research for spikes when auto is requested.`,
     "Ask at most three questions, and only for decisions that materially change scope or architecture. Always provide a complete provisional plan even when questions remain.",
     "Verification commands must exist or be strongly supported by repository configuration. Return one safe, non-destructive command per item; never use shell chaining, sudo, rm, git mutation, deployment, or network publication commands.",
     "Return only a JSON object with this exact shape and no Markdown fences:",
     JSON.stringify({
-      title: "Titolo breve e specifico",
+      title: "short, specific title",
       type: "feature | fix | refactor | chore | spike",
       profile: "lean | full | research",
-      description: "Problema e risultato desiderato",
-      motivation: "Perché il cambiamento serve",
-      requirements: ["Requisito funzionale o vincolo"],
-      acceptanceCriteria: ["Criterio osservabile e verificabile"],
-      approach: "Approccio tecnico proposto basato sul repository",
-      impactedAreas: ["percorso relativo o area del sistema"],
-      risks: ["Rischio e relativa mitigazione"],
-      steps: ["Passo di implementazione ordinato"],
-      checks: ["comando di verifica"],
-      assumptions: ["Assunzione esplicita"],
+      description: "problem and desired outcome",
+      motivation: "why the change is needed",
+      requirements: ["functional requirement or constraint"],
+      acceptanceCriteria: ["observable, verifiable criterion"],
+      approach: "proposed technical approach grounded in the repository",
+      impactedAreas: ["relative path or area of the system"],
+      risks: ["risk and its mitigation"],
+      steps: ["ordered implementation step"],
+      checks: ["verification command"],
+      assumptions: ["explicit assumption"],
       questions: [{
         id: "stable-id",
-        question: "Decisione richiesta",
-        options: ["Opzione A", "Opzione B"],
-        recommendedOption: "Opzione A"
+        question: "decision required",
+        options: ["Option A", "Option B"],
+        recommendedOption: "Option A"
       }]
     }, null, 2),
     `User brief:\n${input.brief.trim()}`,
@@ -171,13 +222,15 @@ function toTaskPlanDraft(
   rawPlan: z.infer<typeof rawPlanSchema>,
   provider: "claude",
   providerLabel: string,
-  sessionId: string | null
+  sessionId: string | null,
+  language: TaskPlanningLanguage
 ): TaskPlanDraft {
+  const labels = PLAN_SECTION_LABELS[language];
   const assumptions = uniqueStrings(rawPlan.assumptions);
   const checks = uniqueStrings(rawPlan.checks).filter(isSafeVerificationCommand);
 
   if (checks.length === 0) {
-    throw new Error("nessun comando di verifica sicuro è stato proposto");
+    throw new Error("no safe verification command was proposed");
   }
 
   const questions = rawPlan.questions.map((question, index) => {
@@ -205,23 +258,32 @@ function toTaskPlanDraft(
     description: rawPlan.description,
     motivation: rawPlan.motivation,
     requirements: [
-      markdownList("Requisiti", rawPlan.requirements),
-      markdownChecklist("Criteri di accettazione", rawPlan.acceptanceCriteria)
+      markdownList(labels.requirements, rawPlan.requirements),
+      markdownChecklist(labels.acceptanceCriteria, rawPlan.acceptanceCriteria)
     ].join("\n\n"),
     design: [
-      `## Approccio\n${rawPlan.approach}`,
-      markdownList("Aree impattate", rawPlan.impactedAreas),
-      markdownList("Rischi e mitigazioni", rawPlan.risks),
-      markdownList("Assunzioni", assumptions)
+      `## ${labels.approach}\n${rawPlan.approach}`,
+      markdownList(labels.impactedAreas, rawPlan.impactedAreas),
+      markdownList(labels.risks, rawPlan.risks),
+      markdownList(labels.assumptions, assumptions)
     ].filter(Boolean).join("\n\n"),
     breakdown: [
-      markdownNumberedList("Passi di implementazione", rawPlan.steps),
-      markdownList("Verifiche", checks)
+      markdownNumberedList(labels.steps, rawPlan.steps),
+      markdownList(labels.checks, checks)
     ].join("\n\n"),
     checks,
     assumptions,
     questions
   };
+}
+
+/** Heading for the clarifications appended to a plan-derived task, in the plan's own language. */
+export function getPlanClarificationsHeading(language: TaskPlanningLanguage): string {
+  return PLAN_SECTION_LABELS[language].clarifications;
+}
+
+function getPlanLanguage(input: TaskPlanningInput): TaskPlanningLanguage {
+  return input.language ?? DEFAULT_TASK_PLANNING_LANGUAGE;
 }
 
 function createPlanningContextTask(input: TaskPlanningInput): BrainTask {
@@ -230,7 +292,7 @@ function createPlanningContextTask(input: TaskPlanningInput): BrainTask {
 
   return {
     id: "planning-draft",
-    title: input.currentDraft?.title || "Nuovo task da pianificare",
+    title: input.currentDraft?.title || PLAN_SECTION_LABELS[getPlanLanguage(input)].draftTaskTitle,
     type: input.currentDraft?.type || "feature",
     status: "definition",
     contextRepositoryPaths: input.contextRepositoryPaths,
@@ -279,7 +341,7 @@ function extractJsonObject(response: string): unknown {
         return JSON.parse(withoutFence.slice(firstBrace, lastBrace + 1));
       }
 
-      throw new Error("JSON non trovato nella risposta");
+      throw new Error("JSON not found in the response");
     }
   }
 }

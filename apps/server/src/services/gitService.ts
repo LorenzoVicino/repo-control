@@ -185,7 +185,7 @@ export async function readGitFileDiff(
     path: filePath,
     previousPath,
     staged,
-    patch: truncated ? `${patch.slice(0, MAX_GIT_DIFF_LENGTH)}\n… diff troncato …` : patch,
+    patch: truncated ? `${patch.slice(0, MAX_GIT_DIFF_LENGTH)}\n… diff truncated …` : patch,
     additions,
     deletions,
     binary,

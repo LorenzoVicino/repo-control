@@ -68,7 +68,7 @@ export async function readClaudeSessions(projectPath: string): Promise<ClaudeSes
     authenticated: authResult.ok,
     version: versionResult.ok ? firstOutputLine(versionResult.stdout || versionResult.output) : null,
     sessions,
-    error: versionResult.ok ? null : versionResult.output || "Claude Code non disponibile"
+    error: versionResult.ok ? null : versionResult.output || "Claude Code unavailable"
   };
 }
 

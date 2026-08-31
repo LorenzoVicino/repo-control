@@ -125,7 +125,7 @@ export function AutomationNodeInspector({
               helperText={
                 inputKeyInvalid
                   ? t("automation.inspector.keyHelp")
-                  : `Nel comando terminale: {{inputs.${inputKey}}}`
+                  : t("automation.inspector.keyUsage", { token: `{{inputs.${inputKey}}}` })
               }
               inputProps={{ maxLength: 40 }}
             />

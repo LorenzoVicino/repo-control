@@ -221,7 +221,7 @@ async function readCodexSessions(
       ? truncateText(compactText(threadTitle), 96)
       : prompt
         ? truncateText(compactText(prompt), 96)
-        : `Sessione Codex ${shortId(sessionId)}`;
+        : `Codex session ${shortId(sessionId)}`;
     const startedAt = firstString(payload?.timestamp);
     const match = searchTerm
       ? createSearchMatch(title, searchTerm, "title")
@@ -282,7 +282,7 @@ async function readClaudeSessions(
     const timestamps = rows.map((row) => firstString(row.timestamp)).filter(isString);
     const displayTitle = title
       ? truncateText(compactText(title), 96)
-      : `Sessione Claude ${shortId(sessionId)}`;
+      : `Claude session ${shortId(sessionId)}`;
     const match = searchTerm
       ? createSearchMatch(displayTitle, searchTerm, "title")
         ?? await findJsonLinesSearchMatch(filePath, getClaudeConversationMessage, searchTerm)
@@ -408,7 +408,7 @@ async function readGeminiSession(
     ? truncateText(compactText(threadTitle), 96)
     : prompt
       ? truncateText(compactText(prompt), 96)
-      : `Sessione Gemini ${shortId(sessionId)}`;
+      : `Gemini session ${shortId(sessionId)}`;
   const match = searchTerm
     ? createSearchMatch(title, searchTerm, "title")
       ?? (isJsonLines
@@ -928,6 +928,6 @@ function shellQuote(value: string): string {
 }
 
 function getScanWarning(provider: string, error: unknown): string {
-  const message = error instanceof Error ? error.message : "errore sconosciuto";
+  const message = error instanceof Error ? error.message : "unknown error";
   return `${provider}: ${message}`;
 }

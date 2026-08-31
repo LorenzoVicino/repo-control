@@ -56,12 +56,12 @@ test("reads, parses, groups and sorts Docker containers", async () => {
 
 test("returns actionable Docker availability errors", async (context) => {
   const cases = [
-    ["spawn docker ENOENT", "Docker non trovato nel PATH del processo Node."],
-    ["docker: command not found", "Docker non trovato nel PATH del processo Node."],
-    ["Cannot connect to the Docker daemon", "Docker non e' avviato o il daemon non e' raggiungibile."],
-    ["Docker Desktop is stopped", "Docker non e' avviato o il daemon non e' raggiungibile."],
+    ["spawn docker ENOENT", "Docker was not found in the Node process PATH."],
+    ["docker: command not found", "Docker was not found in the Node process PATH."],
+    ["Cannot connect to the Docker daemon", "Docker is not running or the daemon is unreachable."],
+    ["Docker Desktop is stopped", "Docker is not running or the daemon is unreachable."],
     ["permission denied\nmore details", "permission denied"],
-    ["", "Impossibile leggere i container Docker."]
+    ["", "Unable to read the Docker containers."]
   ] as const;
 
   for (const [output, expected] of cases) {

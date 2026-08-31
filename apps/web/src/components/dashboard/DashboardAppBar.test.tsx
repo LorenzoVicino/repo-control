@@ -80,7 +80,7 @@ describe("DashboardAppBar", () => {
     rerender(<DashboardAppBar {...baseProps} appUpdateStatus={{ ...AVAILABLE_UPDATE, updateAvailable: false, error: "offline" }} isCheckingAppUpdate={false} isLoadingAppUpdateStatus={false} />);
     expect(screen.getByRole("button", { name: "Update repo-control" })).toBeDisabled();
 
-    rerender(<DashboardAppBar {...baseProps} appUpdateStatus={undefined} appUpdateStatusError={new Error("rete")} isCheckingAppUpdate={false} isLoadingAppUpdateStatus={false} />);
+    rerender(<DashboardAppBar {...baseProps} appUpdateStatus={undefined} appUpdateStatusError={new Error("network")} isCheckingAppUpdate={false} isLoadingAppUpdateStatus={false} />);
     expect(screen.getByRole("button", { name: "Update repo-control" })).toBeDisabled();
 
     rerender(<DashboardAppBar {...baseProps} appUpdateStatus={AVAILABLE_UPDATE} isUpdatingApp isCheckingAppUpdate={false} isLoadingAppUpdateStatus={false} />);

@@ -165,18 +165,17 @@ const COLOR_PALETTE_TOKENS: Record<ColorPalette, ThemePaletteTokens> = {
   }
 };
 
+// Labels and descriptions live in the i18n resources under `appearance.palettes.<id>`.
 export const COLOR_PALETTE_OPTIONS: ReadonlyArray<{
   id: ColorPalette;
-  label: string;
   color: string;
   surface: string;
-  description: string;
 }> = [
-  { id: "white", label: "Bianco", color: "#5d5294", surface: "#fdfdff", description: "Tema chiaro neutro" },
-  { id: "black", label: "Nero", color: "#9184d9", surface: "#161826", description: "Tema scuro neutro" },
-  { id: "red", label: "Rosso", color: "#e0836f", surface: "#1b1618", description: "Tema scuro caldo" },
-  { id: "blue", label: "Blu", color: "#74b3d9", surface: "#131a21", description: "Tema scuro freddo" },
-  { id: "green", label: "Verde", color: "#6cc2a1", surface: "#131b18", description: "Tema scuro naturale" }
+  { id: "white", color: "#5d5294", surface: "#fdfdff" },
+  { id: "black", color: "#9184d9", surface: "#161826" },
+  { id: "red", color: "#e0836f", surface: "#1b1618" },
+  { id: "blue", color: "#74b3d9", surface: "#131a21" },
+  { id: "green", color: "#6cc2a1", surface: "#131b18" }
 ];
 
 export function createAppTheme(colorPalette: ColorPalette) {

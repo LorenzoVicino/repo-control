@@ -383,12 +383,12 @@ function getDockerErrorMessage(output: string): string {
   const normalizedOutput = output.trim();
 
   if (/ENOENT|not found|is not recognized/i.test(normalizedOutput)) {
-    return "Docker non trovato nel PATH del processo Node.";
+    return "Docker was not found in the Node process PATH.";
   }
 
   if (/cannot connect|daemon|docker engine|docker desktop/i.test(normalizedOutput)) {
-    return "Docker non e' avviato o il daemon non e' raggiungibile.";
+    return "Docker is not running or the daemon is unreachable.";
   }
 
-  return normalizedOutput.split("\n")[0] || "Impossibile leggere i container Docker.";
+  return normalizedOutput.split("\n")[0] || "Unable to read the Docker containers.";
 }

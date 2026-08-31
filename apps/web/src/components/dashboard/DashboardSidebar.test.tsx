@@ -71,7 +71,7 @@ describe("DashboardSidebar", () => {
         dockerCount={0}
         dockerAvailable={false}
         workspaceRoot=""
-        rootError="cartella non valida"
+        rootError="invalid folder"
         isPickingRoot
         onNavigate={onNavigate}
         onToggleCollapsed={vi.fn()}

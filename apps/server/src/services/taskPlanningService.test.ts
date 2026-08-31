@@ -1,27 +1,37 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createTaskPlanDraft, parseTaskPlanningResponse } from "./taskPlanningService.js";
+import {
+  buildTaskPlanningPrompt,
+  createTaskPlanDraft,
+  parseTaskPlanningResponse
+} from "./taskPlanningService.js";
 
 const validPlan = {
-  title: "Rendi rilanciabili i run falliti",
+  title: "Make failed runs relaunchable",
   type: "feature",
   profile: "full",
-  description: "Consentire il rilancio mantenendo il contesto del run precedente.",
-  motivation: "Ridurre il lavoro manuale dopo una verifica fallita.",
-  requirements: ["Il rilancio conserva il context pack"],
-  acceptanceCriteria: ["Un run fallito può essere rilanciato dalla sua pagina"],
-  approach: "Estendere il servizio dei run e aggiungere un'azione contestuale nella UI.",
+  description: "Allow relaunching while keeping the previous run context.",
+  motivation: "Reduce the manual work after a failed verification.",
+  requirements: ["The relaunch keeps the context pack"],
+  acceptanceCriteria: ["A failed run can be relaunched from its own page"],
+  approach: "Extend the run service and add a contextual action in the UI.",
   impactedAreas: ["apps/server/src/services/engineeringRunService.ts"],
-  risks: ["Il contesto può diventare obsoleto; verificare lo spec hash"],
-  steps: ["Aggiungere il contratto di rilancio", "Esporre il comando nella UI"],
+  risks: ["The context can go stale; verify the spec hash"],
+  steps: ["Add the relaunch contract", "Expose the command in the UI"],
   checks: ["npm run check", "rm -rf dist"],
-  assumptions: ["Il run originale è ancora persistito"],
+  assumptions: ["The original run is still persisted"],
   questions: [{
     id: "retry-policy",
-    question: "Il rilancio deve creare un nuovo run?",
-    options: ["Sì, nuovo run", "No, riusa il run"],
-    recommendedOption: "Sì, nuovo run"
+    question: "Must the relaunch create a new run?",
+    options: ["Yes, a new run", "No, reuse the run"],
+    recommendedOption: "Yes, a new run"
   }]
+};
+
+const planningInput = {
+  brief: "Make failed runs relaunchable",
+  profile: "full" as const,
+  contextRepositoryPaths: []
 };
 
 test("parses a fenced JSON planning response", () => {
@@ -36,9 +46,25 @@ test("creates review Markdown and removes unsafe verification commands", () => {
 
   assert.equal(draft.sessionId, "session-1");
   assert.deepEqual(draft.checks, ["npm run check"]);
-  assert.match(draft.requirements, /Criteri di accettazione/);
+  assert.match(draft.requirements, /Acceptance criteria/);
   assert.match(draft.design, /engineeringRunService\.ts/);
+  assert.match(draft.breakdown, /Implementation steps/);
+});
+
+test("writes the review Markdown headings in the requested language", () => {
+  const draft = createTaskPlanDraft(JSON.stringify(validPlan), "Claude Code", "session-1", "it");
+
+  assert.match(draft.requirements, /Criteri di accettazione/);
+  assert.match(draft.design, /Rischi e mitigazioni/);
   assert.match(draft.breakdown, /Passi di implementazione/);
+});
+
+test("asks the agent to write the plan in the requested language", () => {
+  assert.match(buildTaskPlanningPrompt(planningInput, ""), /Write the content in English\./);
+  assert.match(
+    buildTaskPlanningPrompt({ ...planningInput, language: "it" }, ""),
+    /Write the content in Italian\./
+  );
 });
 
 test("rejects a plan without safe verification commands", () => {
@@ -46,6 +72,6 @@ test("rejects a plan without safe verification commands", () => {
 
   assert.throws(
     () => createTaskPlanDraft(JSON.stringify(unsafePlan)),
-    /nessun comando di verifica sicuro/
+    /no safe verification command/
   );
 });

@@ -332,7 +332,7 @@ describe("ProjectsDashboard orchestration", () => {
     expect(await screen.findByTestId("project-table")).toBeVisible();
     await user.click(screen.getByText("table-open-beta"));
     const betaDetail = await screen.findByLabelText(
-      "Dettaglio repository Beta",
+      "Repository detail Beta",
       {},
       { timeout: 10_000 }
     );
@@ -412,7 +412,7 @@ describe("ProjectsDashboard orchestration", () => {
     await user.click(screen.getByText("nav-repositories"));
     await user.click(await screen.findByText("map-open-alpha"));
     const alphaDetail = await screen.findByLabelText(
-      "Dettaglio repository Alpha",
+      "Repository detail Alpha",
       {},
       { timeout: 10_000 }
     );

@@ -274,7 +274,7 @@ export function TerminalPanel({
     <>
       <Paper
         component="section"
-        aria-label={`Terminale repository ${projectName}`}
+        aria-label={t("project.terminal.panelAria", { name: projectName })}
         variant="outlined"
         sx={{
           minHeight: { xs: 620, lg: 590 },

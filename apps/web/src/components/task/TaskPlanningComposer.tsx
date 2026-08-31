@@ -29,6 +29,7 @@ import { useMutation } from "@tanstack/react-query";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { cancelBrainTaskPlanning, createBrainTaskFromPlan, planBrainTask } from "../../api/brain";
+import { getCurrentLanguage } from "../../i18n";
 import type { BrainTask, BrainTaskProfile, TaskPlanDraft } from "../../types/brain";
 import type { ProjectSummary } from "../../types/projects";
 import { getTaskProfileLabel, MAX_CONTEXT_REPOSITORIES, TASK_PROFILE_IDS } from "./taskEngineeringConfig";
@@ -87,7 +88,8 @@ export function TaskPlanningComposer({
         contextProjectIds,
         feedback: feedback.trim() || undefined,
         answers: Object.keys(answers).length > 0 ? answers : undefined,
-        currentDraft: draft ?? undefined
+        currentDraft: draft ?? undefined,
+        language: getCurrentLanguage()
       }, abortController.signal);
     },
     onSuccess: (nextDraft) => {
@@ -131,7 +133,8 @@ export function TaskPlanningComposer({
         contextProjectIds,
         clarifications: draft.questions
           .filter((question) => Boolean(answers[question.id]))
-          .map((question) => ({ question: question.question, answer: answers[question.id] ?? "" }))
+          .map((question) => ({ question: question.question, answer: answers[question.id] ?? "" })),
+        language: getCurrentLanguage()
       });
     },
     onSuccess: onCreated,

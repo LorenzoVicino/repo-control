@@ -13,8 +13,8 @@ describe("AutomationExecutionDialog", () => {
         workflowName="Release workflow"
         mode="dry-run"
         nodes={[
-          createInputNode("message", "Messaggio", true, ""),
-          createInputNode("channel", "Canale", false, "stable")
+          createInputNode("message", "Message", true, ""),
+          createInputNode("channel", "Channel", false, "stable")
         ]}
         willSaveChanges={false}
         loading={false}
@@ -28,7 +28,7 @@ describe("AutomationExecutionDialog", () => {
     expect(screen.getByText("This value is required")).toBeVisible();
     expect(onSubmit).not.toHaveBeenCalled();
 
-    fireEvent.change(screen.getByRole("textbox", { name: /Messaggio/ }), {
+    fireEvent.change(screen.getByRole("textbox", { name: /Message/ }), {
       target: { value: "release candidate" }
     });
     fireEvent.click(screen.getByRole("button", { name: "Generate preview" }));

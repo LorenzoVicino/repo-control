@@ -44,7 +44,7 @@ describe("WorkspaceMap", () => {
     expect(screen.getByText("2 behind")).toBeVisible();
     expect(screen.getByText("3 changes")).toBeVisible();
 
-    await user.click(screen.getByRole("button", { name: "Apri dirty" }));
+    await user.click(screen.getByRole("button", { name: "Open dirty" }));
     await user.click(screen.getByRole("button", { name: "Remove dirty from favorites" }));
     await user.click(screen.getByRole("button", { name: "Add behind to favorites" }));
     expect(onSelectProject).toHaveBeenCalledWith("dirty");
@@ -93,7 +93,7 @@ describe("WorkspaceMap", () => {
     expect(screen.getByText("Open")).toBeVisible();
     expect(screen.getByRole("group", { name: "Favorite repository density" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Compact density" }));
-    await user.click(screen.getByRole("button", { name: "Apri dirty" }));
+    await user.click(screen.getByRole("button", { name: "Open dirty" }));
     await user.click(screen.getByRole("button", { name: "Remove dirty from favorites" }));
     expect(onDensityChange).toHaveBeenCalledWith("compact");
     expect(callbacks.onSelectProject).toHaveBeenCalledWith("dirty");
