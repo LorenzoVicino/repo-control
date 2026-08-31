@@ -1,6 +1,8 @@
 import cors from "@fastify/cors";
 import Fastify, { LogController } from "fastify";
 import { readEnv } from "./config/env.js";
+import { hasBuiltWebAssets, webDistPath } from "./lib/appPaths.js";
+import { registerWebAssets } from "./webAssets.js";
 import type { ServerEnv } from "./config/env.js";
 import { runProjectCommand, runShellCommand } from "./lib/commandRunner.js";
 import { createProjectResolver } from "./lib/projectResolver.js";
@@ -22,6 +24,7 @@ export async function createServer(): Promise<{
   app: ReturnType<typeof Fastify>;
   env: ServerEnv;
   projectResolver: ProjectResolver;
+  servesWeb: boolean;
 }> {
   const env = readEnv();
   const projectResolver = createProjectResolver(env.REPO_CONTROL_ROOT);
@@ -101,22 +104,35 @@ export async function createServer(): Promise<{
   await registerClaudeRoutes(app, context);
   await registerWorkflowRoutes(app, context);
 
+  // Registered after the API routes so the asset wildcard can never take precedence over
+  // an /api path, and only when a build is actually present - an installed package always
+  // ships one, a checkout only has one after npm run build.
+  const servesWeb = env.REPO_CONTROL_SERVE_WEB && hasBuiltWebAssets();
+
+  if (servesWeb) {
+    await registerWebAssets(app, webDistPath);
+  }
+
   return {
     app,
     env,
-    projectResolver
+    projectResolver,
+    servesWeb
   };
 }
 
 export async function startServer(): Promise<void> {
-  const { app, env, projectResolver } = await createServer();
+  const { app, env, projectResolver, servesWeb } = await createServer();
 
   await app.listen({ host: env.HOST, port: env.PORT });
-  console.log(getStartupBanner(env, projectResolver.getActiveRootPath()));
+  console.log(getStartupBanner(env, projectResolver.getActiveRootPath(), servesWeb));
 }
 
-function getStartupBanner(env: ServerEnv, activeRootPath: string): string {
+function getStartupBanner(env: ServerEnv, activeRootPath: string, servesWeb: boolean): string {
   const apiHost = env.HOST === "127.0.0.1" ? "localhost" : env.HOST;
+  // When this process serves the build, the UI lives on the API port. Otherwise the Vite
+  // dev server owns it on its own port.
+  const uiUrl = servesWeb ? `http://${apiHost}:${env.PORT}` : `http://${apiHost}:5173`;
 
   return [
     "",
@@ -126,7 +142,7 @@ function getStartupBanner(env: ServerEnv, activeRootPath: string): string {
     bannerLine(centerBannerText("local repository command center")),
     bannerLine(),
     bannerBorder("-"),
-    ...bannerField("UI", "http://localhost:5173"),
+    ...bannerField("UI", uiUrl),
     ...bannerField("API", `http://${apiHost}:${env.PORT}`),
     ...bannerField("Root", activeRootPath),
     ...bannerField("Logs", "errors only"),

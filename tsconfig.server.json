@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist/server",
+    "rootDir": "apps/server/src",
+    "lib": ["ES2022"],
+    "sourceMap": false,
+    "declaration": false
+  },
+  "include": ["apps/server/src"],
+  "exclude": ["apps/server/src/**/*.test.ts"]
+}

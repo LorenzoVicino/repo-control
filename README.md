@@ -73,7 +73,7 @@ Resuming a session requires the matching CLI and a supported graphical terminal.
 
 ### Runtime inputs for automations
 
-Add an **Input di testo** node when a workflow needs a value at launch, then reference its key from a terminal node with `{{inputs.key}}`. Preview and execution both prompt for required values. repo-control passes each value through an execution-scoped environment variable instead of concatenating raw text into the shell command.
+Add a **Text input** node when a workflow needs a value at launch, then reference its key from a terminal node with `{{inputs.key}}`. Preview and execution both prompt for required values. repo-control passes each value through an execution-scoped environment variable instead of concatenating raw text into the shell command.
 
 Workflow runs execute in the background and report pending, running and terminal states. Only one run per workflow can be active at a time. A server restart marks unfinished runs as interrupted rather than silently leaving them active.
 
@@ -96,9 +96,31 @@ flowchart LR
 
 The browser never chooses an arbitrary working directory for a project command. It sends a project identifier; the server resolves and validates the corresponding path under the active workspace. See [Architecture](docs/architecture.md) for module boundaries, persistence and placement conventions.
 
-## Try it in under two minutes
+## Try it in one command
 
-Requirements: Git and Node.js 20.19+, 22.13+ or 24+ (Node 24 recommended). The npm version is pinned via `packageManager` and installed by CI; match it locally before regenerating the lockfile.
+Requirements: Git and Node.js 20.19+, 22.13+ or 24+ (Node 24 recommended).
+
+```bash
+npx repo-control ~/projects
+```
+
+That starts the API, serves the dashboard from the same port and opens <http://127.0.0.1:3747>. With no folder argument repo-control scans the current directory, and the workspace can be changed from the UI without restarting the server.
+
+```
+repo-control [workspace] [options]
+
+  -p, --port <port>    Port to listen on (default 3747)
+      --host <host>    Address to bind (default 127.0.0.1)
+      --no-open        Do not open the dashboard in a browser
+  -v, --version        Print the version
+  -h, --help           Show usage
+```
+
+To keep it around, install it globally with `npm install -g repo-control` and run `repo-control`.
+
+### Run from source
+
+Contributors and anyone who wants the Vite dev server:
 
 ```bash
 git clone https://github.com/LorenzoVicino/repo-control.git
@@ -107,7 +129,7 @@ npm ci
 REPO_CONTROL_ROOT=~/projects npm run dev
 ```
 
-Open <http://127.0.0.1:5173>. If `REPO_CONTROL_ROOT` is omitted, repo-control scans the current working directory. The workspace can also be changed from the UI without restarting the server.
+Open <http://127.0.0.1:5173>. In this mode Vite serves the UI and proxies `/api` to the Fastify process on port 3747. The npm version is pinned via `packageManager` and installed by CI; match it locally before regenerating the lockfile. `npm start` runs the packaged layout instead, serving the built dashboard from the API port exactly as the published binary does.
 
 For optional integrations, install the tools you intend to use:
 
@@ -128,6 +150,7 @@ Copy `.env.example` to `.env` when local settings should live outside the comman
 | `LOG_LEVEL` | `error` | Fastify log level: `fatal`, `error`, `warn`, `info`, `debug`, `trace` or `silent`. Request logging remains disabled. |
 | `REPO_CONTROL_ROOT` | current directory | Workspace folder scanned recursively for Git repositories. |
 | `REPO_CONTROL_CONFIG_DIR` | OS user config folder | Override the directory used for repo-control's local JSON files. |
+| `REPO_CONTROL_SERVE_WEB` | off | Serve the built dashboard from the API process. Set automatically by the `repo-control` binary and by `npm start`; leave it off during `npm run dev`, where Vite owns the UI. |
 
 ### Local tools and agent CLIs
 
@@ -192,7 +215,7 @@ CI repeats the verification gate on Node.js 20.19, 22.13 and 24, then runs the b
 
 ## Releases
 
-Release notes are published in [CHANGELOG.md](CHANGELOG.md) and on the repository's GitHub Releases page. While the UI is open, repo-control checks the tags on `origin` for a newer semantic version and can update a clean local checkout from the app.
+Release notes are published in [CHANGELOG.md](CHANGELOG.md) and on the repository's GitHub Releases page. While the UI is open, repo-control checks the tags on `origin` for a newer semantic version and can update a clean local checkout from the app. In-app updating applies only to a Git checkout: an npm install has no repository to pull, reports so in the UI, and is upgraded with `npx repo-control@latest` or `npm install -g repo-control@latest`.
 
 ## Contributing and license
 
