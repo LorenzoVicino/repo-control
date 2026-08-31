@@ -236,7 +236,7 @@ export function AgentSessionsPage() {
       </Box>
 
       <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1.25 }}>
-        Lettura esclusivamente locale: la UI riceve solo metadati e il breve frammento corrispondente, mai il transcript completo.
+        {t("agents.localReadOnlyNotice")}
       </Typography>
 
       <Snackbar
@@ -277,7 +277,7 @@ function AgentStatusCard({ agent, active, loading, onSelect }: AgentStatusCardPr
     <ButtonBase
       onClick={onSelect}
       aria-pressed={active}
-      aria-label={`Filtra per ${agent.label}: ${status.label}`}
+      aria-label={t("agents.filterByProviderAria", { provider: agent.label, status: status.label })}
       sx={(theme) => ({
         minWidth: 0,
         minHeight: 52,

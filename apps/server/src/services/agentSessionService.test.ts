@@ -74,7 +74,7 @@ test("discovers Codex, Claude Code and Gemini sessions for workspace projects", 
         type: "response_item",
         payload: {
           role: "user",
-          content: [{ type: "input_text", text: "Implementa la dashboard analytics" }]
+          content: [{ type: "input_text", text: "Implement the analytics dashboard" }]
         }
       }),
       JSON.stringify({
@@ -88,7 +88,7 @@ test("discovers Codex, Claude Code and Gemini sessions for workspace projects", 
         type: "response_item",
         payload: {
           role: "assistant",
-          content: [{ type: "output_text", text: "Ho configurato il retry budget per le chiamate." }]
+          content: [{ type: "output_text", text: "I configured the retry budget for the calls." }]
         }
       })
     ].join("\n")
@@ -102,7 +102,7 @@ test("discovers Codex, Claude Code and Gemini sessions for workspace projects", 
         gitBranch: "feature/checkout",
         sessionId: claudeId,
         timestamp: "2026-07-29T07:59:00.000Z",
-        message: { content: "<local-command-caveat>Messaggio tecnico interno</local-command-caveat>" }
+        message: { content: "<local-command-caveat>Internal technical message</local-command-caveat>" }
       }),
       JSON.stringify({
         type: "user",
@@ -110,19 +110,19 @@ test("discovers Codex, Claude Code and Gemini sessions for workspace projects", 
         gitBranch: "feature/checkout",
         sessionId: claudeId,
         timestamp: "2026-07-29T08:00:00.000Z",
-        message: { content: "Migliora il checkout" }
+        message: { content: "Improve the checkout" }
       }),
       JSON.stringify({
         type: "ai-title",
         sessionId: claudeId,
         timestamp: "2026-07-29T08:01:00.000Z",
-        aiTitle: "Checkout più affidabile"
+        aiTitle: "More reliable checkout"
       }),
       JSON.stringify({
         type: "custom-title",
         sessionId: claudeId,
         timestamp: "2026-07-29T08:02:00.000Z",
-        customTitle: "Checkout senza attriti"
+        customTitle: "Frictionless checkout"
       })
     ].join("\n")
   );
@@ -133,7 +133,7 @@ test("discovers Codex, Claude Code and Gemini sessions for workspace projects", 
       cwd: projectPath,
       sessionId: claudeId,
       timestamp: "2026-07-30T11:00:00.000Z",
-      message: { content: "Prompt interno del sub-agent" }
+      message: { content: "Internal sub-agent prompt" }
     })
   );
   await fs.writeFile(path.join(geminiDirectory, ".project_root"), projectPath);
@@ -148,7 +148,7 @@ test("discovers Codex, Claude Code and Gemini sessions for workspace projects", 
       }),
       JSON.stringify({
         type: "user",
-        content: "Aggiungi i test end-to-end",
+        content: "Add the end-to-end tests",
         timestamp: "2026-07-28T08:00:01.000Z"
       })
     ].join("\n")
@@ -182,12 +182,12 @@ test("discovers Codex, Claude Code and Gemini sessions for workspace projects", 
     { id: "codex", installed: true, used: true, sessionCount: 1 },
     { id: "gemini", installed: true, used: true, sessionCount: 1 }
   ]);
-  assert.equal(result.sessions.find((session) => session.provider === "claude")?.title, "Checkout senza attriti");
-  assert.equal(result.sessions.find((session) => session.provider === "claude")?.preview, "Migliora il checkout");
+  assert.equal(result.sessions.find((session) => session.provider === "claude")?.title, "Frictionless checkout");
+  assert.equal(result.sessions.find((session) => session.provider === "claude")?.preview, "Improve the checkout");
   assert.equal(result.sessions.find((session) => session.provider === "codex")?.title, "Dashboard analytics");
   assert.equal(
     result.sessions.find((session) => session.provider === "codex")?.preview,
-    "Implementa la dashboard analytics"
+    "Implement the analytics dashboard"
   );
   assert.equal(result.sessions.find((session) => session.provider === "codex")?.branch, "main");
   assert.equal(result.sessions.find((session) => session.provider === "gemini")?.projectId, project.id);

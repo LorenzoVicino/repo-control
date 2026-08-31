@@ -42,7 +42,7 @@ export async function openAgentSessionInNativeTerminal(
     if (launched.ok) {
       return {
         ok: true,
-        message: "Terminale aperto. La sessione sta riprendendo.",
+        message: "Terminal opened. The session is resuming.",
         command: resumeSpec.displayCommand
       };
     }
@@ -53,9 +53,9 @@ export async function openAgentSessionInNativeTerminal(
   return {
     ok: false,
     message: [
-      "Non ho trovato un terminale grafico utilizzabile.",
-      `Esegui manualmente dalla cartella del repository: ${resumeSpec.displayCommand}`,
-      failures.length > 0 ? `Tentativi: ${failures.join("; ")}` : ""
+      "No usable graphical terminal was found.",
+      `Run it manually from the repository folder: ${resumeSpec.displayCommand}`,
+      failures.length > 0 ? `Attempts: ${failures.join("; ")}` : ""
     ].filter(Boolean).join(" "),
     command: resumeSpec.displayCommand
   };
@@ -236,5 +236,5 @@ function appleScriptQuote(value: string): string {
 }
 
 function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "errore sconosciuto";
+  return error instanceof Error ? error.message : "unknown error";
 }

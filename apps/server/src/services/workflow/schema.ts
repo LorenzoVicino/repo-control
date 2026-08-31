@@ -105,8 +105,8 @@ export function getDefaultWorkflows(): WorkflowDefinition[] {
   return [
     {
       id,
-      name: "Fetch & pull preferiti",
-      description: "Seleziona i repository preferiti, tiene solo quelli puliti, poi esegue fetch e pull ff-only.",
+      name: "Fetch & pull favorites",
+      description: "Selects the favorite repositories, keeps only the clean ones, then runs fetch and pull ff-only.",
       active: false,
       nodes: getDefaultNodes(id),
       edges: [

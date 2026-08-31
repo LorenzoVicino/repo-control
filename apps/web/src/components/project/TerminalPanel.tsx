@@ -274,7 +274,7 @@ export function TerminalPanel({
     <>
       <Paper
         component="section"
-        aria-label={`Terminale repository ${projectName}`}
+        aria-label={t("project.terminal.panelAria", { name: projectName })}
         variant="outlined"
         sx={{
           minHeight: { xs: 620, lg: 590 },
@@ -345,7 +345,7 @@ export function TerminalPanel({
                 onClick={followLatestOutput}
                 sx={{ position: "absolute", right: 14, bottom: 12, boxShadow: 2 }}
               >
-                Torna all’output
+                {t("project.terminal.backToOutput")}
               </Button>
             ) : null}
           </Box>

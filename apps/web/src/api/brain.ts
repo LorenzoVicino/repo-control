@@ -9,6 +9,7 @@ import type {
   BrainTaskType,
   TaskPlanDraft
 } from "../types/brain";
+import type { AppLanguage } from "../i18n";
 import { jsonRequest, requestJson } from "./http";
 
 export type CreateBrainTaskInput = {
@@ -37,6 +38,8 @@ export type PlanBrainTaskInput = {
   feedback?: string;
   answers?: Record<string, string>;
   currentDraft?: TaskPlanDraft;
+  /** Language the generated plan is written in; follows the active interface language. */
+  language: AppLanguage;
 };
 
 export type CreateBrainTaskFromPlanInput = {
@@ -56,6 +59,8 @@ export type CreateBrainTaskFromPlanInput = {
   sessionId: string | null;
   contextProjectIds?: string[];
   clarifications: Array<{ question: string; answer: string }>;
+  /** Language the plan was written in; keeps the appended headings consistent with it. */
+  language: AppLanguage;
 };
 
 export function fetchBrainTasks(projectId: string): Promise<BrainTasksResponse> {

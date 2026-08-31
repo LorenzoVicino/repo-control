@@ -345,7 +345,7 @@ const ProjectCard = React.memo(function ProjectCard({
       }}
     >
       <ButtonBase
-        aria-label={`Apri ${project.name}`}
+        aria-label={t("dashboard.map.openAria", { name: project.name })}
         onClick={() => onSelectProject(project.id)}
         sx={{
           position: "absolute",

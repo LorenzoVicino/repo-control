@@ -45,7 +45,7 @@ describe("ControlCenter", () => {
         isLoadingDocker={false}
         isRefreshingDocker={false}
         stoppingDockerGroupId="group-1"
-        dockerActionError="stop fallito"
+        dockerActionError="stop failed"
         onRefreshDocker={onRefreshDocker}
         onStopDockerGroup={onStopDockerGroup}
       />
@@ -57,7 +57,7 @@ describe("ControlCenter", () => {
     expect(screen.getByRole("link", { name: /3000→3000\/tcp/ })).toHaveAttribute("href", "http://localhost:3000");
     expect(screen.getByText("Unhealthy")).toBeVisible();
     expect(screen.getByText("/workspace/project-0")).toBeVisible();
-    expect(screen.getByText("stop fallito")).toBeVisible();
+    expect(screen.getByText("stop failed")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Refresh Docker containers" }));
     await user.click(screen.getByRole("button", { name: "Stop compose project-0" }));
     expect(screen.getByText(/Other Docker groups are left untouched/)).toBeVisible();

@@ -177,7 +177,8 @@ describe("API endpoint contracts", () => {
     await planBrainTask("alpha", {
       requestId: "request-1",
       brief: "Plan it",
-      profile: "auto"
+      profile: "auto",
+      language: "en"
     }, controller.signal);
     await createBrainTaskFromPlan("alpha", {
       title: "Test",
@@ -194,7 +195,8 @@ describe("API endpoint contracts", () => {
       provider: "claude",
       generatedAt: "2026-08-03T00:00:00.000Z",
       sessionId: null,
-      clarifications: []
+      clarifications: [],
+      language: "en"
     });
     await updateBrainTask("alpha", "task-1", { phase: "design", content: "New design" });
     await approveBrainTask("alpha", "task-1", "design");

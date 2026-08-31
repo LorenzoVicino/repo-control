@@ -11,7 +11,7 @@ import {
 describe("workflow inputs", () => {
   it("reads input definitions and prepares defaults for a run", () => {
     const nodes = [
-      createInputNode("message", { label: "Messaggio", defaultValue: "release", required: true }),
+      createInputNode("message", { label: "Message", defaultValue: "release", required: true }),
       createInputNode("notes", { label: "Note", multiline: true, required: false })
     ];
     const definitions = getWorkflowTextInputDefinitions(nodes);
@@ -19,7 +19,7 @@ describe("workflow inputs", () => {
     expect(definitions).toEqual([
       expect.objectContaining({
         key: "message",
-        label: "Messaggio",
+        label: "Message",
         defaultValue: "release",
         required: true,
         multiline: false
@@ -80,7 +80,7 @@ function createInputNode(
   return {
     id: `input-${key}-${String(config.label ?? "")}`,
     type: "input.text",
-    name: "Input di testo",
+    name: "Text input",
     position: { x: 0, y: 0 },
     config: {
       key,

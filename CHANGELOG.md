@@ -10,6 +10,15 @@ This project follows semantic versioning where practical.
 
 - Print the repo-control mark above the title in the startup banner. The banner already framed the URLs and workspace root, but nothing made the process identifiable at a glance in a terminal shared with the Vite dev server and whatever else is running. The mark is padded as one block so every row shares a single left indent, and a test asserts the box stays column-aligned.
 
+### Changed
+
+- Generate task plans in the language selected in the interface. The planning agent was told to write in Italian regardless of the toggle, and the plan document's own Markdown headings were hardcoded Italian, so an English interface produced an Italian plan. The web app now sends the active language with the planning and from-plan requests, and the server keeps the prompt instruction, the section headings and the approved-clarifications heading in that language.
+
+### Fixed
+
+- Translate the last interface strings the 0.9.0 pass missed. The repository detail panel's clean/changes chips and panel label, the workspace map and terminal panel accessibility labels, the agent-session provider filter and its local-reading notice, and the automation text-input hint were all hardcoded Italian; they now resolve through i18n in both languages. The colour palette options also carried unused Italian labels next to the translated ones, which have been dropped in favour of the i18n resources.
+- Report server messages in English, matching every other message the API already returned. Docker availability errors, agent-session resume failures, native-terminal fallbacks, planning errors, the truncated-diff marker and the seeded workflow's name and description were still Italian, and the interface renders them verbatim.
+
 ## [0.10.0] - 2026-08-29
 
 ### Added

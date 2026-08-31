@@ -18,7 +18,12 @@ import {
   getBrainTaskSpecHash
 } from "../services/brainService.js";
 import { executeEngineeringRun } from "../services/engineeringRunService.js";
-import { planEngineeringTask } from "../services/taskPlanningService.js";
+import {
+  DEFAULT_TASK_PLANNING_LANGUAGE,
+  getPlanClarificationsHeading,
+  planEngineeringTask,
+  TASK_PLANNING_LANGUAGES
+} from "../services/taskPlanningService.js";
 
 const projectParamsSchema = z.object({ id: z.string() });
 const taskParamsSchema = z.object({
@@ -75,7 +80,8 @@ const planTaskBodySchema = z.object({
   contextProjectIds: contextProjectIdsSchema.default([]),
   feedback: z.string().trim().max(8000).optional(),
   answers: z.record(z.string().trim().min(1).max(2000)).optional(),
-  currentDraft: taskPlanDraftSchema.optional()
+  currentDraft: taskPlanDraftSchema.optional(),
+  language: z.enum(TASK_PLANNING_LANGUAGES).default(DEFAULT_TASK_PLANNING_LANGUAGE)
 });
 
 const createPlannedTaskBodySchema = z.object({
@@ -97,7 +103,8 @@ const createPlannedTaskBodySchema = z.object({
   clarifications: z.array(z.object({
     question: z.string().trim().min(1).max(600),
     answer: z.string().trim().min(1).max(2000)
-  })).max(3).default([])
+  })).max(3).default([]),
+  language: z.enum(TASK_PLANNING_LANGUAGES).default(DEFAULT_TASK_PLANNING_LANGUAGE)
 });
 
 const updateTaskBodySchema = z
@@ -218,7 +225,8 @@ export async function registerBrainRoutes(app: FastifyInstance, context: BrainRo
         contextRepositoryPaths,
         feedback: body.feedback,
         answers: body.answers,
-        currentDraft: body.currentDraft
+        currentDraft: body.currentDraft,
+        language: body.language
       }, abortController.signal);
     } finally {
       request.raw.removeListener("aborted", abortPlanning);
@@ -252,7 +260,7 @@ export async function registerBrainRoutes(app: FastifyInstance, context: BrainRo
     );
     const clarifications = body.clarifications.length > 0
       ? [
-          "## Chiarimenti approvati",
+          `## ${getPlanClarificationsHeading(body.language)}`,
           ...body.clarifications.map(({ question, answer }) => `- **${question}** ${answer}`)
         ].join("\n")
       : "";

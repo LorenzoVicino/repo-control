@@ -125,7 +125,7 @@ export function AutomationNodeInspector({
               helperText={
                 inputKeyInvalid
                   ? t("automation.inspector.keyHelp")
-                  : `Nel comando terminale: {{inputs.${inputKey}}}`
+                  : t("automation.inspector.keyUsage", { token: `{{inputs.${inputKey}}}` })
               }
               inputProps={{ maxLength: 40 }}
             />
@@ -206,7 +206,7 @@ export function AutomationNodeInspector({
                 getOptionLabel={(project) => project.name}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
                 onChange={(_, nextProjects) => updateConfig({ projectIds: nextProjects.map((project) => project.id) })}
-                renderInput={(params) => <TextField {...params} size="small" label="Repository" />}
+                renderInput={(params) => <TextField {...params} size="small" label={t("common.repository")} />}
               />
             ) : null}
           </Stack>

@@ -14,22 +14,22 @@ test("creates an AI-planned task with every planning gate approved atomically", 
 
   try {
     const task = await createApprovedBrainTask(projectPath, {
-      title: "Piano assistito",
+      title: "Assisted plan",
       type: "feature",
       definition: {
-        description: "Risultato desiderato",
-        motivation: "Ridurre il lavoro manuale"
+        description: "Desired outcome",
+        motivation: "Reduce the manual work"
       },
-      requirements: "## Requisiti\n- Uno",
-      design: "## Approccio\nUsare il servizio esistente",
-      breakdown: "## Passi\n1. Implementare",
+      requirements: "## Requirements\n- One",
+      design: "## Approach\nUse the existing service",
+      breakdown: "## Steps\n1. Implement",
       verificationChecks: ["npm run check"],
       planning: {
         profile: "full",
         provider: "claude",
-        brief: "Prepara il cambiamento",
+        brief: "Prepare the change",
         generatedAt: new Date().toISOString(),
-        assumptions: ["Il contratto resta compatibile"]
+        assumptions: ["The contract stays compatible"]
       },
       claudeSessionId: "session-1"
     });

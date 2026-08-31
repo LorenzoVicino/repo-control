@@ -169,6 +169,7 @@ export const en = {
     },
     map: {
       open: "Open",
+      openAria: "Open {{name}}",
       removeFavorite: "Remove from favorites",
       addFavorite: "Add to favorites",
       removeFavoriteAria: "Remove {{name}} from favorites",
@@ -368,6 +369,8 @@ export const en = {
     title: "Agent sessions",
     description: "Search and resume Codex, Claude Code and Gemini CLI conversations in their repository context.",
     detectAgain: "Detect again",
+    filterByProviderAria: "Filter by {{provider}}: {{status}}",
+    localReadOnlyNotice: "Strictly local reading: the UI receives only metadata and the matching short snippet, never the full transcript.",
     detectError: "Unable to detect the agent sessions",
     partialDetection: "Partial detection: {{warnings}}",
     resumeError: "Unable to open the session in the terminal",
@@ -423,10 +426,13 @@ export const en = {
     untrackedCount: "{{total}} new",
     noUpstream: "no upstream",
     ahead: "ahead {{total}}",
-    behind: "behind {{total}}"
+    behind: "behind {{total}}",
+    changesCount: "{{total}} changes",
+    behindCount: "{{total}} behind"
   },
   project: {
     detail: {
+      panelAria: "Repository detail {{name}}",
       refresh: "Refresh repository",
       sections: "Project sections"
     },
@@ -499,6 +505,8 @@ export const en = {
       }
     },
     terminal: {
+      panelAria: "Repository terminal {{name}}",
+      backToOutput: "Back to output",
       cancelCommand: "Cancel command",
       emptyState: "repo-control terminal · scoped to this repository · commands start from the cwd shown",
       completedNoOutput: "Command completed with no output.",
@@ -868,6 +876,7 @@ export const en = {
       nodeName: "Node name",
       key: "Key",
       keyHelp: "Start with a lowercase letter; use only letters, numbers and underscores.",
+      keyUsage: "In the terminal command: {{token}}",
       inputNotice: "The value is requested before a preview or a run. Do not use this node for passwords or tokens.",
       label: "Label",
       description: "Description",
@@ -1171,6 +1180,7 @@ export const it: TranslationSchema<typeof en> = {
     },
     map: {
       open: "Aperto",
+      openAria: "Apri {{name}}",
       removeFavorite: "Rimuovi dai preferiti",
       addFavorite: "Aggiungi ai preferiti",
       removeFavoriteAria: "Rimuovi {{name}} dai preferiti",
@@ -1370,6 +1380,8 @@ export const it: TranslationSchema<typeof en> = {
     title: "Agent sessions",
     description: "Cerca e riprendi conversazioni Codex, Claude Code e Gemini CLI nel loro contesto repository.",
     detectAgain: "Rileva di nuovo",
+    filterByProviderAria: "Filtra per {{provider}}: {{status}}",
+    localReadOnlyNotice: "Lettura esclusivamente locale: la UI riceve solo metadati e il breve frammento corrispondente, mai il transcript completo.",
     detectError: "Impossibile rilevare le sessioni degli agent",
     partialDetection: "Rilevazione parziale: {{warnings}}",
     resumeError: "Impossibile aprire la sessione nel terminale",
@@ -1425,10 +1437,13 @@ export const it: TranslationSchema<typeof en> = {
     untrackedCount: "{{total}} nuovi",
     noUpstream: "senza upstream",
     ahead: "ahead {{total}}",
-    behind: "behind {{total}}"
+    behind: "behind {{total}}",
+    changesCount: "{{total}} modifiche",
+    behindCount: "{{total}} behind"
   },
   project: {
     detail: {
+      panelAria: "Dettaglio repository {{name}}",
       refresh: "Aggiorna repository",
       sections: "Sezioni progetto"
     },
@@ -1501,6 +1516,8 @@ export const it: TranslationSchema<typeof en> = {
       }
     },
     terminal: {
+      panelAria: "Terminale repository {{name}}",
+      backToOutput: "Torna all’output",
       cancelCommand: "Cancel command",
       emptyState: "repo-control terminal · scoped a questa repository · i comandi partono dalla cwd indicata",
       completedNoOutput: "Comando completato senza output.",
@@ -1870,6 +1887,7 @@ export const it: TranslationSchema<typeof en> = {
       nodeName: "Nome nodo",
       key: "Chiave",
       keyHelp: "Inizia con una lettera minuscola; usa solo lettere, numeri e underscore.",
+      keyUsage: "Nel comando terminale: {{token}}",
       inputNotice: "Il valore viene richiesto prima di anteprima o esecuzione. Non utilizzare questo nodo per password o token.",
       label: "Etichetta",
       description: "Descrizione",

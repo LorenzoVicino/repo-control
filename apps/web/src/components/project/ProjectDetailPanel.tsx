@@ -186,7 +186,7 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
   }
 
   return (
-    <Stack component="section" aria-label={`Dettaglio repository ${project.name}`} sx={{ minHeight: "100%", height: "100%", overflow: "hidden" }}>
+    <Stack component="section" aria-label={t("project.detail.panelAria", { name: project.name })} sx={{ minHeight: "100%", height: "100%", overflow: "hidden" }}>
       <Stack
         direction="row"
         alignItems="center"
@@ -211,7 +211,7 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
         </Box>
         <Box sx={{ minWidth: 0, flexGrow: 1 }}>
           <Typography variant="overline" color="text.secondary" component="div">
-            Repository
+            {t("common.repository")}
           </Typography>
           <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap flexWrap="wrap">
             <Typography component="h1" variant="h5" noWrap sx={{ maxWidth: { xs: 180, sm: "none" } }}>{project.name}</Typography>
@@ -219,10 +219,16 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel({
             <Chip
               size="small"
               color={(gitDetails?.status.isClean ?? project.isClean) ? "success" : "warning"}
-              label={(gitDetails?.status.isClean ?? project.isClean) ? "pulito" : `${totalChanges} modifiche`}
+              label={(gitDetails?.status.isClean ?? project.isClean)
+                ? t("shared.clean")
+                : t("shared.changesCount", { total: totalChanges })}
             />
             {(gitDetails?.status.behind ?? project.behind) > 0 ? (
-              <Chip size="small" color="warning" label={`${gitDetails?.status.behind ?? project.behind} behind`} />
+              <Chip
+                size="small"
+                color="warning"
+                label={t("shared.behindCount", { total: gitDetails?.status.behind ?? project.behind })}
+              />
             ) : null}
           </Stack>
           <Typography

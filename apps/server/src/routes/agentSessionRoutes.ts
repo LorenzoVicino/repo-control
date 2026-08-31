@@ -60,7 +60,7 @@ export async function registerAgentSessionRoutes(
     if (!session || path.resolve(session.projectPath) !== path.resolve(projectPath)) {
       return reply.code(404).send({
         ok: false,
-        message: "Sessione non trovata per questo repository"
+        message: "Session not found for this repository"
       });
     }
 
@@ -69,7 +69,7 @@ export async function registerAgentSessionRoutes(
     if (!agent?.installed) {
       return reply.code(409).send({
         ok: false,
-        message: `${session.providerLabel} non è disponibile nel PATH del server`,
+        message: `${session.providerLabel} is not available in the server PATH`,
         command: getAgentResumeSpec(params.provider as AgentSessionProvider, params.sessionId).displayCommand
       });
     }

@@ -48,8 +48,8 @@ describe("AgentSessionsPage", () => {
             projectId: "api-id",
             projectName: "api",
             projectPath: "/workspace/api",
-            title: "Aggiungi rate limiting",
-            preview: "Aggiungi rate limiting",
+            title: "Add rate limiting",
+            preview: "Add rate limiting",
             branch: "main",
             startedAt: "2026-07-29T08:00:00.000Z",
             updatedAt: "2026-07-29T09:00:00.000Z",
@@ -62,8 +62,8 @@ describe("AgentSessionsPage", () => {
             projectId: "shop-id",
             projectName: "shop",
             projectPath: "/workspace/shop",
-            title: "Correggi il checkout",
-            preview: "Correggi il checkout",
+            title: "Fix the checkout",
+            preview: "Fix the checkout",
             branch: "feature/checkout",
             startedAt: "2026-07-30T08:00:00.000Z",
             updatedAt: "2026-07-30T09:00:00.000Z",
@@ -75,7 +75,7 @@ describe("AgentSessionsPage", () => {
       }))
       .mockResolvedValueOnce(jsonResponse({
         ok: true,
-        message: "Terminale aperto",
+        message: "Terminal opened",
         command: "codex resume codex-session"
       }));
     vi.stubGlobal("fetch", fetchMock);
@@ -91,20 +91,20 @@ describe("AgentSessionsPage", () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByText("Correggi il checkout")).toBeVisible();
-    expect(screen.getByText("Aggiungi rate limiting")).toBeVisible();
-    expect(screen.getAllByRole("listitem")[0]).toHaveTextContent("Correggi il checkout");
+    expect(await screen.findByText("Fix the checkout")).toBeVisible();
+    expect(screen.getByText("Add rate limiting")).toBeVisible();
+    expect(screen.getAllByRole("listitem")[0]).toHaveTextContent("Fix the checkout");
 
-    await user.click(screen.getByRole("button", { name: /Filtra per Claude Code/ }));
-    expect(screen.getByText("Correggi il checkout")).toBeVisible();
-    expect(screen.queryByText("Aggiungi rate limiting")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Filter by Claude Code/ }));
+    expect(screen.getByText("Fix the checkout")).toBeVisible();
+    expect(screen.queryByText("Add rate limiting")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Filtra per Claude Code/ }));
-    expect(screen.getByText("Aggiungi rate limiting")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /Filter by Claude Code/ }));
+    expect(screen.getByText("Add rate limiting")).toBeVisible();
 
-    await user.click(screen.getByRole("button", { name: /Filtra per Codex/ }));
-    expect(screen.queryByText("Correggi il checkout")).not.toBeInTheDocument();
-    expect(screen.getByText("Aggiungi rate limiting")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /Filter by Codex/ }));
+    expect(screen.queryByText("Fix the checkout")).not.toBeInTheDocument();
+    expect(screen.getByText("Add rate limiting")).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Resume" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
@@ -116,7 +116,7 @@ describe("AgentSessionsPage", () => {
         body: JSON.stringify({ projectId: "api-id" })
       }
     ]);
-    expect(await screen.findByText("Terminale aperto")).toBeVisible();
+    expect(await screen.findByText("Terminal opened")).toBeVisible();
 
     queryClient.clear();
   });
@@ -162,14 +162,14 @@ describe("AgentSessionsPage", () => {
               projectId: "api-id",
               projectName: "api",
               projectPath: "/workspace/api",
-              title: "Rendi robuste le API",
-              preview: "Rendi robuste le API",
+              title: "Make the APIs robust",
+              preview: "Make the APIs robust",
               branch: "main",
               startedAt: "2026-07-29T08:00:00.000Z",
               updatedAt: "2026-07-29T09:00:00.000Z",
               match: {
                 field: "content",
-                snippet: "Ho configurato il retry budget per le chiamate."
+                snippet: "I configured the retry budget for the calls."
               }
             }]
           : [],
@@ -202,8 +202,8 @@ describe("AgentSessionsPage", () => {
       );
     }, { timeout: 1500 });
     expect(await screen.findByText("In the chat")).toBeVisible();
-    expect(screen.getByText(/Ho configurato il/)).toHaveTextContent(
-      "Ho configurato il retry budget per le chiamate."
+    expect(screen.getByText(/I configured the/)).toHaveTextContent(
+      "I configured the retry budget for the calls."
     );
 
     queryClient.clear();
