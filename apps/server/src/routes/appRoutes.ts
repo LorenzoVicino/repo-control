@@ -12,8 +12,10 @@ import {
   getVSCodeLauncherCandidates
 } from "../runtime.js";
 import { readAppUpdateStatus, updateApplication } from "../services/appUpdateService.js";
+import type { AuthGuard } from "../services/authService.js";
 
 type AppRoutesContext = ProjectResolver & {
+  auth: AuthGuard;
   runProjectCommand: CommandRunner;
   scheduleServerRestart: () => void;
 };
@@ -22,10 +24,19 @@ const PROJECT_SCAN_TIMEOUT_MS = 30_000;
 const SLOW_PROJECT_SCAN_MS = 2_000;
 
 export async function registerAppRoutes(app: FastifyInstance, context: AppRoutesContext): Promise<void> {
-  app.get("/api/health", async () => ({
-    ok: true,
-    root: context.getActiveRootPath()
-  }));
+  // Left outside the sign-in gate so a supervisor or an E2E harness can wait for the API
+  // to answer, which means the workspace root has to stay behind it: the path alone tells a
+  // caller where this machine keeps its code.
+  app.get("/api/health", async (request) => {
+    if (!context.auth.isAuthenticatedRequest(request.headers.cookie)) {
+      return { ok: true, authRequired: true };
+    }
+
+    return {
+      ok: true,
+      root: context.getActiveRootPath()
+    };
+  });
 
   app.get("/api/projects", async (request, reply) => {
     const rootPath = context.getActiveRootPath();

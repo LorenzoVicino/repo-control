@@ -24,6 +24,7 @@ import {
   setRootPath,
   updatePreferences
 } from "../../api/workspace";
+import { SessionMenu } from "../auth/SessionMenu";
 import { AppUpdateDialog } from "./AppUpdateDialog";
 import { ControlCenter } from "./ControlCenter";
 import { DashboardAppBar } from "./DashboardAppBar";
@@ -657,6 +658,7 @@ export function ProjectsDashboard({
         isLoadingAppUpdateStatus={isLoadingAppUpdateStatus}
         isUpdatingApp={isUpdatingApp}
         isFetchingProjects={isFetching}
+        sessionMenu={<SessionMenu />}
         onOpenMobileNavigation={() => setIsMobileSidebarOpen(true)}
         onOpenSearch={() => setIsCommandPaletteOpen(true)}
         onUpdateApp={() => void handleAppUpdate()}

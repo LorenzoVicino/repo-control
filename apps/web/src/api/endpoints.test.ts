@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchAppUpdateStatus, updateRepoControl } from "./app";
+import { fetchApiHealth, fetchAuthSession, signIn, signOut } from "./auth";
 import {
   approveBrainTask,
   cancelBrainTaskPlanning,
@@ -53,6 +54,26 @@ describe("API endpoint contracts", () => {
   });
 
   afterEach(() => vi.unstubAllGlobals());
+
+  it("uses the sign-in endpoints with their expected methods", async () => {
+    await fetchAuthSession();
+    await signIn({ username: "owner", password: "secret", remember: true });
+    await signOut();
+    await fetchApiHealth();
+
+    expect(fetchMock.mock.calls).toEqual([
+      ["/api/auth/session", undefined],
+      [
+        "/api/auth/login",
+        expect.objectContaining({
+          method: "POST",
+          body: "{\"username\":\"owner\",\"password\":\"secret\",\"remember\":true}"
+        })
+      ],
+      ["/api/auth/logout", { method: "POST" }],
+      ["/api/health", undefined]
+    ]);
+  });
 
   it("uses the app, Docker and workspace endpoints with their expected methods", async () => {
     await updateRepoControl();

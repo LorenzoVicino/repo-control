@@ -23,6 +23,16 @@ vi.mock("../../api/app", () => ({
   fetchAppUpdateStatus: vi.fn(),
   updateRepoControl: vi.fn()
 }));
+vi.mock("../../api/auth", () => ({
+  fetchApiHealth: vi.fn().mockResolvedValue({ ok: true }),
+  fetchAuthSession: vi.fn().mockResolvedValue({
+    authRequired: false,
+    authenticated: true,
+    username: null
+  }),
+  signIn: vi.fn(),
+  signOut: vi.fn()
+}));
 vi.mock("../../api/docker", () => ({
   fetchDockerContainers: vi.fn(),
   stopDockerContainers: vi.fn()

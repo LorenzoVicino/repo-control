@@ -48,6 +48,7 @@ Current route domains are:
 
 | Domain | Responsibility |
 | --- | --- |
+| `authRoutes` | Sign-in state, sign-in and sign-out when credentials are configured. |
 | `appRoutes` | Health, workspace discovery and selection, favorites, updates and VS Code launch. |
 | `agentSessionRoutes` | Workspace-scoped agent history search and validated native-terminal resume. |
 | `gitRoutes` | Git details, activity, file diffs, staged summaries, staging, commits, stashes, sync and branches. |
@@ -55,6 +56,14 @@ Current route domains are:
 | `dockerRoutes` | Container discovery plus validated Compose service state, logs, restart and stack actions. |
 | `workflowRoutes` | Workflow CRUD, dry runs, background runs, progress reads and cancellation. |
 | `brainRoutes` / `claudeRoutes` | Task-engineering backend retained while its UI entry point is hidden pending redesign. |
+
+### Sign-in
+
+`createAuthGuard` owns the optional credential check. It is enabled only when `REPO_CONTROL_AUTH_USERNAME` and `REPO_CONTROL_AUTH_PASSWORD` are both set; with one of the two, `readEnv` rejects the configuration and the server does not start.
+
+When enabled, an `onRequest` hook registered after the `Host` check rejects `/api` requests without a valid session cookie, so an unauthenticated caller never reaches project resolution or command execution. `/api/auth/*` and `/api/health` stay reachable - the dashboard has to ask whether a sign-in is required, and a supervisor has to be able to probe the API - and the health route withholds the workspace root until the caller is authenticated. Non-`/api` paths are never gated: the dashboard bundle has to load for the sign-in screen to exist.
+
+Sessions are opaque tokens stored as digests in process memory with an expiry, sent as an `HttpOnly`, `SameSite=Strict` cookie. Nothing is persisted, so a restart ends every session. Credential comparison is constant-time and repeated failures pause sign-in briefly.
 
 ### Project boundary
 
@@ -85,6 +94,7 @@ apps/web/src/
   api/          API clients split by domain; http.ts owns shared transport behavior
   components/   UI grouped by feature
     agents/     unified local agent history
+    auth/       sign-in screen, shared session read and session menu
     automation/ visual workflow editor, execution and history
     dashboard/  navigation, health views and repository discovery
     project/    capability-driven overview, Git diff, branch, terminal and Docker panels
@@ -99,6 +109,8 @@ Feature components import their own API module and domain types directly. Avoid 
 Large pages should orchestrate data and navigation. Extract independent panels, dialogs and pure domain logic once they have their own state, props or testable behavior.
 
 Repository details use a single full-width shell: Overview is the default and feature tabs are rendered only when their repository capability exists. Docker currently follows this rule through Compose-file detection. Deploy is intentionally absent; any future CI/CD tab must be backed by detected pipeline configuration and real status/actions rather than a static placeholder. Once opened, the terminal panel remains mounted while the repository workspace stays open so its transcript and active request survive navigation between repository tabs.
+
+The application shell reads the sign-in state once and chooses between the sign-in screen and the dashboard from it. A request that any feature makes and the API answers with `401 UNAUTHENTICATED` updates that same cached state through the shared query cache, so a lapsed session returns to the sign-in screen instead of leaving a page of failed panels behind. An unreadable sign-in state falls through to the dashboard on purpose: the API enforces the gate, and a local tool should not lock its owner out because one request failed.
 
 Dashboard sections are lazy-loaded. Task engineering still has code and server endpoints but is deliberately absent from the sidebar and quick actions; documentation and user-facing navigation should not present it as a current capability until the redesign is complete.
 

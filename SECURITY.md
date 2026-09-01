@@ -1,6 +1,8 @@
 # Security
 
-repo-control is designed for a single trusted user on a local developer workstation. It is not a multi-user service and it does not provide authentication or authorization.
+repo-control is designed for a single trusted user on a local developer workstation. It is not a multi-user service and it has no user accounts, roles or authorization model.
+
+An optional sign-in exists for one case: keeping the person in front of a shared, screen-shared or unlocked machine out of your workspace. Set `REPO_CONTROL_AUTH_USERNAME` and `REPO_CONTROL_AUTH_PASSWORD` (both, or the server refuses to start) and every `/api` route except sign-in and health requires a session cookie. It is a single credential pair read from the environment, over plain HTTP on loopback, with sessions held in process memory - it does not make the API safe to expose beyond the local machine.
 
 The API and Vite development server bind to `127.0.0.1` by default. Keep both on localhost. Changing the bind address exposes an API that can run Git, Docker and terminal commands; CORS is not an authentication boundary.
 
@@ -13,7 +15,7 @@ Binding to loopback alone does not keep browsers out. A page on any origin can r
 - Run the app and its local CLI integrations as a non-privileged user.
 - Review terminal commands and workflow definitions before execution.
 - Keep `.env`, the repo-control configuration directory and AI-agent history directories readable only by the intended local user.
-- Add a separate authentication and authorization layer before any use beyond the local machine.
+- Add a separate authentication and authorization layer before any use beyond the local machine. The built-in sign-in is not that layer.
 
 ## Local sensitive data
 
@@ -26,6 +28,7 @@ Command arguments, command output and agent transcript snippets may contain secr
 ## Execution safeguards and limits
 
 - The `Host` header is validated before routing, so a rebound request is rejected before it can resolve a project or start a command.
+- When credentials are configured, the sign-in check also runs before routing: an unauthenticated caller cannot resolve a project or start a command. Session cookies are `HttpOnly` and `SameSite=Strict`, credentials are compared in constant time, and repeated failures pause sign-in briefly.
 - Project endpoints resolve an opaque project identifier against repositories discovered under the active workspace.
 - Git ref and file-path inputs are validated; pull is fast-forward-only and branch changes are blocked on dirty repositories.
 - Docker Compose actions require a Compose file in the selected repository.
