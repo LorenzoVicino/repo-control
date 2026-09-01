@@ -43,6 +43,27 @@ export type DockerContainersResponse = {
   error: string | null;
 };
 
+export type DockerContainerStats = {
+  id: string;
+  name: string;
+  cpuPercent: number | null;
+  memoryUsedBytes: number | null;
+  memoryLimitBytes: number | null;
+  memoryPercent: number | null;
+  networkInBytes: number | null;
+  networkOutBytes: number | null;
+  blockReadBytes: number | null;
+  blockWriteBytes: number | null;
+  processCount: number | null;
+};
+
+export type DockerContainerStatsResponse = {
+  ok: boolean;
+  stats: DockerContainerStats[];
+  checkedAt: string;
+  error: string | null;
+};
+
 export type DockerComposePort = {
   hostIp: string | null;
   published: number | null;
@@ -152,6 +173,151 @@ export function stopDockerContainers(
   runCommand: CommandRunner
 ): Promise<CommandResult> {
   return runCommand(cwd, "docker", ["stop", ...containerIds], 1000 * 60 * 5);
+}
+
+// --no-stream: one sample and exit. `docker stats` without it streams forever, which a
+// request/response route cannot consume, and the interface polls anyway.
+export async function readDockerContainerStats(
+  cwd: string,
+  runCommand: CommandRunner
+): Promise<DockerContainerStatsResponse> {
+  const checkedAt = new Date().toISOString();
+  const result = await runCommand(cwd, "docker", ["stats", "--no-stream", "--format", "{{json .}}"], 1000 * 25);
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      stats: [],
+      checkedAt,
+      error: getDockerErrorMessage(result.output || result.stderr || result.stdout)
+    };
+  }
+
+  return {
+    ok: true,
+    stats: parseDockerStatsOutput(result.stdout),
+    checkedAt,
+    error: null
+  };
+}
+
+// The boundary for container-scoped actions, and the reason they take an ID rather than a
+// name: an exec session may only target a container this daemon currently reports as
+// running, exactly as project commands may only target a discovered repository.
+export async function findRunningDockerContainer(
+  cwd: string,
+  containerId: string,
+  runCommand: CommandRunner
+): Promise<DockerContainer | null> {
+  const running = await readRunningDockerContainers(cwd, runCommand);
+
+  if (!running.ok) {
+    return null;
+  }
+
+  const requestedId = containerId.toLowerCase();
+
+  return (
+    running.containers.find((container) => {
+      const knownId = container.id.toLowerCase();
+      // `docker ps` reports 12 characters; a caller may hold the full 64-character ID.
+      return knownId === requestedId || requestedId.startsWith(knownId) || knownId.startsWith(requestedId);
+    }) ?? null
+  );
+}
+
+// Distroless and scratch images have no shell at all, and an exec session that dies
+// immediately with "executable file not found" is a worse answer than saying so up front.
+export async function resolveContainerShell(
+  cwd: string,
+  containerId: string,
+  runCommand: CommandRunner
+): Promise<string | null> {
+  const result = await runCommand(
+    cwd,
+    "docker",
+    ["exec", containerId, "sh", "-c", "command -v bash >/dev/null 2>&1 && echo bash || echo sh"],
+    1000 * 20
+  );
+
+  if (!result.ok) {
+    return null;
+  }
+
+  const detected = result.stdout.trim().split("\n").pop()?.trim();
+  return detected === "bash" || detected === "sh" ? detected : null;
+}
+
+function parseDockerStatsOutput(output: string): DockerContainerStats[] {
+  return parseComposeJsonRows(output)
+    .map((row) => {
+      const id = getJsonString(row, "ID") || getJsonString(row, "Container");
+      if (!id) return null;
+
+      const [memoryUsedBytes, memoryLimitBytes] = parseByteSizePair(getJsonString(row, "MemUsage"));
+      const [networkInBytes, networkOutBytes] = parseByteSizePair(getJsonString(row, "NetIO"));
+      const [blockReadBytes, blockWriteBytes] = parseByteSizePair(getJsonString(row, "BlockIO"));
+
+      return {
+        id,
+        name: getJsonString(row, "Name") || id,
+        cpuPercent: parsePercentage(getJsonString(row, "CPUPerc")),
+        memoryUsedBytes,
+        memoryLimitBytes,
+        memoryPercent: parsePercentage(getJsonString(row, "MemPerc")),
+        networkInBytes,
+        networkOutBytes,
+        blockReadBytes,
+        blockWriteBytes,
+        processCount: parseCount(getJsonString(row, "PIDs"))
+      } satisfies DockerContainerStats;
+    })
+    .filter((stats): stats is DockerContainerStats => stats !== null);
+}
+
+function parsePercentage(value: string): number | null {
+  const parsed = Number.parseFloat(value.replace("%", "").trim());
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseCount(value: string): number | null {
+  const parsed = Number.parseInt(value.trim(), 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+// Docker formats paired measurements as "used / limit": memory in binary units (MiB, GiB),
+// network and block I/O in decimal ones (kB, MB). Both spellings appear in the same row.
+function parseByteSizePair(value: string): [number | null, number | null] {
+  const [left, right] = value.split("/");
+  return [parseByteSize(left ?? ""), parseByteSize(right ?? "")];
+}
+
+const BYTE_SIZE_UNITS: Record<string, number> = {
+  b: 1,
+  kb: 1000,
+  mb: 1000 ** 2,
+  gb: 1000 ** 3,
+  tb: 1000 ** 4,
+  pb: 1000 ** 5,
+  kib: 1024,
+  mib: 1024 ** 2,
+  gib: 1024 ** 3,
+  tib: 1024 ** 4,
+  pib: 1024 ** 5
+};
+
+export function parseByteSize(value: string): number | null {
+  const match = /^\s*([0-9]+(?:\.[0-9]+)?)\s*([a-zA-Z]*)\s*$/.exec(value);
+  if (!match) return null;
+
+  const amount = Number.parseFloat(match[1]);
+  if (!Number.isFinite(amount)) return null;
+
+  const unit = match[2].toLowerCase();
+  if (!unit) return Math.round(amount);
+
+  const multiplier = BYTE_SIZE_UNITS[unit];
+  return multiplier === undefined ? null : Math.round(amount * multiplier);
 }
 
 function parseDockerPsOutput(output: string): DockerContainer[] {

@@ -32,10 +32,13 @@ Command arguments, command output and agent transcript snippets may contain secr
 - Project endpoints resolve an opaque project identifier against repositories discovered under the active workspace.
 - Git ref and file-path inputs are validated; pull is fast-forward-only and branch changes are blocked on dirty repositories.
 - Docker Compose actions require a Compose file in the selected repository.
+- Container shell and log sessions accept a container ID, never a name or a command, and the ID is revalidated against the containers the daemon currently reports as running before any process starts. The shell is fixed to `bash` or `sh` and is spawned as an argument list, so nothing from the browser is interpreted by a host shell.
 - Invalid or disconnected workflow graphs are rejected, and failed actions stop downstream steps.
 - Agent session resume validates that the session belongs to the requested discovered repository before opening a terminal.
 
 These controls reduce accidental misuse; they are not a sandbox. A terminal command, workflow node, Git hook, Docker configuration or resumed external agent can still execute code with the permissions of the repo-control process.
+
+An exec session is arbitrary code execution inside the target container, with whatever privileges that container has. Two cases deserve naming: a container running as root can modify its own filesystem and anything mounted into it, including host paths bound from your machine; and a container with access to the Docker socket, such as a Docker-in-Docker service or a CI agent, can create privileged containers and is therefore equivalent to root on the host. Treat the ability to open a container shell as equivalent to the ability to run commands on this machine, which is what the rest of this document already assumes about repo-control.
 
 ## Reporting issues
 

@@ -144,27 +144,7 @@ function runManagedCommand(
       });
     }
 
-    function killTree(signalToSend: NodeJS.Signals): void {
-      if (!child.pid) {
-        return;
-      }
-
-      if (process.platform === "win32") {
-        spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore" });
-        return;
-      }
-
-      try {
-        // Negative pid targets the whole detached process group, not just the direct child.
-        process.kill(-child.pid, signalToSend);
-      } catch {
-        try {
-          child.kill(signalToSend);
-        } catch {
-          // Process already gone.
-        }
-      }
-    }
+    const killTree = (signalToSend: NodeJS.Signals): void => killProcessTree(child, signalToSend);
 
     function beginKillEscalation(reason: "timeout" | "abort"): void {
       if (stopReason) {
@@ -211,6 +191,31 @@ function runManagedCommand(
       settle(exitCode);
     });
   });
+}
+
+// Exported because a long-lived container session has the same problem as a one-shot
+// command: the direct child is a `docker` client whose work happens in a process group,
+// and killing only the client leaves the group behind.
+export function killProcessTree(child: ChildProcess, signalToSend: NodeJS.Signals): void {
+  if (!child.pid) {
+    return;
+  }
+
+  if (process.platform === "win32") {
+    spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore" });
+    return;
+  }
+
+  try {
+    // Negative pid targets the whole detached process group, not just the direct child.
+    process.kill(-child.pid, signalToSend);
+  } catch {
+    try {
+      child.kill(signalToSend);
+    } catch {
+      // Process already gone.
+    }
+  }
 }
 
 function appendOutput(current: string, next: string): string {

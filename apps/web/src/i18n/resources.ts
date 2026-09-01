@@ -92,6 +92,42 @@ export const en = {
     projectAriaLabel: "Repository {{name}}",
     loading: "Loading repositories"
   },
+  docker: {
+    console: {
+      eyebrow: "Container console",
+      tabsAriaLabel: "Container console tabs",
+      shellTab: "Shell",
+      logsTab: "Logs",
+      opening: "opening session…",
+      shellReady: "shell ready · {{shell}}",
+      following: "following logs",
+      ended: "session ended · exit {{code}}",
+      notStarted: "no session",
+      clear: "Clear the view",
+      restart: "Restart the session",
+      truncated: "Older output has scrolled out of the window kept by the server.",
+      noOutputYet: "No output yet.",
+      commandPlaceholder: "Command to run inside the container",
+      commandLabel: "Command to run inside the container",
+      send: "Run the command",
+      openFailed: "Unable to open the session",
+      readFailed: "Unable to read the session",
+      sendFailed: "Unable to send the command",
+      shellTranscript: "Shell session output",
+      logsTranscript: "Container log output",
+      noTtyNote: "The shell reads a pipe rather than a terminal: state persists between commands, but full-screen programs such as vim or top will not work.",
+      logsNote: "Following this container's output. Closing this dialog stops the stream.",
+      openShell: "Open a shell in {{container}}",
+      openLogs: "Follow the logs of {{container}}"
+    },
+    stats: {
+      cpu: "CPU",
+      memory: "Memory",
+      network: "Network",
+      unavailable: "Resource usage unavailable",
+      ariaLabel: "CPU {{cpu}}, memory {{memory}}"
+    }
+  },
   dashboard: {
     runtime: {
       title: "Docker runtime",
@@ -1149,6 +1185,42 @@ export const it: TranslationSchema<typeof en> = {
     densityComfortable: "Comoda",
     projectAriaLabel: "Repository {{name}}",
     loading: "Caricamento repository"
+  },
+  docker: {
+    console: {
+      eyebrow: "Console container",
+      tabsAriaLabel: "Schede della console container",
+      shellTab: "Shell",
+      logsTab: "Log",
+      opening: "apertura sessione…",
+      shellReady: "shell pronta · {{shell}}",
+      following: "log in ascolto",
+      ended: "sessione terminata · exit {{code}}",
+      notStarted: "nessuna sessione",
+      clear: "Pulisci la vista",
+      restart: "Riavvia la sessione",
+      truncated: "L’output più vecchio è uscito dalla finestra conservata dal server.",
+      noOutputYet: "Ancora nessun output.",
+      commandPlaceholder: "Comando da eseguire nel container",
+      commandLabel: "Comando da eseguire nel container",
+      send: "Esegui il comando",
+      openFailed: "Impossibile aprire la sessione",
+      readFailed: "Impossibile leggere la sessione",
+      sendFailed: "Impossibile inviare il comando",
+      shellTranscript: "Output della sessione shell",
+      logsTranscript: "Output dei log del container",
+      noTtyNote: "La shell legge una pipe, non un terminale: lo stato persiste tra i comandi, ma i programmi a schermo intero come vim o top non funzionano.",
+      logsNote: "Log di questo container in ascolto. Chiudendo la finestra lo stream si interrompe.",
+      openShell: "Apri una shell in {{container}}",
+      openLogs: "Segui i log di {{container}}"
+    },
+    stats: {
+      cpu: "CPU",
+      memory: "Memoria",
+      network: "Rete",
+      unavailable: "Consumo risorse non disponibile",
+      ariaLabel: "CPU {{cpu}}, memoria {{memory}}"
+    }
   },
   dashboard: {
     runtime: {
