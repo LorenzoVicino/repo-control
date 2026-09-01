@@ -6,6 +6,8 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.11.0] - 2026-09-01
+
 ### Added
 
 - Add an optional sign-in in front of the dashboard and the API. Setting `REPO_CONTROL_AUTH_USERNAME` and `REPO_CONTROL_AUTH_PASSWORD` turns on a sign-in screen and closes every `/api` route to callers without a session; leaving them unset keeps the current behaviour, so an existing install and `npx repo-control` still open straight into the workspace. Setting only one of the two is a configuration mistake that would leave an API the owner believes is protected wide open, so the server refuses to start instead. The check runs before routing, next to the `Host` check, and `/api/health` stays reachable for process supervisors while withholding the workspace root from an unauthenticated caller. Sessions are opaque tokens held in process memory and sent as an `HttpOnly`, `SameSite=Strict` cookie, lasting 12 hours or 30 days with *Remember me*; credentials are compared in constant time and five wrong answers pause sign-in for 30 seconds. A lapsed session anywhere in the interface returns to the sign-in screen rather than leaving a page of failed panels behind.
