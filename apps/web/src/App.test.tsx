@@ -1,8 +1,8 @@
-import { screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render } from "@testing-library/react";
 import { App } from "./App";
+import { fetchAuthSession } from "./api/auth";
 import {
   COLOR_PALETTE_OPTIONS,
   COLOR_PALETTE_STORAGE_KEY,
@@ -10,34 +10,125 @@ import {
   getInitialColorPalette
 } from "./theme";
 
-vi.mock("./components/dashboard/ProjectsDashboard", () => ({
-  ProjectsDashboard: ({
-    colorPalette,
-    onColorPaletteChange
-  }: {
-    colorPalette: string;
-    onColorPaletteChange: (value: "blue") => void;
-  }) => (
-    <button onClick={() => onColorPaletteChange("blue")}>
-      palette-{colorPalette}
-    </button>
-  )
+vi.mock("./api/auth", () => ({
+  fetchApiHealth: vi.fn().mockResolvedValue({ ok: true }),
+  fetchAuthSession: vi.fn(),
+  signIn: vi.fn(),
+  signOut: vi.fn()
 }));
 
-describe("application theme bootstrap", () => {
-  beforeEach(() => window.localStorage.clear());
+// Stands in for the dashboard, and can make a request fail the way any real panel would
+// when the session behind it has lapsed.
+vi.mock("./components/dashboard/ProjectsDashboard", async () => {
+  const { useQuery } = await import("@tanstack/react-query");
+  const { ApiError } = await import("./api/http");
+
+  return {
+    ProjectsDashboard: ({
+      colorPalette,
+      onColorPaletteChange
+    }: {
+      colorPalette: string;
+      onColorPaletteChange: (value: "blue") => void;
+    }) => {
+      const lapsingRequest = useQuery({
+        queryKey: ["lapsing-panel"],
+        queryFn: () => {
+          throw new ApiError("Sign in to use the repo-control API.", 401, "UNAUTHENTICATED", null);
+        },
+        enabled: false,
+        retry: false
+      });
+
+      return (
+        <>
+          <button onClick={() => onColorPaletteChange("blue")}>palette-{colorPalette}</button>
+          <button onClick={() => void lapsingRequest.refetch()}>lapse-session</button>
+        </>
+      );
+    }
+  };
+});
+
+const fetchAuthSessionMock = vi.mocked(fetchAuthSession);
+
+describe("application shell", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.clearAllMocks();
+    fetchAuthSessionMock.mockResolvedValue({
+      authRequired: false,
+      authenticated: true,
+      username: null
+    });
+  });
 
   it("loads and persists the selected palette through the application shell", async () => {
     window.localStorage.setItem(COLOR_PALETTE_STORAGE_KEY, "red");
     const user = userEvent.setup();
     render(<App />);
 
-    const paletteButton = screen.getByRole("button", { name: "palette-red" });
+    const paletteButton = await screen.findByRole("button", { name: "palette-red" });
     expect(document.body).toHaveStyle({ backgroundColor: createAppTheme("red").palette.background.default });
     await user.click(paletteButton);
     expect(screen.getByRole("button", { name: "palette-blue" })).toBeVisible();
     expect(document.body).toHaveStyle({ backgroundColor: createAppTheme("blue").palette.background.default });
     expect(window.localStorage.getItem(COLOR_PALETTE_STORAGE_KEY)).toBe("blue");
+  });
+
+  it("waits for the sign-in state before choosing a screen", async () => {
+    fetchAuthSessionMock.mockReturnValue(new Promise(() => {}));
+    render(<App />);
+
+    expect(await screen.findByText("Loading repo-control…")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /palette-/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the sign-in screen only while the API requires one", async () => {
+    fetchAuthSessionMock.mockResolvedValue({
+      authRequired: true,
+      authenticated: false,
+      username: null
+    });
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Sign in to the workspace" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /palette-/ })).not.toBeInTheDocument();
+  });
+
+  it("opens the workspace when the API reports an authenticated session", async () => {
+    fetchAuthSessionMock.mockResolvedValue({
+      authRequired: true,
+      authenticated: true,
+      username: "owner"
+    });
+    render(<App />);
+
+    expect(await screen.findByRole("button", { name: /palette-/ })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Sign in to the workspace" })).not.toBeInTheDocument();
+  });
+
+  it("returns to the sign-in screen when any request reports a lapsed session", async () => {
+    const user = userEvent.setup();
+    fetchAuthSessionMock.mockResolvedValue({
+      authRequired: true,
+      authenticated: true,
+      username: "owner"
+    });
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "lapse-session" }));
+
+    expect(await screen.findByRole("heading", { name: "Sign in to the workspace" })).toBeVisible();
+  });
+
+  it("opens the workspace when the sign-in state cannot be read at all", async () => {
+    fetchAuthSessionMock.mockRejectedValue(new Error("connection refused"));
+    render(<App />);
+
+    // The API is the only thing that can enforce the gate, so an unreadable state must not
+    // strand the owner on a sign-in screen no password can pass.
+    expect(await screen.findByRole("button", { name: /palette-/ })).toBeVisible();
   });
 
   it("supports stored, legacy and operating-system palette preferences", () => {

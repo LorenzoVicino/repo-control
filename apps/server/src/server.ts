@@ -9,6 +9,7 @@ import { createProjectResolver } from "./lib/projectResolver.js";
 import type { ProjectResolver } from "./lib/projectResolver.js";
 import { getAllowedHostnames, isAllowedRequestHost } from "./lib/requestHost.js";
 import { registerAppRoutes } from "./routes/appRoutes.js";
+import { registerAuthRoutes } from "./routes/authRoutes.js";
 import { registerAgentSessionRoutes } from "./routes/agentSessionRoutes.js";
 import { registerBrainRoutes } from "./routes/brainRoutes.js";
 import { registerClaudeRoutes } from "./routes/claudeRoutes.js";
@@ -16,7 +17,19 @@ import { registerDockerRoutes } from "./routes/dockerRoutes.js";
 import { registerGitRoutes } from "./routes/gitRoutes.js";
 import { registerTerminalRoutes } from "./routes/terminalRoutes.js";
 import { registerWorkflowRoutes } from "./routes/workflowRoutes.js";
+import { createAuthGuard } from "./services/authService.js";
 import { reconcileStaleWorkflowRuns } from "./services/workflowService.js";
+
+// Reachable without a session when credentials are configured. Sign-in obviously has to
+// be, and the dashboard needs to know whether to ask for it before it can render anything.
+// Health stays open so a process supervisor or an E2E harness can still probe the API; the
+// route itself withholds the workspace root from an unauthenticated caller.
+const PUBLIC_API_PATHS = new Set([
+  "/api/auth/session",
+  "/api/auth/login",
+  "/api/auth/logout",
+  "/api/health"
+]);
 
 const STARTUP_BANNER_CONTENT_WIDTH = 76;
 
@@ -40,10 +53,12 @@ export async function createServer(): Promise<{
   app: ReturnType<typeof Fastify>;
   env: ServerEnv;
   projectResolver: ProjectResolver;
+  requiresSignIn: boolean;
   servesWeb: boolean;
 }> {
   const env = readEnv();
   const projectResolver = createProjectResolver(env.REPO_CONTROL_ROOT);
+  const auth = createAuthGuard(env);
   const app = Fastify({
     logController: new LogController({ disableRequestLogging: true }),
     logger: {
@@ -87,6 +102,31 @@ export async function createServer(): Promise<{
     });
   });
 
+  // Runs after the Host check and before routing, so an unauthenticated caller cannot
+  // resolve a project or start a command. Only /api is gated: the dashboard bundle has to
+  // load for the sign-in screen to exist, and it holds no workspace data of its own.
+  app.addHook("onRequest", async (request, reply) => {
+    if (!auth.enabled) {
+      return;
+    }
+
+    const [path] = request.url.split("?");
+
+    if (!path.startsWith("/api/") || PUBLIC_API_PATHS.has(path)) {
+      return;
+    }
+
+    if (auth.isAuthenticatedRequest(request.headers.cookie)) {
+      return;
+    }
+
+    return reply.code(401).send({
+      ok: false,
+      code: "UNAUTHENTICATED",
+      message: "Sign in to use the repo-control API."
+    });
+  });
+
   app.addHook("onError", async (request, reply, error) => {
     request.log.error(
       {
@@ -101,6 +141,7 @@ export async function createServer(): Promise<{
 
   const context = {
     ...projectResolver,
+    auth,
     runProjectCommand,
     runShellCommand,
     scheduleServerRestart
@@ -111,6 +152,7 @@ export async function createServer(): Promise<{
   // "interrupted" before serving any workflow traffic.
   await reconcileStaleWorkflowRuns();
 
+  await registerAuthRoutes(app, context);
   await registerAppRoutes(app, context);
   await registerAgentSessionRoutes(app, context);
   await registerDockerRoutes(app, context);
@@ -133,18 +175,24 @@ export async function createServer(): Promise<{
     app,
     env,
     projectResolver,
+    requiresSignIn: auth.enabled,
     servesWeb
   };
 }
 
 export async function startServer(): Promise<void> {
-  const { app, env, projectResolver, servesWeb } = await createServer();
+  const { app, env, projectResolver, requiresSignIn, servesWeb } = await createServer();
 
   await app.listen({ host: env.HOST, port: env.PORT });
-  console.log(getStartupBanner(env, projectResolver.getActiveRootPath(), servesWeb));
+  console.log(getStartupBanner(env, projectResolver.getActiveRootPath(), servesWeb, requiresSignIn));
 }
 
-export function getStartupBanner(env: ServerEnv, activeRootPath: string, servesWeb: boolean): string {
+export function getStartupBanner(
+  env: ServerEnv,
+  activeRootPath: string,
+  servesWeb: boolean,
+  requiresSignIn = false
+): string {
   const apiHost = env.HOST === "127.0.0.1" ? "localhost" : env.HOST;
   // When this process serves the build, the UI lives on the API port. Otherwise the Vite
   // dev server owns it on its own port.
@@ -163,6 +211,7 @@ export function getStartupBanner(env: ServerEnv, activeRootPath: string, servesW
     ...bannerField("UI", uiUrl),
     ...bannerField("API", `http://${apiHost}:${env.PORT}`),
     ...bannerField("Root", activeRootPath),
+    ...bannerField("Sign-in", requiresSignIn ? "required (credentials from the environment)" : "not configured"),
     ...bannerField("Logs", "errors only"),
     bannerBorder("-"),
     bannerLine(centerBannerText("Ready. Open the UI and manage your workspace.")),

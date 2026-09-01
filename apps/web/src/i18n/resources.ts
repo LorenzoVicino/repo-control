@@ -344,6 +344,53 @@ export const en = {
       docker: "Docker action"
     }
   },
+  auth: {
+    eyebrow: "Local access",
+    title: "Sign in to the workspace",
+    description: "Manage repositories, runtimes and agents from a single operational space.",
+    usernameLabel: "Username",
+    usernamePlaceholder: "owner",
+    passwordLabel: "Password",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
+    remember: "Remember me",
+    rememberHint: "Keeps this browser signed in for 30 days instead of 12 hours.",
+    forgotCredentials: "Forgotten credentials?",
+    credentialSourceTitle: "Credentials live in the server environment",
+    credentialSourceBody: "Set REPO_CONTROL_AUTH_USERNAME and REPO_CONTROL_AUTH_PASSWORD in .env, then restart repo-control. There is no recovery flow and no reset email.",
+    submit: "Sign in",
+    submitting: "Signing in…",
+    submitKey: "Enter",
+    localOnly: "credentials",
+    localOnlyNote: "repo-control creates no accounts. The credentials come from the environment of the API running on this machine, and the session never leaves it.",
+    status: {
+      checking: "Contacting the local API…",
+      online: "Local API reachable",
+      offline: "Local API unreachable"
+    },
+    errors: {
+      missingFields: "Enter both a username and a password.",
+      invalidCredentials: "Incorrect username or password.",
+      tooManyAttempts: "Too many failed attempts. Try again in {{seconds}} seconds.",
+      disabled: "This server has no credentials configured, so there is nothing to sign in to.",
+      unknown: "Unable to sign in."
+    },
+    showcase: {
+      headline: "The control center for your repositories.",
+      description: "Monitor, sync and automate workflows, all from a single operational space.",
+      artworkLabel: "Diagram: the repo-control workspace connects repositories, Docker, terminal, automations and agent sessions."
+    },
+    session: {
+      menuAriaLabel: "Session menu for {{username}}",
+      signedInAs: "Signed in as",
+      signOut: "Sign out",
+      signingOut: "Signing out…",
+      signOutError: "Unable to sign out"
+    },
+    boot: {
+      loading: "Loading repo-control…"
+    }
+  },
   settings: {
     eyebrow: "Workspace preferences",
     title: "Settings",
@@ -1353,6 +1400,53 @@ export const it: TranslationSchema<typeof en> = {
       changes: "Modifiche Git",
       branches: "Branch Git",
       docker: "Azione Docker"
+    }
+  },
+  auth: {
+    eyebrow: "Accesso locale",
+    title: "Accedi al workspace",
+    description: "Gestisci repository, runtime e agent da un unico spazio operativo.",
+    usernameLabel: "Utente",
+    usernamePlaceholder: "owner",
+    passwordLabel: "Password",
+    showPassword: "Mostra la password",
+    hidePassword: "Nascondi la password",
+    remember: "Ricordami",
+    rememberHint: "Mantiene l’accesso su questo browser per 30 giorni invece di 12 ore.",
+    forgotCredentials: "Credenziali dimenticate?",
+    credentialSourceTitle: "Le credenziali stanno nell’ambiente del server",
+    credentialSourceBody: "Imposta REPO_CONTROL_AUTH_USERNAME e REPO_CONTROL_AUTH_PASSWORD nel file .env, poi riavvia repo-control. Non esiste una procedura di recupero né un’email di reset.",
+    submit: "Accedi",
+    submitting: "Accesso in corso…",
+    submitKey: "Invio",
+    localOnly: "credenziali",
+    localOnlyNote: "repo-control non crea account. Le credenziali arrivano dall’ambiente dell’API in esecuzione su questa macchina e la sessione non la lascia mai.",
+    status: {
+      checking: "Contatto l’API locale…",
+      online: "API locale raggiungibile",
+      offline: "API locale non raggiungibile"
+    },
+    errors: {
+      missingFields: "Inserisci utente e password.",
+      invalidCredentials: "Utente o password non corretti.",
+      tooManyAttempts: "Troppi tentativi falliti. Riprova tra {{seconds}} secondi.",
+      disabled: "Questo server non ha credenziali configurate: non c’è nulla a cui accedere.",
+      unknown: "Impossibile completare l’accesso."
+    },
+    showcase: {
+      headline: "Il centro di controllo per i tuoi repository.",
+      description: "Monitora, sincronizza e automatizza workflow, tutto da un unico spazio operativo.",
+      artworkLabel: "Diagramma: il workspace repo-control collega repository, Docker, terminale, automazioni e sessioni degli agent."
+    },
+    session: {
+      menuAriaLabel: "Menu sessione di {{username}}",
+      signedInAs: "Accesso come",
+      signOut: "Esci",
+      signingOut: "Uscita in corso…",
+      signOutError: "Impossibile completare l’uscita"
+    },
+    boot: {
+      loading: "Caricamento di repo-control…"
     }
   },
   settings: {

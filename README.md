@@ -145,12 +145,33 @@ Copy `.env.example` to `.env` when local settings should live outside the comman
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `HOST` | `127.0.0.1` | API bind address. Keep this local unless an authentication layer is added. |
+| `HOST` | `127.0.0.1` | API bind address. Keep this local: a sign-in is a lock on the door, not a reason to move the door outside. |
 | `PORT` | `3747` | API port. |
 | `LOG_LEVEL` | `error` | Fastify log level: `fatal`, `error`, `warn`, `info`, `debug`, `trace` or `silent`. Request logging remains disabled. |
 | `REPO_CONTROL_ROOT` | current directory | Workspace folder scanned recursively for Git repositories. |
 | `REPO_CONTROL_CONFIG_DIR` | OS user config folder | Override the directory used for repo-control's local JSON files. |
 | `REPO_CONTROL_SERVE_WEB` | off | Serve the built dashboard from the API process. Set automatically by the `repo-control` binary and by `npm start`; leave it off during `npm run dev`, where Vite owns the UI. |
+
+### Sign-in
+
+repo-control opens straight into the workspace by default. Setting both credentials below turns on a sign-in screen and closes every `/api` route to callers without a session, which is what you want when the machine is shared, screen-shared or left unlocked.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `REPO_CONTROL_AUTH_USERNAME` | unset | Username accepted by the sign-in screen. |
+| `REPO_CONTROL_AUTH_PASSWORD` | unset | Password accepted by the sign-in screen. |
+
+```bash
+# .env
+REPO_CONTROL_AUTH_USERNAME=owner
+REPO_CONTROL_AUTH_PASSWORD=choose-a-long-unique-passphrase
+```
+
+- Both variables must be set together. With only one, the server refuses to start rather than leaving an API you believe is protected wide open.
+- The session is an opaque token in an `HttpOnly`, `SameSite=Strict` cookie. It lasts 12 hours, or 30 days when *Remember me* is used, and lives in the server's memory only: restarting repo-control signs everyone out.
+- Five wrong answers pause sign-in for 30 seconds.
+- `GET /api/health` stays reachable without a session so a supervisor can probe the API, and answers `{ "ok": true, "authRequired": true }` without naming the workspace folder.
+- There is no recovery flow. Change the values in `.env` and restart.
 
 ### Local tools and agent CLIs
 
@@ -192,7 +213,7 @@ It loads `nvm` when available, validates the Node.js version, installs dependenc
 
 repo-control can execute Git, Docker and terminal commands on your machine. Its safety model is intentionally narrow:
 
-- the API and Vite development server bind to localhost by default and have no authentication layer;
+- the API and Vite development server bind to localhost by default; a sign-in is available for shared machines but is not a substitute for staying on loopback;
 - project commands are resolved against repositories discovered under the active workspace;
 - branch changes are rejected for dirty repositories, pull uses `--ff-only`, and force push or implicit discard flows are not exposed;
 - only one terminal command per repository can run at a time, and its active process tree can be cancelled from the repository terminal;
