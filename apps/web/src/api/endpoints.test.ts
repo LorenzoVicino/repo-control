@@ -12,7 +12,18 @@ import {
   runBrainTask,
   updateBrainTask
 } from "./brain";
-import { fetchDockerComposeProject, fetchDockerContainers, fetchDockerServiceLogs, stopDockerContainers } from "./docker";
+import {
+  closeContainerSession,
+  fetchDockerComposeProject,
+  fetchDockerContainerStats,
+  fetchDockerContainers,
+  fetchDockerServiceLogs,
+  openContainerExecSession,
+  openContainerLogSession,
+  readContainerSession,
+  sendContainerSessionInput,
+  stopDockerContainers
+} from "./docker";
 import {
   cancelTerminalCommand,
   fetchGitActivity,
@@ -72,6 +83,35 @@ describe("API endpoint contracts", () => {
       ],
       ["/api/auth/logout", { method: "POST" }],
       ["/api/health", undefined]
+    ]);
+  });
+
+  it("uses the container session endpoints with their expected methods", async () => {
+    await fetchDockerContainerStats();
+    await openContainerExecSession("a1b2c3d4e5f6");
+    await openContainerExecSession("a1b2c3d4e5f6", "sh");
+    await openContainerLogSession("a1b2c3d4e5f6", 500);
+    await readContainerSession("session-one", 128);
+    await sendContainerSessionInput("session-one", "ls\n");
+    await closeContainerSession("session-one");
+
+    expect(fetchMock.mock.calls).toEqual([
+      ["/api/docker/stats", undefined],
+      ["/api/docker/containers/a1b2c3d4e5f6/exec", expect.objectContaining({ method: "POST", body: "{}" })],
+      [
+        "/api/docker/containers/a1b2c3d4e5f6/exec",
+        expect.objectContaining({ method: "POST", body: "{\"shell\":\"sh\"}" })
+      ],
+      [
+        "/api/docker/containers/a1b2c3d4e5f6/logs",
+        expect.objectContaining({ method: "POST", body: "{\"tail\":500}" })
+      ],
+      ["/api/docker/sessions/session-one?cursor=128", undefined],
+      [
+        "/api/docker/sessions/session-one/input",
+        expect.objectContaining({ method: "POST", body: "{\"data\":\"ls\\n\"}" })
+      ],
+      ["/api/docker/sessions/session-one", { method: "DELETE" }]
     ]);
   });
 

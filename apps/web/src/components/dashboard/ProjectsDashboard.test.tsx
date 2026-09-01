@@ -35,7 +35,18 @@ vi.mock("../../api/auth", () => ({
 }));
 vi.mock("../../api/docker", () => ({
   fetchDockerContainers: vi.fn(),
-  stopDockerContainers: vi.fn()
+  stopDockerContainers: vi.fn(),
+  fetchDockerContainerStats: vi.fn().mockResolvedValue({
+    ok: true,
+    stats: [],
+    checkedAt: "2026-09-01T10:00:00.000Z",
+    error: null
+  }),
+  openContainerExecSession: vi.fn(),
+  openContainerLogSession: vi.fn(),
+  readContainerSession: vi.fn(),
+  sendContainerSessionInput: vi.fn(),
+  closeContainerSession: vi.fn()
 }));
 vi.mock("../../api/projects", () => ({
   fetchProjects: vi.fn(),

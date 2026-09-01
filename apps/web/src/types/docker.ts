@@ -53,3 +53,46 @@ export type DockerComposeProjectResponse = {
   checkedAt: string;
   error: string | null;
 };
+
+export type DockerContainerStats = {
+  id: string;
+  name: string;
+  cpuPercent: number | null;
+  memoryUsedBytes: number | null;
+  memoryLimitBytes: number | null;
+  memoryPercent: number | null;
+  networkInBytes: number | null;
+  networkOutBytes: number | null;
+  blockReadBytes: number | null;
+  blockWriteBytes: number | null;
+  processCount: number | null;
+};
+
+export type DockerContainerStatsResponse = {
+  ok: boolean;
+  stats: DockerContainerStats[];
+  checkedAt: string;
+  error: string | null;
+};
+
+export type ContainerSessionKind = "exec" | "logs";
+
+export type ContainerSession = {
+  id: string;
+  kind: ContainerSessionKind;
+  containerId: string;
+  containerName: string;
+  shell: string | null;
+  command: string;
+  createdAt: string;
+  running: boolean;
+  exitCode: number | null;
+  // Characters produced so far. Sent back on the next read so the session streams forward
+  // instead of resending its whole transcript.
+  cursor: number;
+};
+
+export type ContainerSessionRead = ContainerSession & {
+  chunk: string;
+  truncated: boolean;
+};

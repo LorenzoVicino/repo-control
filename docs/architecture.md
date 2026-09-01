@@ -53,9 +53,19 @@ Current route domains are:
 | `agentSessionRoutes` | Workspace-scoped agent history search and validated native-terminal resume. |
 | `gitRoutes` | Git details, activity, file diffs, staged summaries, staging, commits, stashes, sync and branches. |
 | `terminalRoutes` | Scoped shell execution, one active command per repository, cancellation and command suggestions. |
-| `dockerRoutes` | Container discovery plus validated Compose service state, logs, restart and stack actions. |
+| `dockerRoutes` | Container discovery, resource samples, container shell and log sessions, plus validated Compose service state, logs, restart and stack actions. |
 | `workflowRoutes` | Workflow CRUD, dry runs, background runs, progress reads and cancellation. |
 | `brainRoutes` / `claudeRoutes` | Task-engineering backend retained while its UI entry point is hidden pending redesign. |
+
+### Container sessions
+
+`createContainerSessionStore` owns the processes behind the container console. A session is a long-lived `docker` client - `docker exec -i <id> <shell>` or `docker logs --follow <id>` - which the one-shot command runner cannot represent, because that runner resolves only once a process has exited.
+
+Each session keeps its output in a capped buffer with a monotonic character cursor. The client sends the cursor it last saw and receives everything after it, so a slow poll loses nothing that is still inside the window, and a read that starts before the retained window is answered with `truncated: true` rather than a silent gap. stdout and stderr share one buffer, because a terminal interleaves them.
+
+Sessions are capped in number, dropped after an idle period with no reads, and closed on server shutdown; exited sessions keep their transcript readable but release their slot. The store takes an injectable spawner, so its lifecycle is tested against real pipes without a Docker daemon.
+
+Container-scoped routes validate the ID shape and then revalidate it against the running containers, which is the container equivalent of resolving a project ID against discovered repositories: the browser never names a process to run, only a container the daemon already reports.
 
 ### Sign-in
 
@@ -97,6 +107,7 @@ apps/web/src/
     auth/       sign-in screen, shared session read and session menu
     automation/ visual workflow editor, execution and history
     dashboard/  navigation, health views and repository discovery
+    docker/     container console sessions and resource-usage formatting
     project/    capability-driven overview, Git diff, branch, terminal and Docker panels
     shared/     reusable presentation components with no feature ownership
     task/       hidden Task engineering UI retained for redesign work

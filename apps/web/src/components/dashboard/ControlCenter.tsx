@@ -1,9 +1,11 @@
+import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import LaunchOutlinedIcon from "@mui/icons-material/LaunchOutlined";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import StorageIcon from "@mui/icons-material/Storage";
 import StopCircleIcon from "@mui/icons-material/StopCircle";
+import TerminalOutlinedIcon from "@mui/icons-material/TerminalOutlined";
 import {
   Accordion,
   AccordionDetails,
@@ -27,28 +29,39 @@ import {
 import React from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import type { DockerContainer, DockerContainerGroup, DockerContainersResponse } from "../../types/docker";
+import type {
+  ContainerSessionKind,
+  DockerContainer,
+  DockerContainerGroup,
+  DockerContainerStats,
+  DockerContainersResponse
+} from "../../types/docker";
+import { findContainerStats, formatBytes, formatPercent } from "../docker/containerStats";
 
 const MAX_VISIBLE_GROUPS = 5;
 
 type ControlCenterProps = {
   dockerStatus: DockerContainersResponse | undefined;
+  containerStats: DockerContainerStats[] | undefined;
   isLoadingDocker: boolean;
   isRefreshingDocker: boolean;
   stoppingDockerGroupId: string | null;
   dockerActionError: string | null;
   onRefreshDocker: () => void;
   onStopDockerGroup: (group: DockerContainerGroup) => void;
+  onOpenContainerConsole: (container: DockerContainer, kind: ContainerSessionKind) => void;
 };
 
 export function ControlCenter({
   dockerStatus,
+  containerStats,
   isLoadingDocker,
   isRefreshingDocker,
   stoppingDockerGroupId,
   dockerActionError,
   onRefreshDocker,
-  onStopDockerGroup
+  onStopDockerGroup,
+  onOpenContainerConsole
 }: ControlCenterProps) {
   const { t } = useTranslation();
   const [showAllGroups, setShowAllGroups] = React.useState(false);
@@ -144,8 +157,10 @@ export function ControlCenter({
                   key={group.id}
                   group={group}
                   defaultExpanded={index === 0}
+                  containerStats={containerStats}
                   isStopping={stoppingDockerGroupId === group.id}
                   onRequestStop={() => setPendingStopGroup(group)}
+                  onOpenContainerConsole={onOpenContainerConsole}
                 />
               ))}
             </Stack>
@@ -230,11 +245,20 @@ function RuntimeMetric({ label, value, tone = "text.primary" }: { label: string;
 type DockerProjectGroupProps = {
   group: DockerContainerGroup;
   defaultExpanded: boolean;
+  containerStats: DockerContainerStats[] | undefined;
   isStopping: boolean;
   onRequestStop: () => void;
+  onOpenContainerConsole: (container: DockerContainer, kind: ContainerSessionKind) => void;
 };
 
-function DockerProjectGroup({ group, defaultExpanded, isStopping, onRequestStop }: DockerProjectGroupProps) {
+function DockerProjectGroup({
+  group,
+  defaultExpanded,
+  containerStats,
+  isStopping,
+  onRequestStop,
+  onOpenContainerConsole
+}: DockerProjectGroupProps) {
   const { t } = useTranslation();
   const attentionCount = group.containers.filter((container) => getContainerState(t, container).tone !== "success").length;
   const groupHealthy = attentionCount === 0;
@@ -285,20 +309,35 @@ function DockerProjectGroup({ group, defaultExpanded, isStopping, onRequestStop 
       </Box>
       <AccordionDetails sx={{ p: 0, borderTop: "1px solid", borderColor: "divider" }}>
         <Stack divider={<Box sx={{ borderTop: "1px solid", borderColor: "divider" }} />}>
-          {group.containers.map((container) => <DockerServiceRow key={container.id} container={container} />)}
+          {group.containers.map((container) => (
+            <DockerServiceRow
+              key={container.id}
+              container={container}
+              stats={findContainerStats(containerStats, container.id)}
+              onOpenContainerConsole={onOpenContainerConsole}
+            />
+          ))}
         </Stack>
       </AccordionDetails>
     </Accordion>
   );
 }
 
-function DockerServiceRow({ container }: { container: DockerContainer }) {
+function DockerServiceRow({
+  container,
+  stats,
+  onOpenContainerConsole
+}: {
+  container: DockerContainer;
+  stats: DockerContainerStats | null;
+  onOpenContainerConsole: (container: DockerContainer, kind: ContainerSessionKind) => void;
+}) {
   const { t } = useTranslation();
   const state = getContainerState(t, container);
   const ports = getPublishedPorts(container.ports);
 
   return (
-    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(180px, 0.9fr) minmax(170px, 1fr) minmax(220px, 1.2fr)" }, gap: { xs: 1, md: 1.5 }, px: 1.5, py: 1.25, alignItems: "center" }}>
+    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(160px, 0.9fr) minmax(150px, 0.8fr) minmax(190px, 1.1fr) minmax(112px, 0.5fr) auto" }, gap: { xs: 1, md: 1.5 }, px: 1.5, py: 1.25, alignItems: "center" }}>
       <Box sx={{ minWidth: 0 }}>
         <Typography variant="body2" fontWeight={650} noWrap>{container.composeService ?? container.name}</Typography>
         <Typography variant="caption" color="text.secondary" component="div" noWrap>{container.image}</Typography>
@@ -319,6 +358,44 @@ function DockerServiceRow({ container }: { container: DockerContainer }) {
             {t("dashboard.runtime.noPublishedPorts")}
           </Typography>
         )}
+      </Stack>
+      <Box
+        sx={{ minWidth: 0 }}
+        aria-label={
+          stats
+            ? t("docker.stats.ariaLabel", {
+                cpu: formatPercent(stats.cpuPercent),
+                memory: formatBytes(stats.memoryUsedBytes)
+              })
+            : t("docker.stats.unavailable")
+        }
+      >
+        <Typography noWrap sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 10.5 }}>
+          {t("docker.stats.cpu")} {formatPercent(stats?.cpuPercent ?? null)}
+        </Typography>
+        <Typography color="text.disabled" noWrap sx={{ fontFamily: "var(--rc-font-mono)", fontSize: 9.5 }}>
+          {formatBytes(stats?.memoryUsedBytes ?? null)} / {formatBytes(stats?.memoryLimitBytes ?? null)}
+        </Typography>
+      </Box>
+      <Stack direction="row" spacing={0.25} alignItems="center" sx={{ justifySelf: { md: "end" } }}>
+        <Tooltip title={t("docker.console.openShell", { container: container.name })}>
+          <IconButton
+            size="small"
+            aria-label={t("docker.console.openShell", { container: container.name })}
+            onClick={() => onOpenContainerConsole(container, "exec")}
+          >
+            <TerminalOutlinedIcon sx={{ fontSize: 17 }} />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title={t("docker.console.openLogs", { container: container.name })}>
+          <IconButton
+            size="small"
+            aria-label={t("docker.console.openLogs", { container: container.name })}
+            onClick={() => onOpenContainerConsole(container, "logs")}
+          >
+            <ArticleOutlinedIcon sx={{ fontSize: 17 }} />
+          </IconButton>
+        </Tooltip>
       </Stack>
     </Box>
   );

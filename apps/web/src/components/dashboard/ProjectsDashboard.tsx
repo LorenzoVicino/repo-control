@@ -16,7 +16,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { fetchAppUpdateStatus, updateRepoControl } from "../../api/app";
-import { fetchDockerContainers, stopDockerContainers } from "../../api/docker";
+import { fetchDockerContainerStats, fetchDockerContainers, stopDockerContainers } from "../../api/docker";
 import { fetchProjects, fetchProjectSummary } from "../../api/projects";
 import {
   fetchPreferences,
@@ -25,6 +25,7 @@ import {
   updatePreferences
 } from "../../api/workspace";
 import { SessionMenu } from "../auth/SessionMenu";
+import { ContainerConsoleDialog } from "../docker/ContainerConsoleDialog";
 import { AppUpdateDialog } from "./AppUpdateDialog";
 import { ControlCenter } from "./ControlCenter";
 import { DashboardAppBar } from "./DashboardAppBar";
@@ -55,7 +56,11 @@ import {
 } from "../shared/OperationFeedback";
 import type { AppUpdateResult } from "../../types/app";
 import type { ColorPalette, CommandResult, ProjectOperationSource, ViewMode } from "../../types/common";
-import type { DockerContainerGroup } from "../../types/docker";
+import type {
+  ContainerSessionKind,
+  DockerContainer,
+  DockerContainerGroup
+} from "../../types/docker";
 import type { ProjectsResponse } from "../../types/projects";
 import { commandErrorResult } from "../../utils/commandResult";
 import { filterProjects, isProject } from "../../utils/projects";
@@ -64,6 +69,9 @@ import { WorkspaceStaleNotice, WorkspaceUnavailable } from "./WorkspaceQueryStat
 const LEGACY_FAVORITE_PROJECTS_STORAGE_KEY = "repo-control-favorite-projects";
 const APP_UPDATE_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const DOCKER_POLL_INTERVAL_MS = 60 * 1000;
+// `docker stats` samples every running container, so it is polled faster than the container
+// list but only while the Docker section is the one on screen.
+const DOCKER_STATS_POLL_INTERVAL_MS = 10 * 1000;
 const MAX_WARM_PROJECT_PANELS = 4;
 const MAX_OPERATION_RECORDS = 20;
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "repo-control-sidebar-collapsed";
@@ -143,6 +151,10 @@ export function ProjectsDashboard({
   const [warmProjectIds, setWarmProjectIds] = React.useState<string[]>([]);
   const [activeProjectId, setActiveProjectId] = React.useState<string | null>(null);
   const [stoppingDockerGroupId, setStoppingDockerGroupId] = React.useState<string | null>(null);
+  const [consoleTarget, setConsoleTarget] = React.useState<{
+    container: DockerContainer;
+    kind: ContainerSessionKind;
+  } | null>(null);
   const [dockerActionError, setDockerActionError] = React.useState<string | null>(null);
   const [operationRecords, setOperationRecords] = React.useState<OperationRecord[]>([]);
   const [operationNotificationId, setOperationNotificationId] = React.useState<string | null>(null);
@@ -174,6 +186,13 @@ export function ProjectsDashboard({
     staleTime: DOCKER_POLL_INTERVAL_MS - 5 * 1000,
     refetchInterval: DOCKER_POLL_INTERVAL_MS,
     refetchIntervalInBackground: true
+  });
+  const { data: containerStatsResponse } = useQuery({
+    queryKey: ["docker-container-stats"],
+    queryFn: fetchDockerContainerStats,
+    enabled: activeSection === "docker",
+    staleTime: DOCKER_STATS_POLL_INTERVAL_MS - 2 * 1000,
+    refetchInterval: DOCKER_STATS_POLL_INTERVAL_MS
   });
   const {
     data: preferences,
@@ -814,6 +833,7 @@ export function ProjectsDashboard({
             <ViewEntrance>
               <ControlCenter
                 dockerStatus={dockerStatus}
+                containerStats={containerStatsResponse?.stats}
                 isLoadingDocker={isLoadingDocker}
                 isRefreshingDocker={isFetchingDocker}
                 onRefreshDocker={() => {
@@ -824,6 +844,7 @@ export function ProjectsDashboard({
                 onStopDockerGroup={(group) => {
                   void handleStopDockerGroup(group);
                 }}
+                onOpenContainerConsole={(container, kind) => setConsoleTarget({ container, kind })}
               />
             </ViewEntrance>
           ) : null}
@@ -973,6 +994,11 @@ export function ProjectsDashboard({
         </Stack>
       </Container>
 
+      <ContainerConsoleDialog
+        container={consoleTarget?.container ?? null}
+        initialKind={consoleTarget?.kind ?? "exec"}
+        onClose={() => setConsoleTarget(null)}
+      />
       <AppUpdateDialog
         open={isAppUpdateDialogOpen}
         isUpdating={isUpdatingApp}
