@@ -57,4 +57,14 @@ CI runs `verify` on Node.js 20.19, 22.13 and 24. The browser job runs after that
 - Treat agent transcripts, terminal history and workflow output as private local data in code, fixtures and screenshots.
 - Update the README, architecture guide, `.env.example` and changelog when a change affects public behavior, configuration, persistence or supported tooling.
 
+## Releases
+
+Releases are cut from `main`:
+
+1. Merge a `chore: prepare vX.Y.Z release` change that moves the `Unreleased` changelog entries under the new version and bumps `package.json`.
+2. Tag that commit `vX.Y.Z` and push the tag.
+3. Publish a GitHub release for the tag.
+
+Publishing the release runs `.github/workflows/release.yml`, which checks that the tag matches `package.json`, then publishes the package to npm with provenance. It needs an `NPM_TOKEN` repository secret holding an npm automation token with publish rights. A failed publish can be retried from the Actions tab through the workflow's manual trigger without re-cutting the release.
+
 See [Architecture](docs/architecture.md) for dependency direction and placement conventions, and [Security](SECURITY.md) for the supported trust boundary.
