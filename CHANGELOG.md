@@ -13,6 +13,7 @@ This project follows semantic versioning where practical.
 
 ### Changed
 
+- Publish the package to npm when a GitHub release is published. Releases were tagged and published by hand, and pushing to npm was a separate manual step, so anything installing `repo-control@<version>` - the `npx` quickstart, an image built from the published package - only saw a release if someone remembered the second half. The release workflow checks out the tag rather than the default branch, refuses to publish when the tag disagrees with `package.json`, and publishes with provenance. It needs an `NPM_TOKEN` repository secret.
 - Generate task plans in the language selected in the interface. The planning agent was told to write in Italian regardless of the toggle, and the plan document's own Markdown headings were hardcoded Italian, so an English interface produced an Italian plan. The web app now sends the active language with the planning and from-plan requests, and the server keeps the prompt instruction, the section headings and the approved-clarifications heading in that language.
 
 ### Fixed

@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  # A published GitHub release is the single trigger, so cutting a release and shipping the
+  # package cannot drift apart: whoever publishes the release publishes to npm. The manual
+  # entry point exists to retry a failed publish without re-cutting the release.
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish, for example v0.11.0
+        required: true
+
+permissions:
+  contents: read
+
+# Two runs publishing the same tag would race for the same registry version. Queue them
+# instead of cancelling: a cancelled publish can leave the release unshipped and silent.
+concurrency:
+  group: release-${{ github.event.release.tag_name || github.event.inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # npm provenance: the registry records which commit and workflow built the tarball,
+      # which is what makes `npm view repo-control` verifiable rather than a claim.
+      id-token: write
+
+    steps:
+      # The release tag, not the default branch: main may already carry commits that are
+      # not part of this version.
+      - name: Checkout released tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name || github.event.inputs.tag }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      # Same reasoning as CI: one npm authors and reads the lockfile.
+      - name: Use the pinned npm
+        run: npm install -g "npm@$(node -p "require('./package.json').packageManager.split('@')[1]")"
+
+      # A tag that disagrees with package.json would publish a version nobody tagged, which
+      # is the one release mistake that cannot be taken back.
+      - name: Check the tag matches the package version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.event.inputs.tag }}
+        run: |
+          package_version="$(node -p "require('./package.json').version")"
+
+          if [ "$RELEASE_TAG" != "v${package_version}" ]; then
+            echo "Release tag ${RELEASE_TAG} does not match package.json version ${package_version}." >&2
+            exit 1
+          fi
+
+          echo "Publishing repo-control@${package_version} from ${RELEASE_TAG}."
+
+      # A missing secret otherwise surfaces as an opaque registry 401 at the very last step,
+      # after the install and both builds have already run.
+      - name: Check the publish token is configured
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "The NPM_TOKEN repository secret is not set, so this release cannot be published." >&2
+            echo "Add an npm automation token with publish rights under Settings > Secrets and variables > Actions." >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      # prepublishOnly runs the typecheck and both builds, so the tarball is the compiled
+      # server and dashboard rather than sources.
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
