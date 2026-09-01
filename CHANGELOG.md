@@ -6,6 +6,8 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.12.0] - 2026-09-01
+
 ### Added
 
 - Open a console on any running container from the Docker runtime page. A **Shell** tab holds a live `docker exec` session, so the working directory and environment persist between commands the way they do in Docker Desktop, and a **Logs** tab follows `docker logs` for any container - including standalone ones, which the existing Compose-scoped log route could not reach. Each row also reports live CPU, memory and I/O from `docker stats`. Sessions are long-lived docker processes with a cursor-based output buffer, capped in number, dropped after an idle period and closed with the dialog or the server. The shell is a pipe rather than a terminal, so state persists but full-screen programs do not run; the interface says so instead of leaving the user to discover it. Container IDs are revalidated against the running containers before any process starts, the shell is fixed to `bash` or `sh`, and nothing from the browser reaches a host shell.
