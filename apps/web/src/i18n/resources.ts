@@ -300,10 +300,13 @@ export const en = {
       openProject: "Open {{name}}, {{count}} changed files",
       branchNotDetected: "branch not detected",
       changesAria: "{{staged}} staged, {{modified}} modified, {{untracked}} new",
+      readyOf: "{{ready}} of {{total}} repositories",
+      kindCount: "{{count}} {{kind}}",
+      changeScale: "scale 0–{{max}} files",
       blocked: "Blocked",
       action: "Needs action",
       ahead: "Ahead",
-      readySignal: "Ready"
+      readySignal: "In sync"
     }
   },
   loading: {
@@ -1417,10 +1420,13 @@ export const it: TranslationSchema<typeof en> = {
       openProject: "Apri {{name}}, {{count}} file modificati",
       branchNotDetected: "branch non rilevata",
       changesAria: "{{staged}} staged, {{modified}} modificati, {{untracked}} nuovi",
+      readyOf: "{{ready}} su {{total}} repository",
+      kindCount: "{{count}} {{kind}}",
+      changeScale: "scala 0–{{max}} file",
       blocked: "Bloccati",
       action: "Da gestire",
       ahead: "Ahead",
-      readySignal: "Pronti"
+      readySignal: "Allineati"
     }
   },
   loading: {

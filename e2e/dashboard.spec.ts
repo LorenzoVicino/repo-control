@@ -77,16 +77,25 @@ test("keeps the application backdrop static and lightweight", async ({ page }) =
   await expect(backdrop).toHaveCSS("pointer-events", "none");
 });
 
-test("keeps operational status bars moving continuously unless reduced motion is requested", async ({ page }) => {
+test("draws the readiness ring and groups the change bars by file state", async ({ page }) => {
   await page.goto("/");
 
-  const animatedBar = page.locator('[data-animation="continuous"]').first();
-  await expect(animatedBar).toBeVisible();
-  expect(await animatedBar.evaluate((element) => getComputedStyle(element).animationIterationCount)).toBe("infinite");
+  const ring = page.getByRole("img", { name: /Operational distribution/ });
+  await expect(ring).toBeVisible();
+  // One arc per occupied signal, and never an arc for a signal at zero.
+  expect(await ring.locator("[data-signal-key]").count()).toBeGreaterThan(0);
+  await expect(page.getByText(/^\d+%$/).first()).toBeVisible();
 
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await expect(animatedBar).toHaveCSS("animation-name", "none");
-  await expect(animatedBar).toHaveCSS("background-image", "none");
+  await expect(page.getByRole("heading", { name: "Change concentration" })).toBeVisible();
+  const changeRows = page.getByRole("img", { name: /staged, .* modified, .* new/ });
+  const rowCount = await changeRows.count();
+  for (let index = 0; index < rowCount; index += 1) {
+    // Grouped, so each state keeps its own bar - including the ones at zero.
+    await expect(changeRows.nth(index).locator("[data-change-kind]")).toHaveCount(3);
+  }
+
+  // The panel no longer animates its data marks; nothing should re-introduce a loop.
+  await expect(page.locator('[data-animation="continuous"]')).toHaveCount(0);
 });
 
 test("shares one motion backdrop across every dashboard section", async ({ page }) => {
