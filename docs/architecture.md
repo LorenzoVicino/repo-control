@@ -108,7 +108,7 @@ apps/web/src/
     agents/     unified local agent history
     auth/       sign-in screen, shared session read and sidebar profile menu
     automation/ visual workflow editor, execution and history
-    dashboard/  navigation, health views and repository discovery
+    dashboard/  navigation, the widget home (`widgets/`, `dashboardLayout.ts`) and repository discovery
     docker/     container console sessions and resource-usage formatting
     project/    capability-driven overview, Git diff, branch, terminal and Docker panels
     settings/   local interface preferences: language, palette and text size
@@ -132,19 +132,21 @@ Interface preferences are owned by the application shell rather than by the scre
 
 Text size is applied through the theme's `unstable_sxConfig` transform for `fontSize`, not by editing components. Most type sizes here are written inline as `sx={{ fontSize: 10.5 }}`, so scaling `typography` alone would grow the headings and leave the small mono labels untouched; the transform reaches every inline number, the themed sizes and the icon sizes from one definition. A new inline size therefore scales automatically, and a size that must stay fixed is written as a CSS string.
 
+Static files in `apps/web/public/` are copied to the served root by the build, so they answer before the single-page fallback. That ordering matters for machine-readable files such as `llms.txt`: the fallback returns `index.html` for any unmatched GET, so a missing file at a well-known path answers 200 with the application shell rather than 404.
+
 ## Persistence
 
 `getConfigDirectory()` provides the single root for repo-control-owned server data. `REPO_CONTROL_CONFIG_DIR` overrides the OS default.
 
 | Path below the config directory | Contents |
 | --- | --- |
-| `preferences.json` | Favorite project IDs. |
+| `preferences.json` | Favorite project IDs, the most recently opened repositories and the dashboard widget layout. `PUT /api/preferences` merges a partial document over the stored one, so each caller sends only the key it owns. |
 | `terminal-history.json` | Normalized terminal commands, repository paths, counts and last-used times; capped at 500 entries. |
 | `workflows.json` | Visual workflow definitions. |
 | `workflow-runs.json` | The latest 100 dry runs and real runs, including step commands and output. |
 | `brain/*.json` | Existing Task engineering records retained by the hidden backend. |
 
-Agent transcripts remain in their provider-owned directories and are not copied here. Palette, text size and dashboard quote preferences are browser `localStorage`, not server JSON.
+Agent transcripts remain in their provider-owned directories and are not copied here. Palette, text size and language are browser `localStorage`, not server JSON.
 
 Writes that can race use temporary files plus rename. Workflow definition and run-history mutations also have separate in-process queues to prevent lost updates.
 
