@@ -6,7 +6,7 @@ import { readProjectSummary, scanProjects } from "../gitScanner.js";
 import type { CommandResult, CommandRunner } from "../lib/commandRunner.js";
 import { resolveRootInput } from "../lib/projectResolver.js";
 import type { ProjectResolver } from "../lib/projectResolver.js";
-import { readPreferences, writePreferences } from "../preferences.js";
+import { MAX_RECENT_PROJECT_IDS, readPreferences, writePreferences } from "../preferences.js";
 import {
   getVSCodeFailureHint,
   getVSCodeLauncherCandidates
@@ -92,11 +92,31 @@ export async function registerAppRoutes(app: FastifyInstance, context: AppRoutes
 
   app.get("/api/preferences", async () => readPreferences());
 
+  // Partial on purpose: the interface saves favorites, recently opened repositories and the
+  // dashboard layout from different places, and each caller sends only the key it owns.
   app.put("/api/preferences", async (request) => {
+    const projectIds = z.array(z.string().trim().min(1).max(2048)).max(2000);
     const body = z
       .object({
-        favoriteProjectIds: z.array(z.string().trim().min(1).max(2048)).max(2000)
+        favoriteProjectIds: projectIds,
+        recentProjectIds: projectIds.max(MAX_RECENT_PROJECT_IDS),
+        dashboard: z
+          .object({
+            version: z.literal(1),
+            widgets: z
+              .array(
+                z.object({
+                  id: z.string().trim().min(1).max(64),
+                  size: z.enum(["small", "medium", "large"]),
+                  hidden: z.boolean()
+                })
+              )
+              .max(32)
+          })
+          .nullable()
       })
+      .partial()
+      .strict()
       .parse(request.body);
 
     return writePreferences(body);

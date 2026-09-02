@@ -9,11 +9,17 @@ export function fetchPreferences(): Promise<UserPreferences> {
   return requestJson("/api/preferences", "Unable to load local preferences");
 }
 
-export function updatePreferences(preferences: UserPreferences): Promise<UserPreferences> {
+// The server merges a partial document over what it has stored and answers with the
+// whole record, so each caller sends only the preference it owns.
+export function updatePreferences(
+  patch: Partial<UserPreferences>,
+  options: { keepalive?: boolean } = {}
+): Promise<UserPreferences> {
   return requestJson(
     "/api/preferences",
     "Unable to save local preferences",
-    jsonRequest("PUT", preferences)
+    // `keepalive` lets a save started as the page unloads finish after it is gone.
+    { ...jsonRequest("PUT", patch), keepalive: options.keepalive === true }
   );
 }
 

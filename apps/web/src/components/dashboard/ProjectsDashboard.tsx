@@ -70,6 +70,14 @@ import type { ProjectsResponse } from "../../types/projects";
 import { commandErrorResult } from "../../utils/commandResult";
 import { filterProjects, isProject } from "../../utils/projects";
 import { WorkspaceStaleNotice, WorkspaceUnavailable } from "./WorkspaceQueryState";
+import { pushRecentProjectId } from "./dashboardInsights";
+import {
+  areLayoutsEqual,
+  DEFAULT_DASHBOARD_LAYOUT,
+  normalizeDashboardLayout,
+  type DashboardLayout
+} from "./dashboardLayout";
+import type { UserPreferences } from "../../types/workspace";
 
 const LEGACY_FAVORITE_PROJECTS_STORAGE_KEY = "repo-control-favorite-projects";
 const APP_UPDATE_POLL_INTERVAL_MS = 5 * 60 * 1000;
@@ -79,6 +87,10 @@ const DOCKER_POLL_INTERVAL_MS = 60 * 1000;
 const DOCKER_STATS_POLL_INTERVAL_MS = 10 * 1000;
 const MAX_WARM_PROJECT_PANELS = 4;
 const MAX_OPERATION_RECORDS = 20;
+// Mirrors the cap the server applies to `recentProjectIds`.
+const MAX_RECENT_PROJECT_IDS = 8;
+// Dragging a widget around produces a burst of layouts; only the one that settles is saved.
+const DASHBOARD_LAYOUT_SAVE_DELAY_MS = 500;
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "repo-control-sidebar-collapsed";
 type RepositorySort = "attention" | "name" | "recent" | "changes";
 type RepositoryGrouping = "folder" | "status";
@@ -149,6 +161,8 @@ export function ProjectsDashboard({
   const [isAppUpdateDialogOpen, setIsAppUpdateDialogOpen] = React.useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = React.useState(false);
   const [favoriteProjectIds, setFavoriteProjectIds] = React.useState<string[]>([]);
+  const [recentProjectIds, setRecentProjectIds] = React.useState<string[]>([]);
+  const [dashboardLayout, setDashboardLayout] = React.useState<DashboardLayout>(DEFAULT_DASHBOARD_LAYOUT);
   const [preferenceFailure, setPreferenceFailure] = React.useState<PreferenceFailure | null>(null);
   const [isRetryingPreferenceSave, setIsRetryingPreferenceSave] = React.useState(false);
   const [openProjectIds, setOpenProjectIds] = React.useState<string[]>([]);
@@ -166,7 +180,13 @@ export function ProjectsDashboard({
   const favoriteProjectIdsRef = React.useRef<string[]>([]);
   const confirmedFavoriteProjectIdsRef = React.useRef<string[]>([]);
   const favoritePreferenceSequenceRef = React.useRef(0);
-  const favoritePreferenceQueueRef = React.useRef<Promise<void>>(Promise.resolve());
+  // One queue for every preference write, so a favorites save and a layout save cannot
+  // overtake each other on the wire.
+  const preferenceQueueRef = React.useRef<Promise<void>>(Promise.resolve());
+  const recentProjectIdsRef = React.useRef<string[]>([]);
+  const dashboardLayoutRef = React.useRef<DashboardLayout>(DEFAULT_DASHBOARD_LAYOUT);
+  const dashboardLayoutSaveTimerRef = React.useRef<number | null>(null);
+  const hasHydratedDashboardRef = React.useRef(false);
 
   const {
     data,
@@ -289,16 +309,42 @@ export function ProjectsDashboard({
           setPreferenceFailure({
             kind: failureKind,
             error,
-            favoriteProjectIds: requestedProjectIds
+            patch: { favoriteProjectIds: requestedProjectIds }
           });
         }
       }
     };
 
-    const queuedRequest = favoritePreferenceQueueRef.current.then(saveRequest, saveRequest);
-    favoritePreferenceQueueRef.current = queuedRequest;
+    const queuedRequest = preferenceQueueRef.current.then(saveRequest, saveRequest);
+    preferenceQueueRef.current = queuedRequest;
     return queuedRequest;
   }, [applyFavoriteProjectIds, queryClient]);
+
+  // Saves a preference the interface owns outright - the dashboard layout, the recently
+  // opened repositories. The screen already shows the new value, so a failure keeps it on
+  // screen and, when asked, tells the user it was not stored.
+  const queuePreferencePatch = React.useCallback((
+    patch: Partial<UserPreferences>,
+    options: { notifyFailure: boolean }
+  ): Promise<void> => {
+    const saveRequest = async () => {
+      try {
+        const savedPreferences = await updatePreferences(patch);
+        queryClient.setQueryData(["preferences"], savedPreferences);
+        if (options.notifyFailure) {
+          setPreferenceFailure((currentFailure) => (currentFailure?.kind === "layout" ? null : currentFailure));
+        }
+      } catch (error) {
+        if (options.notifyFailure) {
+          setPreferenceFailure({ kind: "layout", error, patch });
+        }
+      }
+    };
+
+    const queuedRequest = preferenceQueueRef.current.then(saveRequest, saveRequest);
+    preferenceQueueRef.current = queuedRequest;
+    return queuedRequest;
+  }, [queryClient]);
 
   const retryPreferenceFailure = React.useCallback(async () => {
     if (preferencesError) {
@@ -306,14 +352,66 @@ export function ProjectsDashboard({
       return;
     }
 
-    if (!preferenceFailure?.favoriteProjectIds) return;
+    if (!preferenceFailure?.patch) return;
     setIsRetryingPreferenceSave(true);
-    await queueFavoritePreferenceSave(
-      preferenceFailure.favoriteProjectIds,
-      preferenceFailure.kind
-    );
+    if (preferenceFailure.kind === "layout") {
+      await queuePreferencePatch(preferenceFailure.patch, { notifyFailure: true });
+    } else if (preferenceFailure.patch.favoriteProjectIds) {
+      await queueFavoritePreferenceSave(
+        preferenceFailure.patch.favoriteProjectIds,
+        preferenceFailure.kind
+      );
+    }
     setIsRetryingPreferenceSave(false);
-  }, [preferenceFailure, preferencesError, queueFavoritePreferenceSave, refetchPreferences]);
+  }, [preferenceFailure, preferencesError, queueFavoritePreferenceSave, queuePreferencePatch, refetchPreferences]);
+
+  const canSavePreferences = Boolean(preferences) && !preferencesError;
+
+  const handleDashboardLayoutChange = React.useCallback((layout: DashboardLayout) => {
+    if (areLayoutsEqual(layout, dashboardLayoutRef.current)) return;
+    dashboardLayoutRef.current = layout;
+    setDashboardLayout(layout);
+    if (!canSavePreferences) return;
+
+    if (dashboardLayoutSaveTimerRef.current !== null) {
+      window.clearTimeout(dashboardLayoutSaveTimerRef.current);
+    }
+    dashboardLayoutSaveTimerRef.current = window.setTimeout(() => {
+      dashboardLayoutSaveTimerRef.current = null;
+      void queuePreferencePatch({ dashboard: dashboardLayoutRef.current }, { notifyFailure: true });
+    }, DASHBOARD_LAYOUT_SAVE_DELAY_MS);
+  }, [canSavePreferences, queuePreferencePatch]);
+
+  // A layout change made in the last half second before the tab closes would be lost to the
+  // debounce; the unload flushes it with a keepalive request the browser finishes on its own.
+  React.useEffect(() => {
+    function flushPendingLayoutSave() {
+      if (dashboardLayoutSaveTimerRef.current === null) return;
+      window.clearTimeout(dashboardLayoutSaveTimerRef.current);
+      dashboardLayoutSaveTimerRef.current = null;
+      void updatePreferences({ dashboard: dashboardLayoutRef.current }, { keepalive: true }).catch(() => {
+        // The page is going away; there is nobody left to tell.
+      });
+    }
+
+    window.addEventListener("pagehide", flushPendingLayoutSave);
+    return () => {
+      window.removeEventListener("pagehide", flushPendingLayoutSave);
+      if (dashboardLayoutSaveTimerRef.current !== null) {
+        window.clearTimeout(dashboardLayoutSaveTimerRef.current);
+      }
+    };
+  }, []);
+
+  const recordRecentProject = React.useCallback((projectId: string) => {
+    const nextRecentProjectIds = pushRecentProjectId(recentProjectIdsRef.current, projectId, MAX_RECENT_PROJECT_IDS);
+    if (areProjectIdListsEqual(nextRecentProjectIds, recentProjectIdsRef.current)) return;
+    recentProjectIdsRef.current = nextRecentProjectIds;
+    setRecentProjectIds(nextRecentProjectIds);
+    if (canSavePreferences) {
+      void queuePreferencePatch({ recentProjectIds: nextRecentProjectIds }, { notifyFailure: false });
+    }
+  }, [canSavePreferences, queuePreferencePatch]);
 
   React.useEffect(() => {
     window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(isSidebarCollapsed));
@@ -372,6 +470,18 @@ export function ProjectsDashboard({
 
     confirmedFavoriteProjectIdsRef.current = [...preferences.favoriteProjectIds];
     applyFavoriteProjectIds(nextFavoriteProjectIds);
+
+    // The layout and the recents are hydrated once: after that the screen is the source of
+    // truth and every save echoes what it already shows, so re-applying a save that lands
+    // while a later change is still pending would only roll the newer change back.
+    if (!hasHydratedDashboardRef.current) {
+      hasHydratedDashboardRef.current = true;
+      const storedLayout = normalizeDashboardLayout(preferences.dashboard);
+      dashboardLayoutRef.current = storedLayout;
+      setDashboardLayout(storedLayout);
+      recentProjectIdsRef.current = [...preferences.recentProjectIds];
+      setRecentProjectIds(preferences.recentProjectIds);
+    }
 
     if (shouldMigrateLegacyPreferences) {
       void queueFavoritePreferenceSave(nextFavoriteProjectIds, "migration");
@@ -472,6 +582,7 @@ export function ProjectsDashboard({
   const openProject = React.useCallback((projectId: string) => {
     void loadProjectDetailPanel();
     setIsCommandPaletteOpen(false);
+    recordRecentProject(projectId);
     setOpenProjectIds((currentProjectIds) =>
       currentProjectIds.includes(projectId) ? currentProjectIds : [...currentProjectIds, projectId]
     );
@@ -480,9 +591,10 @@ export function ProjectsDashboard({
     setActiveProjectId(projectId);
     setIsMobileSidebarOpen(false);
     window.scrollTo({ top: 0, behavior: "instant" });
-  }, []);
+  }, [recordRecentProject]);
 
   const activateProject = React.useCallback((projectId: string) => {
+    recordRecentProject(projectId);
     startNavigationTransition(() => {
       setActiveSection("repositories");
       setActiveProjectId(projectId);
@@ -490,7 +602,15 @@ export function ProjectsDashboard({
       setIsMobileSidebarOpen(false);
     });
     window.scrollTo({ top: 0, behavior: "instant" });
-  }, []);
+  }, [recordRecentProject]);
+
+  const openCommandPalette = React.useCallback(() => setIsCommandPaletteOpen(true), []);
+  const refreshWorkspace = React.useCallback(() => {
+    void refetch();
+  }, [refetch]);
+  const pickWorkspace = React.useCallback(() => {
+    void handleFolderPick();
+  }, [handleFolderPick]);
 
   const toggleFavoriteProject = React.useCallback((projectId: string) => {
     if (!preferences || preferencesError) return;
@@ -796,9 +916,20 @@ export function ProjectsDashboard({
                   <DashboardHome
                     projects={projects}
                     favoriteProjectIds={favoriteProjectIds}
+                    recentProjectIds={recentProjectIds}
                     dockerStatus={dockerStatus}
+                    isLoadingDocker={isLoadingDocker}
+                    workspaceRoot={workspaceRoot}
+                    scannedAt={dataUpdatedAt}
+                    isRefreshing={isFetching}
+                    layout={dashboardLayout}
+                    canEditLayout={canSavePreferences}
+                    onLayoutChange={handleDashboardLayoutChange}
                     onNavigate={navigateToSection}
                     onOpenProject={openProject}
+                    onOpenSearch={openCommandPalette}
+                    onPickWorkspace={pickWorkspace}
+                    onRefreshWorkspace={refreshWorkspace}
                   />
                 )}
               </Box>

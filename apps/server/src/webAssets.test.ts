@@ -13,6 +13,7 @@ async function createAssetFixture(): Promise<string> {
   await fs.writeFile(path.join(rootPath, "index.html"), "<!doctype html><title>fixture</title>", "utf8");
   await fs.mkdir(path.join(rootPath, "assets"));
   await fs.writeFile(path.join(rootPath, "assets", "app.js"), "export default 1;\n", "utf8");
+  await fs.writeFile(path.join(rootPath, "llms.txt"), "# fixture\n", "utf8");
 
   return rootPath;
 }
@@ -43,6 +44,14 @@ test("serves the built dashboard and routes unmatched GETs back to the app shell
   assert.equal(deepLinkResponse.statusCode, 200);
   assert.match(String(deepLinkResponse.headers["content-type"]), /text\/html/);
 
+  // A text file at the root has to be served as text. The single-page fallback answers
+  // every unmatched GET with index.html, so a missing llms.txt would return the app shell
+  // with a 200 - which reads to a crawler as a malformed llms.txt rather than an absent one.
+  const llmsResponse = await app.inject({ method: "GET", url: "/llms.txt" });
+  assert.equal(llmsResponse.statusCode, 200);
+  assert.match(String(llmsResponse.headers["content-type"]), /text\/plain/);
+  assert.equal(llmsResponse.body, "# fixture\n");
+
   // The asset wildcard must never shadow a registered API route.
   const apiResponse = await app.inject({ method: "GET", url: "/api/health" });
   assert.equal(apiResponse.statusCode, 200);
@@ -70,6 +79,35 @@ test("resolves the application root from the module location, not the working di
   assert.equal(packageJson.name, "repo-control");
   assert.equal(webDistPath, path.join(appRootPath, "apps", "web", "dist"));
   assert.equal(hasBuiltWebAssets(), await pathExists(path.join(webDistPath, "index.html")));
+});
+
+// The file ships from apps/web/public, which Vite copies to the served root, so its
+// format is only ever checked here.
+test("ships an llms.txt that follows the format specification", async () => {
+  const llmsPath = path.join(appRootPath, "apps", "web", "public", "llms.txt");
+  const content = await fs.readFile(llmsPath, "utf8");
+  const lines = content.split("\n");
+
+  // Required: an H1 naming the project, first.
+  assert.equal(lines[0], "# repo-control");
+
+  // Recommended: a blockquote summary carrying what is needed to read the rest.
+  const summary = lines.find((line) => line.startsWith(">"));
+  assert.ok(summary, "llms.txt needs a blockquote summary");
+  assert.ok(summary.length > 80, "the summary should actually describe the project");
+
+  // File lists are H2-delimited, and every entry is a markdown link.
+  const sections = lines.filter((line) => line.startsWith("## "));
+  assert.deepEqual(sections, ["## Documentation", "## Optional"]);
+
+  const entries = lines.filter((line) => line.startsWith("- "));
+  assert.ok(entries.length >= 4);
+  for (const entry of entries) {
+    assert.match(entry, /^- \[[^\]]+\]\(https:\/\/[^)]+\)(: .+)?$/, `malformed entry: ${entry}`);
+  }
+
+  // Only H1 and H2 belong in the file; a deeper heading breaks the file-list parse.
+  assert.equal(lines.filter((line) => /^#{3,}\s/.test(line)).length, 0);
 });
 
 async function pathExists(candidatePath: string): Promise<boolean> {

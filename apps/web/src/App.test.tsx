@@ -149,6 +149,26 @@ describe("application shell", () => {
     expect(getInitialColorPalette()).toBe("white");
   });
 
+  it("repaints browser autofill in every palette's own colors", () => {
+    // Chrome's autofill background arrives through a UA rule marked !important, so the
+    // fix has to be an inset shadow plus -webkit-text-fill-color. Without it an
+    // autofilled field turns pale blue and stays that way on every dark palette.
+    for (const option of COLOR_PALETTE_OPTIONS) {
+      const theme = createAppTheme(option.id);
+      const input = theme.components?.MuiOutlinedInput?.styleOverrides?.input as
+        | Record<string, Record<string, string>>
+        | undefined;
+      const autofill = input?.[
+        "&:-webkit-autofill, &:-webkit-autofill:hover, &:-webkit-autofill:focus, &:-webkit-autofill:active"
+      ];
+
+      expect(autofill, option.id).toBeDefined();
+      expect(autofill?.WebkitTextFillColor).toBe(theme.palette.text.primary);
+      expect(autofill?.WebkitBoxShadow).toContain("inset");
+      expect(autofill?.caretColor).toBe(theme.palette.text.primary);
+    }
+  });
+
   it("creates a usable theme for every advertised palette", () => {
     const themes = COLOR_PALETTE_OPTIONS.map((option) => createAppTheme(option.id));
     expect(themes.map((theme) => theme.palette.mode)).toEqual([

@@ -1,0 +1,24 @@
+# repo-control
+
+> A local-first command center for multi-repository workspaces. This server discovers the Git repositories under one folder on the operator's own machine and brings their state together — working trees, branches, upstream drift, Docker containers, local AI-agent sessions and saved automations — behind a JSON API on loopback, with a React dashboard served from the same port.
+
+repo-control is not a hosted service. There is no public instance and no account system: it binds to `127.0.0.1` by default and is started by the person who owns the machine it inspects. If you have reached this file over a network, someone changed the bind address deliberately.
+
+Treat every path under `/api` as an operation rather than a document. Those routes act on real repositories and can run Git, Docker and shell commands — staging files, committing, checking out branches, pulling, pushing, restarting containers and executing terminal input scoped to a repository. Nothing here is a published corpus to read, and a GET is not automatically safe to repeat: `/api/projects` rescans the filesystem, and the agent-session routes read transcripts belonging to the machine's owner.
+
+`GET /api/health` is the one route that answers without a session. It reports `{ "ok": true }` and whether a sign-in is configured, and it withholds the workspace path from an unauthenticated caller. When `REPO_CONTROL_AUTH_USERNAME` and `REPO_CONTROL_AUTH_PASSWORD` are set, every other `/api` route requires a session cookie obtained through the sign-in screen; there is no token or API-key flow for an agent to use.
+
+Interface preferences — palette, text size and language — live in the browser's local storage, not on the server, so reading the API tells you nothing about them.
+
+## Documentation
+
+- [README](https://github.com/LorenzoVicino/repo-control/blob/main/README.md): what the tool does, its capabilities, the safety and privacy model, every configuration variable and how to run it
+- [Architecture](https://github.com/LorenzoVicino/repo-control/blob/main/docs/architecture.md): runtime topology, the route domains, the workspace and project resolver that scopes every command, persistence and placement conventions
+- [Security](https://github.com/LorenzoVicino/repo-control/blob/main/SECURITY.md): the supported trust boundary, what local data is stored, and how to report a vulnerability
+- [Changelog](https://github.com/LorenzoVicino/repo-control/blob/main/CHANGELOG.md): released behaviour changes, newest first
+
+## Optional
+
+- [Contributing](https://github.com/LorenzoVicino/repo-control/blob/main/CONTRIBUTING.md): local setup, the quality gates a change has to pass, and the release steps
+- [Source repository](https://github.com/LorenzoVicino/repo-control): issues, releases and the full source
+- [npm package](https://www.npmjs.com/package/repo-control): the `npx repo-control` quickstart and supported Node.js versions

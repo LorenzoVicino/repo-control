@@ -54,7 +54,7 @@ repo-control keeps the convenience of a dashboard without moving control to a re
 
 | Area | Outcome |
 | --- | --- |
-| Workspace health | See clean, modified, ahead and behind repositories together, with recent commit activity and favorites. |
+| Dashboard | A widget home that leads with what needs attention, then where to resume: recent repositories, AI conversations, Docker health, automation runs and shortcuts. Widgets are dragged, resized, hidden and restored in an explicit edit mode; the layout is saved with the workspace preferences. |
 | Agent sessions | Search local Codex, Claude Code and Gemini CLI conversations by title or content, filter by provider and resume them from the matching repository. |
 | Repository overview | Triage attention items, working-tree health, upstream drift, Compose services and recent commits from one full-width landing view. |
 | Git workspace | Inspect staged and unstaged files with an inline text diff and staged line summary; stage, unstage, commit, stash, fetch, pull and push without losing repository context. |
@@ -204,7 +204,7 @@ repo-control stores its own data outside Git by default:
 - macOS: `~/Library/Application Support/repo-control`
 - Linux/WSL: `${XDG_CONFIG_HOME:-~/.config}/repo-control`
 
-The directory contains `preferences.json`, `terminal-history.json`, `workflows.json` and `workflow-runs.json` as those features are used. Terminal command suggestions persist in `terminal-history.json`; the visible terminal transcript stays mounted while its repository remains open, but is not written to disk. Workflow history includes command output and retains at most 100 runs. Older task-engineering data, if present, remains in the `brain/` subdirectory. Interface choices - palette, text size, language and the dashboard quote - are kept in browser local storage rather than on the server, so they follow the browser and not the workspace.
+The directory contains `preferences.json`, `terminal-history.json`, `workflows.json` and `workflow-runs.json` as those features are used. Terminal command suggestions persist in `terminal-history.json`; the visible terminal transcript stays mounted while its repository remains open, but is not written to disk. Workflow history includes command output and retains at most 100 runs. Older task-engineering data, if present, remains in the `brain/` subdirectory. Interface choices - palette, text size and language - are kept in browser local storage rather than on the server, so they follow the browser and not the workspace.
 
 ### Windows with WSL
 

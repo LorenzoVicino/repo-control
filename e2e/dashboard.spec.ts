@@ -77,16 +77,40 @@ test("keeps the application backdrop static and lightweight", async ({ page }) =
   await expect(backdrop).toHaveCSS("pointer-events", "none");
 });
 
-test("keeps operational status bars moving continuously unless reduced motion is requested", async ({ page }) => {
+test("customizes the dashboard widgets and stores the layout in the local preferences", async ({ page, request }) => {
+  await request.put(`${apiBaseUrl}/api/preferences`, { data: { dashboard: null } });
   await page.goto("/");
 
-  const animatedBar = page.locator('[data-animation="continuous"]').first();
-  await expect(animatedBar).toBeVisible();
-  expect(await animatedBar.evaluate((element) => getComputedStyle(element).animationIterationCount)).toBe("infinite");
+  // The default arrangement leads with what needs attention and draws the workspace ring.
+  const grid = page.locator("[data-dashboard-grid]");
+  await expect(grid.locator("[data-widget-id]").first()).toHaveAttribute("data-widget-id", "attention");
+  await expect(page.getByRole("img", { name: /Repository states/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Shortcuts" })).toBeVisible();
 
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await expect(animatedBar).toHaveCSS("animation-name", "none");
-  await expect(animatedBar).toHaveCSS("background-image", "none");
+  await page.getByRole("button", { name: "Customize" }).click();
+  await page.getByRole("button", { name: "Hide Shortcuts" }).click();
+  await expect(page.getByRole("region", { name: "Shortcuts" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Move Needs attention later" }).click();
+  await expect(grid.locator("[data-widget-id]").first()).toHaveAttribute("data-widget-id", "workspace");
+  await page.getByRole("button", { name: "Done" }).click();
+
+  // The saved layout is the one the grid shows, and it survives a reload.
+  await expect.poll(async () => {
+    const response = await request.get(`${apiBaseUrl}/api/preferences`);
+    const payload = await response.json() as { dashboard: { widgets: Array<{ id: string; hidden: boolean }> } | null };
+    return payload.dashboard?.widgets.map((widget) => `${widget.id}${widget.hidden ? ":hidden" : ""}`).slice(0, 2).join(",")
+      + "|" + String(payload.dashboard?.widgets.find((widget) => widget.id === "shortcuts")?.hidden);
+  }).toBe("workspace,attention|true");
+
+  await page.reload();
+  await expect(grid.locator("[data-widget-id]").first()).toHaveAttribute("data-widget-id", "workspace");
+  await expect(page.getByRole("region", { name: "Shortcuts" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Customize" }).click();
+  await page.getByRole("button", { name: "Reset layout" }).click();
+  await expect(grid.locator("[data-widget-id]").first()).toHaveAttribute("data-widget-id", "attention");
+  await page.getByRole("button", { name: "Done" }).click();
+  await expect(page.getByRole("region", { name: "Shortcuts" })).toBeVisible();
 });
 
 test("shares one motion backdrop across every dashboard section", async ({ page }) => {
@@ -128,6 +152,7 @@ test("switches and persists all five dashboard color palettes", async ({ page })
     await profileTab.click();
     await paletteItem.click();
     await page.getByRole("menuitemradio", { name: label, exact: true }).click();
+    await expect(page.getByRole("menuitemradio", { name: label, exact: true })).toHaveCount(0);
     expect(
       await page.evaluate(() => window.localStorage.getItem("repo-control-color-palette"))
     ).toBe(value);
@@ -162,6 +187,9 @@ test("opens settings from the profile tab and scales the interface text", async 
   const profileTab = page.getByRole("button", { name: /Profile menu|Session menu for/ });
   await profileTab.click();
   await page.getByRole("menuitem", { name: "Settings" }).click();
+  // The menu is a Modal: its invisible backdrop stays mounted for the closing transition
+  // and swallows any click made before the popover has left the DOM.
+  await expect(page.getByRole("menuitem", { name: "Settings" })).toHaveCount(0);
 
   const title = page.getByRole("heading", { name: "Settings", exact: true });
   await expect(title).toBeVisible();

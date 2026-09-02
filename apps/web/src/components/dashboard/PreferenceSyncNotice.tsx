@@ -9,13 +9,15 @@ import {
   Typography
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
+import type { UserPreferences } from "../../types/workspace";
 
-export type PreferenceFailureKind = "load" | "migration" | "save";
+export type PreferenceFailureKind = "load" | "migration" | "save" | "layout";
 
 export type PreferenceFailure = {
   kind: PreferenceFailureKind;
   error: unknown;
-  favoriteProjectIds?: string[];
+  // The write that failed, so a retry sends exactly what the screen already shows.
+  patch?: Partial<UserPreferences>;
 };
 
 type PreferenceSyncNoticeProps = {
