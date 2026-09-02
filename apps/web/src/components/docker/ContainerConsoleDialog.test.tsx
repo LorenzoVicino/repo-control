@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -58,6 +58,13 @@ function transcript(): HTMLElement {
   return screen.getByLabelText("Shell session output");
 }
 
+// jsdom performs no layout, so the two measurements the auto-scroll reads have to be
+// supplied. Both are restored by the global afterEach through vi.restoreAllMocks.
+function stubScrollMetrics({ scrollHeight, clientHeight }: { scrollHeight: number; clientHeight: number }) {
+  vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(scrollHeight);
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(clientHeight);
+}
+
 describe("ContainerConsoleDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -92,6 +99,62 @@ describe("ContainerConsoleDialog", () => {
     // Echoed locally, because a piped shell never echoes the command itself.
     expect(transcript()).toHaveTextContent("$ ls -la");
     expect(screen.getByLabelText("Command to run inside the container")).toHaveValue("");
+  });
+
+  it("shows the newest output first by starting at the bottom of the transcript", async () => {
+    stubScrollMetrics({ scrollHeight: 4_000, clientHeight: 400 });
+    readMock.mockResolvedValue({
+      ...session({ id: "session-logs", kind: "logs", shell: null }),
+      cursor: 900,
+      chunk: Array.from({ length: 300 }, (_, index) => `line ${index}`).join("\n"),
+      truncated: false
+    });
+
+    renderWithProviders(
+      <ContainerConsoleDialog container={CONTAINER} initialKind="logs" onClose={vi.fn()} />
+    );
+
+    const logs = await screen.findByLabelText("Container log output");
+    // The whole tail arrives in one chunk, so the view must land at its end rather than at
+    // the oldest line - which is what a distance-from-bottom check would have decided.
+    await waitFor(() => expect(logs.scrollTop).toBe(4_000));
+  });
+
+  it("stops following once the reader scrolls up, and follows again at the bottom", async () => {
+    stubScrollMetrics({ scrollHeight: 4_000, clientHeight: 400 });
+    readMock
+      .mockResolvedValueOnce({
+        ...session({ id: "session-logs", kind: "logs", shell: null }),
+        cursor: 10,
+        chunk: "first\n",
+        truncated: false
+      })
+      .mockResolvedValue({
+        ...session({ id: "session-logs", kind: "logs", shell: null }),
+        cursor: 20,
+        chunk: "later\n",
+        truncated: false
+      });
+
+    renderWithProviders(
+      <ContainerConsoleDialog container={CONTAINER} initialKind="logs" onClose={vi.fn()} />
+    );
+
+    const logs = await screen.findByLabelText("Container log output");
+    await waitFor(() => expect(logs.scrollTop).toBe(4_000));
+
+    // Reading something further up must survive the next chunk.
+    logs.scrollTop = 500;
+    fireEvent.scroll(logs);
+    await waitFor(() => expect(logs).toHaveTextContent("later"));
+    expect(logs.scrollTop).toBe(500);
+
+    // Returning to the bottom resumes following.
+    logs.scrollTop = 3_600;
+    fireEvent.scroll(logs);
+    const chunksBefore = readMock.mock.calls.length;
+    await waitFor(() => expect(readMock.mock.calls.length).toBeGreaterThan(chunksBefore));
+    await waitFor(() => expect(logs.scrollTop).toBe(4_000));
   });
 
   it("recalls previous commands with the arrow keys", async () => {

@@ -6,6 +6,10 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+### Fixed
+
+- Open the container console already scrolled to the newest output. `docker logs --tail` arrives as one large chunk whose newest lines are at its end, and the auto-scroll only followed the tail when the view was already near the bottom - which the first chunk never is - so the logs tab opened on the oldest line of the window and had to be scrolled by hand. Following the tail is now the starting state and is given up only when the reader scrolls away from it, and resumed when they come back.
+
 ## [0.12.0] - 2026-09-01
 
 ### Added
