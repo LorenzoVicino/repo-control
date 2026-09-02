@@ -1,5 +1,7 @@
 # Sezione 07 — Task engineering assistito da AI
 
+> **Sezione parcheggiata.** La UI di Task engineering è nascosta: non compare nella navigazione e la sua route non è registrata. Componenti ed endpoint restano nel repository per un futuro redesign. Non usare questo prompt come inventario dell'applicazione corrente e non reintrodurre la sezione nella shell senza una decisione esplicita di prodotto.
+
 ## Fonti da leggere
 
 - `apps/web/src/components/task/TaskEngineeringPage.tsx`

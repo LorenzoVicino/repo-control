@@ -26,7 +26,7 @@ import {
   isAppLanguage,
   type AppLanguage
 } from "../../i18n";
-import { COLOR_PALETTE_OPTIONS, FONT_SCALE_OPTIONS } from "../../theme";
+import { COLOR_PALETTE_OPTIONS, COLOR_SWATCH_RING, FONT_SCALE_OPTIONS } from "../../theme";
 import type { ColorPalette, FontScale } from "../../types/common";
 
 const LANGUAGE_OPTIONS: ReadonlyArray<{
@@ -215,10 +215,10 @@ export function SettingsPage({
                         width: 34,
                         height: 34,
                         flexShrink: 0,
-                        border: "1px solid var(--rc-border-strong)",
+                        border: "1px solid",
+                        borderColor: COLOR_SWATCH_RING,
                         borderRadius: "50%",
-                        background: `linear-gradient(135deg, ${option.surface} 0 50%, ${option.color} 50% 100%)`,
-                        boxShadow: (theme) => `0 0 0 2px ${theme.palette.background.paper}`
+                        bgcolor: option.swatch
                       }}
                     />
                   }

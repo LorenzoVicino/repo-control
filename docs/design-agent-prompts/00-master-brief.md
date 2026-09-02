@@ -16,8 +16,10 @@ repo-control scopre i repository presenti in una cartella locale e riunisce in u
 - Docker e Docker Compose, inclusi servizi, porte, stato, health e log;
 - terminali limitati al repository con output e processo cancellabile;
 - sessioni locali di Codex, Claude Code e Gemini CLI;
-- task engineering assistito da AI con planning, review, gate e implementazione;
-- automazioni visuali con dry-run, input runtime, esecuzione, cancellazione e storico.
+- automazioni visuali con dry-run, input runtime, esecuzione, cancellazione e storico;
+- preferenze di interfaccia locali: palette, dimensione del testo e lingua, raggiungibili dal tab Profilo in fondo alla sidebar e dalla sezione Impostazioni.
+
+Un'area di task engineering assistito da AI esiste ancora nel codice e nel backend, ma la sua UI è nascosta in attesa di redesign: non progettarla e non presentarla come capacità attuale.
 
 Il prodotto non è cloud collaboration software. È uno strumento personale e operativo che gira in locale, può eseguire comandi reali e deve rendere sempre evidente **dove**, **cosa** e **con quale rischio** si sta agendo.
 

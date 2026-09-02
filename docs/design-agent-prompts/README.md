@@ -37,7 +37,7 @@ Ogni prompt di sezione è autosufficiente sul piano funzionale, ma presuppone ch
 | 5 | `sections/03-repositories-catalog.md` | Fissa il linguaggio delle collezioni di repository. |
 | 6 | `sections/09-repository-workspace-shell.md` | Definisce il passaggio dal workspace globale al lavoro su un singolo repository. |
 | 7 | `sections/10`–`14` | Disegna le tab operative del repository. |
-| 8 | `sections/05`–`08` | Estende il sistema a Docker globale, agenti, task e automazioni. |
+| 8 | `sections/05`, `06`, `08` | Estende il sistema a Docker globale, agenti e automazioni. La `07` è parcheggiata. |
 | 9 | `sections/15-global-search-dialogs.md` | Consolida overlay, ricerca e azioni trasversali. |
 | 10 | `99-cross-section-review.md` | Audit finale di coerenza e completezza. |
 
@@ -49,7 +49,7 @@ Ogni prompt di sezione è autosufficiente sul piano funzionale, ma presuppone ch
 - `04-favorites.md` — raccolta compatta dei repository preferiti ed empty state.
 - `05-docker-control-center.md` — runtime Docker a livello workspace.
 - `06-agent-sessions.md` — ricerca e ripresa delle conversazioni Codex, Claude Code e Gemini.
-- `07-task-engineering.md` — pianificazione AI, review con gate e implementazione.
+- `07-task-engineering.md` — pianificazione AI, review con gate e implementazione. **Sezione parcheggiata:** la UI è nascosta e la sezione non è raggiungibile; usa questo prompt solo se il redesign di Task engineering torna in scope.
 - `08-automations.md` — editor visuale, nodi, input runtime, esecuzioni e storico.
 - `09-repository-workspace-shell.md` — repository aperti, header, tab interne e contesto persistente.
 - `10-repository-overview.md` — landing operativa del singolo repository.
@@ -67,7 +67,9 @@ I prompt derivano dall'implementazione corrente sotto:
 - `apps/web/src/components/project/`
 - `apps/web/src/components/agents/`
 - `apps/web/src/components/automation/`
-- `apps/web/src/components/task/`
+- `apps/web/src/components/auth/`
+- `apps/web/src/components/settings/`
+- `apps/web/src/components/task/` (nascosto, conservato per il redesign)
 - `apps/web/src/theme.ts`
 - `apps/web/src/types/`
 

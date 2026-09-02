@@ -54,6 +54,7 @@ CI runs `verify` on Node.js 20.19, 22.13 and 24. The browser job runs after that
 - Treat destructive actions, such as discarding files, deleting branches or force pushing, as opt-in flows.
 - Keep API clients, types and UI components grouped by domain instead of extending shared monoliths.
 - Resolve project paths on the server from project identifiers; do not accept arbitrary command working directories from the browser.
+- Write interface font sizes as `sx={{ fontSize: 12 }}` numbers so the text size preference scales them; reach for a CSS string only when a size must stay fixed regardless of that setting.
 - Treat agent transcripts, terminal history and workflow output as private local data in code, fixtures and screenshots.
 - Update the README, architecture guide, `.env.example` and changelog when a change affects public behavior, configuration, persistence or supported tooling.
 

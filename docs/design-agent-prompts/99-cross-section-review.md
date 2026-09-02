@@ -11,7 +11,7 @@ Hai completato il redesign delle sezioni di repo-control. Ora esegui un audit se
 3. Dashboard → Docker globale → repository interessato → Docker Compose → servizio unhealthy → log → restart.
 4. Agent sessions → ricerca nel contenuto → verifica repository/branch → resume → fallback manuale in caso di terminale non disponibile.
 5. Automazioni → nuovo workflow → aggiungi/configura nodi → correggi validazione → dry-run → run → close → storico → cancel.
-6. Task engineering → intento → planning → domanda → review → gate → implementation → check fallito → recovery.
+6. Tab Profilo → Impostazioni → palette e dimensione del testo → ritorno a una schermata densa, verificando che il livello grande non tronchi label né rompa la densità.
 7. Mobile: Dashboard → Repository → Panoramica → stato Git → ritorno alla ricerca globale.
 
 ### Audit di coerenza
@@ -30,7 +30,7 @@ Per ogni punto assegna `pass`, `needs revision` o `missing`, con prova visiva:
 - Reduced motion, contrasto e zoom 200% sono coperti.
 - Terminale, diff, log e codice condividono una grammatica mono coerente.
 - Docker globale e Docker repository sono distinguibili ma parenti.
-- Automazioni e Task engineering usano lo stesso linguaggio per progress, approval, failure e history.
+- Le preferenze di interfaccia dicono la stessa cosa nel menu profilo e nella sezione Impostazioni.
 - Nessun controllo promette feature backend inesistenti.
 
 ### Audit dei token
