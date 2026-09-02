@@ -16,7 +16,6 @@ import { useTranslation } from "react-i18next";
 const CARD_SKELETON_COUNT = 10;
 const TABLE_SKELETON_ROW_COUNT = 8;
 const TABLE_SKELETON_COLUMN_COUNT = 6;
-const HOME_LEDGER_ROW_COUNT = 6;
 
 export function RepositoryGridSkeleton() {
   const { t } = useTranslation();
@@ -128,176 +127,93 @@ export function RepositoryTableSkeleton() {
   );
 }
 
+// Mirrors the default widget arrangement so the page does not jump when the data lands:
+// a two-wide panel and two singles, then two rows of halves.
+const HOME_SKELETON_TILES: Array<{ columns: 1 | 2; rows: number }> = [
+  { columns: 2, rows: 4 },
+  { columns: 1, rows: 3 },
+  { columns: 1, rows: 2 },
+  { columns: 2, rows: 4 },
+  { columns: 2, rows: 4 },
+  { columns: 2, rows: 2 },
+  { columns: 2, rows: 3 }
+];
+
 export function DashboardHomeSkeleton() {
   const { t } = useTranslation();
 
   return (
     <Stack
-      spacing={2.25}
+      spacing={2}
       role="status"
       aria-live="polite"
       aria-label={t("navigation.scanningWorkspace")}
-      sx={{ minHeight: { md: "calc(100dvh - 102px)" } }}
     >
       <Box
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) auto" },
-          gap: 2,
-          alignItems: "end",
-          pb: 1.75,
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          gap: 1.5,
+          pb: 1.5,
           borderBottom: "1px solid",
           borderColor: "divider"
         }}
       >
-        <Box sx={{ minWidth: 0 }}>
-          <Skeleton variant="text" animation="wave" width={90} />
-          <Skeleton variant="text" animation="wave" sx={{ fontSize: "1.9rem", width: "60%", mt: 0.35 }} />
-          <Skeleton variant="text" animation="wave" sx={{ width: "80%", maxWidth: 480, mt: 0.7 }} />
+        <Box sx={{ minWidth: 0, flex: "1 1 320px" }}>
+          <Skeleton variant="text" animation="wave" sx={{ fontSize: "1.9rem", width: "48%" }} />
+          <Skeleton variant="text" animation="wave" sx={{ width: "36%", maxWidth: 360, mt: 0.6 }} />
         </Box>
-        <Stack direction="row" spacing={{ xs: 2, sm: 3.5 }}>
-          {Array.from({ length: 3 }, (_, index) => (
-            <Box key={index} sx={{ minWidth: 62 }}>
-              <Skeleton variant="text" animation="wave" sx={{ fontSize: 20, width: 34 }} />
-              <Skeleton variant="text" animation="wave" width={54} />
-            </Box>
-          ))}
-        </Stack>
+        <Skeleton variant="rounded" animation="wave" width={110} height={32} />
       </Box>
 
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(280px, 0.72fr) minmax(420px, 1.28fr)" },
-          border: "1px solid",
-          borderColor: "divider",
-          borderRadius: "var(--rc-radius-panel)",
-          overflow: "hidden"
-        }}
-      >
-        <Box
-          sx={{
-            p: { xs: 1.5, sm: 1.75 },
-            borderRight: { lg: "1px solid" },
-            borderBottom: { xs: "1px solid", lg: 0 },
-            borderColor: "divider"
-          }}
-        >
-          <Skeleton variant="text" animation="wave" width={80} />
-          <Skeleton variant="text" animation="wave" sx={{ fontSize: "1.1rem", width: "50%", mt: 0.2 }} />
-          <Skeleton variant="rounded" animation="wave" height={11} sx={{ mt: 2, borderRadius: 999 }} />
-          <Stack direction="row" spacing={1.5} sx={{ mt: 1.6 }}>
-            {Array.from({ length: 2 }, (_, index) => (
-              <Skeleton key={index} variant="text" animation="wave" width={90} />
-            ))}
-          </Stack>
-        </Box>
-        <Box sx={{ p: { xs: 1.5, sm: 1.75 } }}>
-          <Skeleton variant="text" animation="wave" width={200} />
-          <Stack spacing={0.9} sx={{ mt: 1.4 }}>
-            {Array.from({ length: 3 }, (_, index) => (
-              <Skeleton key={index} variant="rounded" animation="wave" height={8} sx={{ borderRadius: 999 }} />
-            ))}
-          </Stack>
-        </Box>
-      </Box>
-
-      <Box
-        sx={{
-          display: "grid",
+          gap: 1.5,
           gridTemplateColumns: {
             xs: "minmax(0, 1fr)",
-            lg: "minmax(0, 1fr) 340px",
-            xl: "minmax(0, 1fr) 376px"
+            md: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(4, minmax(0, 1fr))"
           },
-          gap: 1.5,
-          alignItems: "start"
+          gridAutoRows: { xs: "auto", md: "236px" }
         }}
       >
-        <WorkbenchSkeletonPanel>
-          {Array.from({ length: HOME_LEDGER_ROW_COUNT }, (_, index) => (
-            <Stack
-              key={index}
-              direction="row"
-              spacing={2}
-              alignItems="center"
-              sx={{
-                minHeight: 44,
-                px: 1.5,
-                borderBottom: "1px solid",
-                borderColor: "divider",
-                "&:last-child": { borderBottom: 0 }
-              }}
-            >
-              <Skeleton variant="text" animation="wave" width="22%" />
-              <Skeleton variant="text" animation="wave" width="14%" />
-              <Skeleton variant="text" animation="wave" width="10%" />
-              <Skeleton variant="text" animation="wave" width="34%" />
-            </Stack>
-          ))}
-        </WorkbenchSkeletonPanel>
-
-        <Stack spacing={1.5}>
-          <WorkbenchSkeletonPanel minHeight={104}>
-            <Box sx={{ px: 1.5, py: 1.4 }}>
-              <Skeleton variant="text" animation="wave" width="45%" />
-              <Skeleton variant="rounded" animation="wave" height={3} sx={{ mt: 1.4 }} />
-              <Stack direction="row" spacing={2} sx={{ mt: 1.25 }}>
-                {Array.from({ length: 3 }, (_, index) => (
-                  <Skeleton key={index} variant="text" animation="wave" width={30} />
-                ))}
-              </Stack>
+        {HOME_SKELETON_TILES.map((tile, index) => (
+          <Box
+            key={index}
+            sx={{
+              gridColumn: { xs: "span 1", md: `span ${tile.columns}` },
+              minHeight: { xs: 148, md: 0 },
+              overflow: "hidden",
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: "var(--rc-radius-panel)",
+              bgcolor: "background.paper"
+            }}
+          >
+            <Box sx={{ minHeight: 38, px: 1.5, display: "flex", alignItems: "center", borderBottom: "1px solid", borderColor: "divider" }}>
+              <Skeleton variant="text" animation="wave" width={110} />
             </Box>
-          </WorkbenchSkeletonPanel>
-          <WorkbenchSkeletonPanel minHeight={90}>
-            <Box sx={{ px: 1.5, py: 1.35 }}>
-              <Skeleton variant="text" animation="wave" width="55%" />
-              <Skeleton variant="text" animation="wave" width="35%" sx={{ mt: 1 }} />
-            </Box>
-          </WorkbenchSkeletonPanel>
-          <WorkbenchSkeletonPanel minHeight={140}>
-            <Stack divider={<Box sx={{ borderBottom: "1px solid", borderColor: "divider" }} />}>
-              {Array.from({ length: 3 }, (_, index) => (
-                <Box key={index} sx={{ px: 1.5, py: 1.1 }}>
-                  <Skeleton variant="text" animation="wave" width="70%" />
-                  <Skeleton variant="text" animation="wave" width="40%" />
+            {Array.from({ length: tile.rows }, (_, rowIndex) => (
+              <Stack
+                key={rowIndex}
+                direction="row"
+                spacing={1.1}
+                alignItems="center"
+                sx={{ minHeight: 44, px: 1.5, borderBottom: "1px solid", borderColor: "divider", "&:last-child": { borderBottom: 0 } }}
+              >
+                <Skeleton variant="circular" width={12} height={12} animation="wave" />
+                <Box sx={{ flexGrow: 1 }}>
+                  <Skeleton variant="text" animation="wave" width={`${44 + ((rowIndex * 19) % 34)}%`} />
+                  <Skeleton variant="text" animation="wave" width="30%" sx={{ fontSize: "0.7rem" }} />
                 </Box>
-              ))}
-            </Stack>
-          </WorkbenchSkeletonPanel>
-        </Stack>
+                <Skeleton variant="text" animation="wave" width={34} />
+              </Stack>
+            ))}
+          </Box>
+        ))}
       </Box>
     </Stack>
-  );
-}
-
-function WorkbenchSkeletonPanel({ children, minHeight }: React.PropsWithChildren<{ minHeight?: number }>) {
-  return (
-    <Box
-      sx={{
-        minWidth: 0,
-        minHeight,
-        overflow: "hidden",
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: "var(--rc-radius-panel)",
-        bgcolor: "background.paper"
-      }}
-    >
-      <Box
-        sx={{
-          minHeight: 38,
-          px: 1.5,
-          display: "flex",
-          alignItems: "center",
-          borderBottom: "1px solid",
-          borderColor: "divider",
-          bgcolor: "var(--rc-surface-2)"
-        }}
-      >
-        <Skeleton variant="text" animation="wave" width={120} />
-      </Box>
-      {children}
-    </Box>
   );
 }

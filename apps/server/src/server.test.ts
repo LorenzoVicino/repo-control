@@ -96,8 +96,50 @@ test("boots the API and serves safe workspace endpoints", async (context) => {
   });
   assert.equal(preferencesUpdateResponse.statusCode, 200);
   assert.deepEqual(preferencesUpdateResponse.json(), {
-    favoriteProjectIds: ["project-one", "project-two"]
+    favoriteProjectIds: ["project-one", "project-two"],
+    recentProjectIds: [],
+    dashboard: null
   });
+
+  // A partial write merges over what is stored: saving the dashboard layout must not
+  // erase the favorites another part of the interface saved a moment earlier.
+  const dashboardUpdateResponse = await app.inject({
+    method: "PUT",
+    url: "/api/preferences",
+    payload: {
+      recentProjectIds: ["project-two"],
+      dashboard: {
+        version: 1,
+        widgets: [
+          { id: "attention", size: "large", hidden: false },
+          { id: "attention", size: "small", hidden: false },
+          { id: "shortcuts", size: "small", hidden: true }
+        ]
+      }
+    }
+  });
+  assert.equal(dashboardUpdateResponse.statusCode, 200);
+  assert.deepEqual(dashboardUpdateResponse.json(), {
+    favoriteProjectIds: ["project-one", "project-two"],
+    recentProjectIds: ["project-two"],
+    dashboard: {
+      version: 1,
+      widgets: [
+        { id: "attention", size: "large", hidden: false },
+        { id: "shortcuts", size: "small", hidden: true }
+      ]
+    }
+  });
+
+  const preferencesReadResponse = await app.inject({ method: "GET", url: "/api/preferences" });
+  assert.deepEqual(preferencesReadResponse.json(), dashboardUpdateResponse.json());
+
+  const invalidPreferencesResponse = await app.inject({
+    method: "PUT",
+    url: "/api/preferences",
+    payload: { dashboard: { version: 2, widgets: [] } }
+  });
+  assert.notEqual(invalidPreferencesResponse.statusCode, 200);
 
   const invalidRootResponse = await app.inject({
     method: "POST",

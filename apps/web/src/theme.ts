@@ -53,134 +53,140 @@ type ThemePaletteTokens = {
   };
 };
 
-const DARK_SURFACES = {
-  mode: "dark" as const,
-  background: "#161826",
-  surface1: "#1b1e2d",
-  surface2: "#232532",
-  surface3: "#2b2e3d",
-  divider: "rgba(233, 233, 237, 0.10)",
-  strongDivider: "rgba(233, 233, 237, 0.18)",
-  textPrimary: "#e9e9ed",
-  textSecondary: "#9397ab",
-  textTertiary: "#9295a4"
-};
-
+// Five atmospheres on one structure. Surfaces step up in three levels from the page
+// ground; the accent is a three-step ramp (dark, main, light) that also serves as the
+// ordinal scale of the change-concentration chart, so each ramp is one hue with monotone
+// lightness. Every text ink clears 4.5:1 on the highest surface it lands on, and the
+// tertiary ink stays less contrasting than the secondary so the three-step ramp reads.
 const COLOR_PALETTE_TOKENS: Record<ColorPalette, ThemePaletteTokens> = {
+  // Paper: a cool near-white ground with a deep indigo accent.
   white: {
     mode: "light",
-    background: "#f3f5fe",
-    surface1: "#fdfdff",
-    surface2: "#eceffb",
-    surface3: "#e4e7f5",
-    divider: "rgba(41, 43, 49, 0.12)",
-    strongDivider: "rgba(41, 43, 49, 0.22)",
-    textPrimary: "#292b31",
-    textSecondary: "#595d6c",
-    textTertiary: "#646778",
+    background: "#f5f6fb",
+    surface1: "#ffffff",
+    surface2: "#eef0f8",
+    surface3: "#e3e6f2",
+    divider: "rgba(31, 34, 51, 0.12)",
+    strongDivider: "rgba(31, 34, 51, 0.22)",
+    textPrimary: "#1f2233",
+    textSecondary: "#545a72",
+    textTertiary: "#5f6580",
     primary: {
-      main: "#5d5294",
-      dark: "#423a6a",
-      light: "#796cbf",
-      contrastText: "#fdfdff",
-      tint: "#e7e5fe"
+      main: "#4650c8",
+      dark: "#303896",
+      light: "#5c66dc",
+      contrastText: "#ffffff",
+      tint: "#e6e9fc"
     },
     secondary: {
-      main: "#423a6a",
-      dark: "#2b2741",
-      light: "#796cbf",
-      contrastText: "#fdfdff"
+      main: "#303896",
+      dark: "#232a72",
+      light: "#5c66dc",
+      contrastText: "#ffffff"
     }
   },
+  // Graphite: a blue-black ground with a luminous violet accent.
   black: {
-    ...DARK_SURFACES,
+    mode: "dark",
+    background: "#111320",
+    surface1: "#171a29",
+    surface2: "#1e2233",
+    surface3: "#272c40",
+    divider: "rgba(236, 238, 248, 0.10)",
+    strongDivider: "rgba(236, 238, 248, 0.18)",
+    textPrimary: "#eceef8",
+    textSecondary: "#9ea4bf",
+    textTertiary: "#969cb6",
     primary: {
-      main: "#9184d9",
-      dark: "#796cbf",
-      light: "#b5abfc",
-      contrastText: "#161826",
-      tint: "#28243c"
+      main: "#9d8cff",
+      dark: "#7b6ae6",
+      light: "#bcb1ff",
+      contrastText: "#111320",
+      tint: "#2a2748"
     },
     secondary: {
-      main: "#a7a1db",
-      dark: "#796cbf",
-      light: "#d2cefd",
-      contrastText: "#161826"
+      main: "#b3a8f2",
+      dark: "#7b6ae6",
+      light: "#d5cdff",
+      contrastText: "#111320"
     }
   },
+  // Ember: a warm charcoal ground with a coral accent.
   red: {
     mode: "dark",
-    background: "#1b1618",
-    surface1: "#211a1d",
-    surface2: "#2a2024",
-    surface3: "#34272c",
-    divider: "rgba(244, 224, 230, 0.10)",
-    strongDivider: "rgba(244, 224, 230, 0.18)",
-    textPrimary: "#f0e8eb",
-    textSecondary: "#aa959c",
-    textTertiary: "#9f8d94",
+    background: "#191214",
+    surface1: "#20171a",
+    surface2: "#2a1f23",
+    surface3: "#35282d",
+    divider: "rgba(245, 235, 238, 0.10)",
+    strongDivider: "rgba(245, 235, 238, 0.18)",
+    textPrimary: "#f5ebee",
+    textSecondary: "#b39aa3",
+    textTertiary: "#a8919a",
     primary: {
-      main: "#e0836f",
-      dark: "#b75f4c",
-      light: "#f2a695",
-      contrastText: "#1b1618",
-      tint: "#3d292c"
+      main: "#ff8b6a",
+      dark: "#d9694c",
+      light: "#ffab92",
+      contrastText: "#191214",
+      tint: "#43292a"
     },
     secondary: {
-      main: "#d7a296",
-      dark: "#b66f60",
-      light: "#f5c1b5",
-      contrastText: "#1b1618"
+      main: "#e8a898",
+      dark: "#c47661",
+      light: "#ffc8b8",
+      contrastText: "#191214"
     }
   },
+  // Ocean: a deep navy ground with a sky-blue accent.
   blue: {
     mode: "dark",
-    background: "#131a21",
-    surface1: "#182129",
-    surface2: "#1f2a34",
-    surface3: "#273541",
-    divider: "rgba(225, 238, 247, 0.10)",
-    strongDivider: "rgba(225, 238, 247, 0.18)",
-    textPrimary: "#e8eef2",
-    textSecondary: "#95a5b1",
-    textTertiary: "#8d9da9",
+    background: "#0e1622",
+    surface1: "#131d2b",
+    surface2: "#1a2636",
+    surface3: "#223142",
+    divider: "rgba(232, 239, 247, 0.10)",
+    strongDivider: "rgba(232, 239, 247, 0.18)",
+    textPrimary: "#e8eff7",
+    textSecondary: "#98abc0",
+    textTertiary: "#8fa3b8",
     primary: {
-      main: "#74b3d9",
-      dark: "#4b8db6",
-      light: "#a2d1ed",
-      contrastText: "#131a21",
-      tint: "#223344"
+      main: "#6cb8f5",
+      dark: "#4593d0",
+      light: "#9dd0ff",
+      contrastText: "#0e1622",
+      tint: "#1e3350"
     },
     secondary: {
-      main: "#91bfd8",
-      dark: "#5d94b2",
-      light: "#c1e0f1",
-      contrastText: "#131a21"
+      main: "#9cc6e8",
+      dark: "#5f9bc7",
+      light: "#c6e3fa",
+      contrastText: "#0e1622"
     }
   },
+  // Forest: a deep green-black ground with a mint accent.
   green: {
     mode: "dark",
-    background: "#131b18",
-    surface1: "#18221e",
-    surface2: "#1f2b26",
-    surface3: "#27372f",
-    divider: "rgba(226, 241, 233, 0.10)",
-    strongDivider: "rgba(226, 241, 233, 0.18)",
-    textPrimary: "#e8f0ec",
-    textSecondary: "#94a79e",
-    textTertiary: "#8da097",
+    background: "#0f1814",
+    surface1: "#14201b",
+    surface2: "#1b2a24",
+    surface3: "#23362e",
+    divider: "rgba(233, 242, 237, 0.10)",
+    strongDivider: "rgba(233, 242, 237, 0.18)",
+    textPrimary: "#e9f2ed",
+    textSecondary: "#97ada2",
+    textTertiary: "#8ea59a",
     primary: {
-      main: "#6cc2a1",
-      dark: "#489778",
-      light: "#99dec3",
-      contrastText: "#131b18",
-      tint: "#213a36"
+      main: "#62d3a5",
+      dark: "#3fa87d",
+      light: "#92e6c4",
+      contrastText: "#0f1814",
+      tint: "#1d3b30"
     },
     secondary: {
-      main: "#8bcab2",
-      dark: "#5a9b82",
-      light: "#b9e7d5",
-      contrastText: "#131b18"
+      main: "#93d4bb",
+      dark: "#5aa88a",
+      light: "#bfeedb",
+      contrastText: "#0f1814"
     }
   }
 };
@@ -198,9 +204,9 @@ export const COLOR_PALETTE_OPTIONS: ReadonlyArray<{
 }> = [
   { id: "white", swatch: "#ffffff" },
   { id: "black", swatch: "#000000" },
-  { id: "red", swatch: "#e0836f" },
-  { id: "blue", swatch: "#74b3d9" },
-  { id: "green", swatch: "#6cc2a1" }
+  { id: "red", swatch: "#ff8b6a" },
+  { id: "blue", swatch: "#6cb8f5" },
+  { id: "green", swatch: "#62d3a5" }
 ];
 
 export function createAppTheme(
@@ -214,11 +220,13 @@ export function createAppTheme(
   // 9.5px distinguishable from 10.5px at every multiplier instead of collapsing them.
   const scaledSize = (value: number) => Math.round(value * fontMultiplier * 100) / 100;
   const scaledPx = (value: number) => `${scaledSize(value)}px`;
+  // Status inks: each clears 4.5:1 as small text on the first two surfaces of every
+  // palette in its mode, so a figure coloured by state stays readable.
   const semantic = {
-    success: isLight ? "#2f7d5f" : "#6cc2a1",
-    warning: isLight ? "#8a6118" : "#d9a95f",
-    error: isLight ? "#a8412c" : "#e0836f",
-    info: isLight ? "#2a6b93" : "#74b3d9"
+    success: isLight ? "#1f7a52" : "#6ed4a9",
+    warning: isLight ? "#8a5d10" : "#e6b46a",
+    error: isLight ? "#b0402a" : "#f28b73",
+    info: isLight ? "#22679a" : "#7cc2f0"
   };
 
   return createTheme({
@@ -538,7 +546,9 @@ export function createAppTheme(
             borderColor: tokens.divider,
             color: tokens.textSecondary,
             "&.Mui-selected": {
-              color: tokens.primary.light,
+              // The light step is the readable one on a dark tint; on a light tint it
+              // falls under 4.5:1, so the dark step carries the selected label there.
+              color: isLight ? tokens.primary.dark : tokens.primary.light,
               backgroundColor: tokens.primary.tint
             }
           }

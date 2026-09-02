@@ -311,7 +311,7 @@ describe("ProjectsDashboard orchestration", () => {
       durationMs: 1
     });
     vi.mocked(fetchDockerContainers).mockResolvedValue(dockerStatus);
-    vi.mocked(fetchPreferences).mockResolvedValue({ favoriteProjectIds: ["alpha"] });
+    vi.mocked(fetchPreferences).mockResolvedValue({ favoriteProjectIds: ["alpha"], recentProjectIds: [], dashboard: null });
     vi.mocked(fetchAppUpdateStatus).mockResolvedValue({
       currentVersion: "0.5.0",
       latestVersion: "0.6.0",
@@ -319,7 +319,7 @@ describe("ProjectsDashboard orchestration", () => {
       checkedAt: "2026-08-03T00:00:00.000Z",
       error: null
     });
-    vi.mocked(updatePreferences).mockResolvedValue({ favoriteProjectIds: [] });
+    vi.mocked(updatePreferences).mockResolvedValue({ favoriteProjectIds: [], recentProjectIds: [], dashboard: null });
     vi.mocked(pickWorkspaceFolder).mockResolvedValue(null);
     vi.mocked(setRootPath).mockResolvedValue({ root: "/new-workspace" });
     vi.mocked(updateRepoControl).mockResolvedValue({
@@ -428,9 +428,9 @@ describe("ProjectsDashboard orchestration", () => {
   it("surfaces and recovers from external action failures", async () => {
     const user = userEvent.setup();
     window.localStorage.setItem("repo-control-favorite-projects", "[\"beta\", 3]");
-    vi.mocked(fetchPreferences).mockResolvedValueOnce({ favoriteProjectIds: [] });
+    vi.mocked(fetchPreferences).mockResolvedValueOnce({ favoriteProjectIds: [], recentProjectIds: [], dashboard: null });
     vi.mocked(updatePreferences)
-      .mockResolvedValueOnce({ favoriteProjectIds: ["beta"] })
+      .mockResolvedValueOnce({ favoriteProjectIds: ["beta"], recentProjectIds: [], dashboard: null })
       .mockRejectedValue(new Error("preferences offline"));
     vi.mocked(pickWorkspaceFolder)
       .mockRejectedValueOnce(new Error("picker denied"))

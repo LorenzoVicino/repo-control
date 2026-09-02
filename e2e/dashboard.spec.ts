@@ -77,24 +77,40 @@ test("keeps the application backdrop static and lightweight", async ({ page }) =
   await expect(backdrop).toHaveCSS("pointer-events", "none");
 });
 
-test("draws the readiness ring and reads a signal from it", async ({ page }) => {
+test("customizes the dashboard widgets and stores the layout in the local preferences", async ({ page, request }) => {
+  await request.put(`${apiBaseUrl}/api/preferences`, { data: { dashboard: null } });
   await page.goto("/");
 
-  const ring = page.getByRole("img", { name: /Operational distribution/ });
-  await expect(ring).toBeVisible();
-  // One arc per occupied signal, and never an arc for a signal at zero.
-  const arcs = ring.locator("[data-signal-key]");
-  expect(await arcs.count()).toBeGreaterThan(0);
+  // The default arrangement leads with what needs attention and draws the workspace ring.
+  const grid = page.locator("[data-dashboard-grid]");
+  await expect(grid.locator("[data-widget-id]").first()).toHaveAttribute("data-widget-id", "attention");
+  await expect(page.getByRole("img", { name: /Repository states/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Shortcuts" })).toBeVisible();
 
-  const readout = page.getByTestId("signal-readout");
-  await expect(readout).toContainText("%");
+  await page.getByRole("button", { name: "Customize" }).click();
+  await page.getByRole("button", { name: "Hide Shortcuts" }).click();
+  await expect(page.getByRole("region", { name: "Shortcuts" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Move Needs attention later" }).click();
+  await expect(grid.locator("[data-widget-id]").first()).toHaveAttribute("data-widget-id", "workspace");
+  await page.getByRole("button", { name: "Done" }).click();
 
-  // Pointing at the band - not the hole - puts that state's own count in the middle.
-  const box = await ring.boundingBox();
-  const bandRadius = (box!.height / 138) * 61;
-  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2 - bandRadius);
-  await expect(ring.locator("[data-signal-key][data-active]")).toHaveCount(1);
-  await expect(readout).not.toContainText("%");
+  // The saved layout is the one the grid shows, and it survives a reload.
+  await expect.poll(async () => {
+    const response = await request.get(`${apiBaseUrl}/api/preferences`);
+    const payload = await response.json() as { dashboard: { widgets: Array<{ id: string; hidden: boolean }> } | null };
+    return payload.dashboard?.widgets.map((widget) => `${widget.id}${widget.hidden ? ":hidden" : ""}`).slice(0, 2).join(",")
+      + "|" + String(payload.dashboard?.widgets.find((widget) => widget.id === "shortcuts")?.hidden);
+  }).toBe("workspace,attention|true");
+
+  await page.reload();
+  await expect(grid.locator("[data-widget-id]").first()).toHaveAttribute("data-widget-id", "workspace");
+  await expect(page.getByRole("region", { name: "Shortcuts" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Customize" }).click();
+  await page.getByRole("button", { name: "Reset layout" }).click();
+  await expect(grid.locator("[data-widget-id]").first()).toHaveAttribute("data-widget-id", "attention");
+  await page.getByRole("button", { name: "Done" }).click();
+  await expect(page.getByRole("region", { name: "Shortcuts" })).toBeVisible();
 });
 
 test("shares one motion backdrop across every dashboard section", async ({ page }) => {
