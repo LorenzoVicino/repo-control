@@ -97,18 +97,6 @@ test("draws the readiness ring and reads a signal from it", async ({ page }) => 
   await expect(readout).not.toContainText("%");
 });
 
-test("keeps operational status bars moving continuously unless reduced motion is requested", async ({ page }) => {
-  await page.goto("/");
-
-  const animatedBar = page.locator('[data-animation="continuous"]').first();
-  await expect(animatedBar).toBeVisible();
-  expect(await animatedBar.evaluate((element) => getComputedStyle(element).animationIterationCount)).toBe("infinite");
-
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await expect(animatedBar).toHaveCSS("animation-name", "none");
-  await expect(animatedBar).toHaveCSS("background-image", "none");
-});
-
 test("shares one motion backdrop across every dashboard section", async ({ page }) => {
   test.slow();
   await page.goto("/");

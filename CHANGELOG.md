@@ -10,6 +10,10 @@ This project follows semantic versioning where practical.
 
 - Add an interface text size preference with three steps: **Small**, **Medium** and **Large**. The dashboard writes most of its type sizes inline rather than through the theme, so scaling only the theme would have grown the headings while leaving the small mono labels - the ones hardest to read - exactly as they were. The scale is applied to the `sx` font-size transformer instead, which reaches every inline size, the themed variants and the icon sizes beside them from one place. Panel widths are unchanged, so a larger size trades content for legibility; the setting says so. It is stored per device in browser local storage, next to the palette.
 
+### Fixed
+
+- Repaint a browser-autofilled field in the active palette's own colors. Chrome and Safari paint an autofilled input with their own pale blue background through a user-agent rule marked `!important`, which `background-color` cannot beat, so signing in with a saved password left both fields bright blue on a dark theme until the page was reloaded. The field now covers that background with an inset shadow in the input surface colour and restates the text and caret colours through the `-webkit` properties the same rule overrides.
+
 ### Changed
 
 - Redraw the workspace signals panel as a ring with the readiness figure in its hole. The four repository states are a genuine part-to-whole under the six-segment ceiling, which is the one job a circular form does better than a bar, and the percentage stops floating in its own corner of the header. The previous proportional pill also mis-drew its own data: segments were sized with `flexGrow` and separated by gaps, each carrying a 3px minimum, so a count of 1 beside a count of 40 was drawn wider than its share. Arcs are now true percentages, and a state at zero contributes no segment at all. Drawn in SVG from the existing tokens rather than with a charting library, which would have cost more than the panel is worth.

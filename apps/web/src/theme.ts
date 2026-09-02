@@ -507,7 +507,22 @@ export function createAppTheme(
               borderWidth: 1
             }
           },
-          input: { paddingTop: 8, paddingBottom: 8 },
+          input: {
+            paddingTop: 8,
+            paddingBottom: 8,
+            // Chrome and Safari paint an autofilled field with their own pale blue
+            // background through a UA rule marked !important, which `background-color`
+            // cannot beat - on a dark palette the field turns light blue and keeps it
+            // until the page reloads. An inset shadow large enough to cover the box is
+            // painted over that background, and the text and caret colours are restated
+            // through the -webkit properties the same UA rule overrides.
+            "&:-webkit-autofill, &:-webkit-autofill:hover, &:-webkit-autofill:focus, &:-webkit-autofill:active": {
+              WebkitTextFillColor: tokens.textPrimary,
+              WebkitBoxShadow: `0 0 0 100px ${tokens.surface2} inset`,
+              caretColor: tokens.textPrimary,
+              borderRadius: "inherit"
+            }
+          },
           inputSizeSmall: { paddingTop: 7, paddingBottom: 7 }
         }
       },
