@@ -127,7 +127,7 @@ vi.mock("./DashboardSidebar", () => ({
       data-root-error={String(props.rootError)}
       data-scanning={String(props.isScanningRoot)}
     >
-      {["overview", "tasks", "agents", "automations", "docker", "favorites", "repositories", "settings"].map((section) => (
+      {["overview", "agents", "automations", "docker", "favorites", "repositories", "settings"].map((section) => (
         <button key={section} onClick={() => (props.onNavigate as (value: string) => void)(section)}>
           nav-{section}
         </button>
@@ -223,7 +223,19 @@ vi.mock("../project/ProjectWorkspaceTabs", () => ({
 vi.mock("../agents/AgentSessionsPage", () => ({ AgentSessionsPage: () => <div data-testid="agents-page" /> }));
 vi.mock("../automation/AutomationPage", () => ({ AutomationPage: () => <div data-testid="automation-page" /> }));
 vi.mock("../task/TaskEngineeringPage", () => ({ TaskEngineeringPage: () => <div data-testid="tasks-page" /> }));
-vi.mock("../settings/SettingsPage", () => ({ SettingsPage: () => <div data-testid="settings-page" /> }));
+vi.mock("../settings/SettingsPage", () => ({
+  SettingsPage: (props: Record<string, unknown>) => (
+    <div
+      data-testid="settings-page"
+      data-palette={String(props.colorPalette)}
+      data-font-scale={String(props.fontScale)}
+    >
+      <button onClick={() => (props.onFontScaleChange as (value: string) => void)("large")}>
+        font-large
+      </button>
+    </div>
+  )
+}));
 vi.mock("./AppUpdateDialog", () => ({
   AppUpdateDialog: (props: Record<string, unknown>) => (
     <div data-testid="update-dialog" data-open={String(props.open)} data-result={String(Boolean(props.result))}>
@@ -266,12 +278,18 @@ function renderDashboard() {
     }
   });
   const onColorPaletteChange = vi.fn();
+  const onFontScaleChange = vi.fn();
   const view = renderWithTheme(
     <QueryClientProvider client={queryClient}>
-      <ProjectsDashboard colorPalette="white" onColorPaletteChange={onColorPaletteChange} />
+      <ProjectsDashboard
+        colorPalette="white"
+        fontScale="medium"
+        onColorPaletteChange={onColorPaletteChange}
+        onFontScaleChange={onFontScaleChange}
+      />
     </QueryClientProvider>
   );
-  return { ...view, queryClient, onColorPaletteChange };
+  return { ...view, queryClient, onColorPaletteChange, onFontScaleChange };
 }
 
 describe("ProjectsDashboard orchestration", () => {
@@ -327,7 +345,7 @@ describe("ProjectsDashboard orchestration", () => {
 
   it("walks every main section and successful action", async () => {
     const user = userEvent.setup();
-    const { queryClient, onColorPaletteChange } = renderDashboard();
+    const { queryClient, onColorPaletteChange, onFontScaleChange } = renderDashboard();
     expect(await screen.findByTestId("home")).toBeVisible();
 
     await user.click(screen.getByText("toggle-sidebar"));
@@ -373,10 +391,13 @@ describe("ProjectsDashboard orchestration", () => {
     expect(screen.getByTestId("appbar")).toHaveAttribute("data-section", "agents");
     await user.click(screen.getByText("nav-automations"));
     expect(screen.getByTestId("appbar")).toHaveAttribute("data-section", "automations");
-    await user.click(screen.getByText("nav-tasks"));
-    expect(screen.getByTestId("appbar")).toHaveAttribute("data-section", "tasks");
     await user.click(screen.getByText("nav-settings"));
-    expect(screen.getByTestId("settings-page")).toBeVisible();
+    const settingsPage = screen.getByTestId("settings-page");
+    expect(settingsPage).toBeVisible();
+    expect(settingsPage).toHaveAttribute("data-palette", "white");
+    expect(settingsPage).toHaveAttribute("data-font-scale", "medium");
+    await user.click(screen.getByText("font-large"));
+    expect(onFontScaleChange).toHaveBeenCalledWith("large");
 
     await user.click(screen.getByText("nav-docker"));
     expect(await screen.findByTestId("control-center")).toBeVisible();

@@ -1,11 +1,31 @@
 import { alpha, createTheme } from "@mui/material";
-import type { ColorMode, ColorPalette } from "./types/common";
+import type { CSSObject } from "@mui/material";
+import type { ColorMode, ColorPalette, FontScale } from "./types/common";
 
 export const COLOR_PALETTE_STORAGE_KEY = "repo-control-color-palette";
+export const FONT_SCALE_STORAGE_KEY = "repo-control-font-scale";
 const LEGACY_COLOR_MODE_STORAGE_KEY = "repo-control-color-mode";
 
 export const UI_FONT_FAMILY = 'Inter, "Segoe UI", system-ui, sans-serif';
 export const MONO_FONT_FAMILY = '"JetBrains Mono", "SFMono-Regular", Consolas, monospace';
+
+// Labels and descriptions live in the i18n resources under `appearance.fontScales.<id>`.
+// The multipliers stay narrow on purpose: the dashboard is a dense grid of fixed-width
+// panels, and anything past ~1.15 starts truncating the labels it was meant to enlarge.
+export const FONT_SCALE_OPTIONS: ReadonlyArray<{
+  id: FontScale;
+  multiplier: number;
+}> = [
+  { id: "small", multiplier: 0.9 },
+  { id: "medium", multiplier: 1 },
+  { id: "large", multiplier: 1.15 }
+];
+
+const DEFAULT_FONT_SCALE: FontScale = "medium";
+
+function getFontMultiplier(fontScale: FontScale): number {
+  return FONT_SCALE_OPTIONS.find((option) => option.id === fontScale)?.multiplier ?? 1;
+}
 
 type ThemePaletteTokens = {
   mode: ColorMode;
@@ -178,9 +198,17 @@ export const COLOR_PALETTE_OPTIONS: ReadonlyArray<{
   { id: "green", color: "#6cc2a1", surface: "#131b18" }
 ];
 
-export function createAppTheme(colorPalette: ColorPalette) {
+export function createAppTheme(
+  colorPalette: ColorPalette,
+  fontScale: FontScale = DEFAULT_FONT_SCALE
+) {
   const tokens = COLOR_PALETTE_TOKENS[colorPalette];
   const isLight = tokens.mode === "light";
+  const fontMultiplier = getFontMultiplier(fontScale);
+  // Half-pixel steps are everywhere in this type scale, so rounding to two decimals keeps
+  // 9.5px distinguishable from 10.5px at every multiplier instead of collapsing them.
+  const scaledSize = (value: number) => Math.round(value * fontMultiplier * 100) / 100;
+  const scaledPx = (value: number) => `${scaledSize(value)}px`;
   const semantic = {
     success: isLight ? "#2f7d5f" : "#6cc2a1",
     warning: isLight ? "#8a6118" : "#d9a95f",
@@ -229,75 +257,75 @@ export function createAppTheme(colorPalette: ColorPalette) {
     spacing: 8,
     typography: {
       fontFamily: UI_FONT_FAMILY,
-      fontSize: 13,
+      fontSize: scaledSize(13),
       h1: {
-        fontSize: "25px",
+        fontSize: scaledPx(25),
         fontWeight: 500,
         lineHeight: 1.15,
         letterSpacing: "-0.02em"
       },
       h2: {
-        fontSize: "16px",
+        fontSize: scaledPx(16),
         fontWeight: 500,
         lineHeight: 1.2,
         letterSpacing: "-0.012em"
       },
       h3: {
-        fontSize: "15px",
+        fontSize: scaledPx(15),
         fontWeight: 500,
         lineHeight: 1.25,
         letterSpacing: "-0.01em"
       },
       h4: {
-        fontSize: "14px",
+        fontSize: scaledPx(14),
         fontWeight: 500,
         lineHeight: 1.25
       },
       h5: {
-        fontSize: "21px",
+        fontSize: scaledPx(21),
         fontWeight: 500,
         lineHeight: 1.15,
         letterSpacing: "-0.02em"
       },
       h6: {
-        fontSize: "13.5px",
+        fontSize: scaledPx(13.5),
         fontWeight: 500,
         lineHeight: 1.3
       },
       subtitle1: {
-        fontSize: "13.5px",
+        fontSize: scaledPx(13.5),
         fontWeight: 500,
         lineHeight: 1.4
       },
       subtitle2: {
-        fontSize: "12.5px",
+        fontSize: scaledPx(12.5),
         fontWeight: 500,
         lineHeight: 1.4
       },
       body1: {
-        fontSize: "13px",
+        fontSize: scaledPx(13),
         fontWeight: 400,
         lineHeight: 1.55
       },
       body2: {
-        fontSize: "12.5px",
+        fontSize: scaledPx(12.5),
         fontWeight: 400,
         lineHeight: 1.55
       },
       caption: {
-        fontSize: "11.5px",
+        fontSize: scaledPx(11.5),
         fontWeight: 400,
         lineHeight: 1.45
       },
       button: {
-        fontSize: "12px",
+        fontSize: scaledPx(12),
         fontWeight: 500,
         letterSpacing: 0,
         textTransform: "none"
       },
       overline: {
         fontFamily: MONO_FONT_FAMILY,
-        fontSize: "9.5px",
+        fontSize: scaledPx(9.5),
         fontWeight: 600,
         lineHeight: 1.7,
         letterSpacing: "0.14em",
@@ -344,7 +372,7 @@ export function createAppTheme(colorPalette: ColorPalette) {
           ".rc-mono": { fontFamily: MONO_FONT_FAMILY },
           ".rc-section-label": {
             fontFamily: MONO_FONT_FAMILY,
-            fontSize: "9.5px",
+            fontSize: scaledPx(9.5),
             fontWeight: 600,
             letterSpacing: "0.14em",
             textTransform: "uppercase",
@@ -453,7 +481,7 @@ export function createAppTheme(colorPalette: ColorPalette) {
             height: 23,
             borderRadius: 4,
             fontFamily: MONO_FONT_FAMILY,
-            fontSize: "10.5px",
+            fontSize: scaledPx(10.5),
             fontWeight: 500
           },
           sizeSmall: { height: 21 },
@@ -479,7 +507,7 @@ export function createAppTheme(colorPalette: ColorPalette) {
         }
       },
       MuiInputLabel: {
-        styleOverrides: { root: { fontSize: "12px" } }
+        styleOverrides: { root: { fontSize: scaledPx(12) } }
       },
       MuiToggleButton: {
         styleOverrides: {
@@ -507,7 +535,7 @@ export function createAppTheme(colorPalette: ColorPalette) {
             height: 34,
             color: tokens.textTertiary,
             fontFamily: MONO_FONT_FAMILY,
-            fontSize: "9.5px",
+            fontSize: scaledPx(9.5),
             fontWeight: 600,
             letterSpacing: "0.12em",
             textTransform: "uppercase",
@@ -526,7 +554,7 @@ export function createAppTheme(colorPalette: ColorPalette) {
           root: {
             minHeight: 42,
             minWidth: 72,
-            fontSize: "12px",
+            fontSize: scaledPx(12),
             fontWeight: 500,
             letterSpacing: 0,
             textTransform: "none"
@@ -546,7 +574,7 @@ export function createAppTheme(colorPalette: ColorPalette) {
         }
       },
       MuiDialogTitle: {
-        styleOverrides: { root: { fontSize: "16px", fontWeight: 500 } }
+        styleOverrides: { root: { fontSize: scaledPx(16), fontWeight: 500 } }
       },
       MuiMenu: {
         styleOverrides: {
@@ -560,7 +588,7 @@ export function createAppTheme(colorPalette: ColorPalette) {
         }
       },
       MuiMenuItem: {
-        styleOverrides: { root: { minHeight: 34, borderRadius: 7, fontSize: "12.5px" } }
+        styleOverrides: { root: { minHeight: 34, borderRadius: 7, fontSize: scaledPx(12.5) } }
       },
       MuiTooltip: {
         styleOverrides: {
@@ -569,7 +597,7 @@ export function createAppTheme(colorPalette: ColorPalette) {
             borderRadius: 5,
             backgroundColor: tokens.surface3,
             color: tokens.textPrimary,
-            fontSize: "11px"
+            fontSize: scaledPx(11)
           }
         }
       },
@@ -581,9 +609,41 @@ export function createAppTheme(colorPalette: ColorPalette) {
             backgroundImage: "none"
           }
         }
+      },
+      // Icon sizes are rem-based in MUI, so they answer to the browser root size rather
+      // than to this theme. Restating them in scaled pixels keeps a 17px icon beside a
+      // 12px label growing at the same rate as the label.
+      MuiSvgIcon: {
+        styleOverrides: {
+          fontSizeSmall: { fontSize: scaledPx(20) },
+          fontSizeMedium: { fontSize: scaledPx(24) },
+          fontSizeLarge: { fontSize: scaledPx(35) }
+        }
+      }
+    },
+    // The interface sets most of its type sizes inline, as `sx={{ fontSize: 10.5 }}`.
+    // Teaching the sx transformer about the scale reaches all of them from one place,
+    // instead of leaving the small labels fixed while the themed text grows around them.
+    unstable_sxConfig: {
+      fontSize: {
+        themeKey: "typography",
+        // Numbers are the raw pixel sizes written in `sx`. Anything else is already a CSS
+        // value or a typography variant MUI resolved from the theme, and passes through.
+        transform: (value: unknown) => {
+          if (typeof value === "number") return scaledPx(value);
+          return value as string | CSSObject;
+        }
       }
     }
   });
+}
+
+export function getInitialFontScale(): FontScale {
+  const storedFontScale = window.localStorage.getItem(FONT_SCALE_STORAGE_KEY);
+
+  return FONT_SCALE_OPTIONS.some((option) => option.id === storedFontScale)
+    ? storedFontScale as FontScale
+    : DEFAULT_FONT_SCALE;
 }
 
 export function getInitialColorPalette(): ColorPalette {

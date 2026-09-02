@@ -18,9 +18,11 @@ import { ProjectsDashboard } from "./components/dashboard/ProjectsDashboard";
 import {
   COLOR_PALETTE_STORAGE_KEY,
   createAppTheme,
-  getInitialColorPalette
+  FONT_SCALE_STORAGE_KEY,
+  getInitialColorPalette,
+  getInitialFontScale
 } from "./theme";
-import type { ColorPalette } from "./types/common";
+import type { ColorPalette, FontScale } from "./types/common";
 
 // Built per mounted application rather than per module so the cache cannot outlive the
 // shell that owns it.
@@ -53,11 +55,19 @@ function createAppQueryClient(): QueryClient {
 export function App() {
   const [queryClient] = React.useState(createAppQueryClient);
   const [colorPalette, setColorPalette] = React.useState<ColorPalette>(getInitialColorPalette);
-  const theme = React.useMemo(() => createAppTheme(colorPalette), [colorPalette]);
+  const [fontScale, setFontScale] = React.useState<FontScale>(getInitialFontScale);
+  const theme = React.useMemo(
+    () => createAppTheme(colorPalette, fontScale),
+    [colorPalette, fontScale]
+  );
 
   React.useEffect(() => {
     window.localStorage.setItem(COLOR_PALETTE_STORAGE_KEY, colorPalette);
   }, [colorPalette]);
+
+  React.useEffect(() => {
+    window.localStorage.setItem(FONT_SCALE_STORAGE_KEY, fontScale);
+  }, [fontScale]);
 
   React.useLayoutEffect(() => {
     const backgroundColor = theme.palette.background.default;
@@ -76,7 +86,12 @@ export function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <QueryClientProvider client={queryClient}>
-        <AppShell colorPalette={colorPalette} onColorPaletteChange={setColorPalette} />
+        <AppShell
+          colorPalette={colorPalette}
+          fontScale={fontScale}
+          onColorPaletteChange={setColorPalette}
+          onFontScaleChange={setFontScale}
+        />
       </QueryClientProvider>
     </ThemeProvider>
   );
@@ -84,10 +99,14 @@ export function App() {
 
 function AppShell({
   colorPalette,
-  onColorPaletteChange
+  fontScale,
+  onColorPaletteChange,
+  onFontScaleChange
 }: {
   colorPalette: ColorPalette;
+  fontScale: FontScale;
   onColorPaletteChange: (colorPalette: ColorPalette) => void;
+  onFontScaleChange: (fontScale: FontScale) => void;
 }) {
   const { data: session, isPending } = useAuthSession();
 
@@ -106,7 +125,9 @@ function AppShell({
   return (
     <ProjectsDashboard
       colorPalette={colorPalette}
+      fontScale={fontScale}
       onColorPaletteChange={onColorPaletteChange}
+      onFontScaleChange={onFontScaleChange}
     />
   );
 }

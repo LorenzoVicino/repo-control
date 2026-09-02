@@ -1,16 +1,12 @@
 import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
-import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
-import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
-import LanOutlinedIcon from "@mui/icons-material/LanOutlined";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import StarBorderOutlinedIcon from "@mui/icons-material/StarBorderOutlined";
 import StorageOutlinedIcon from "@mui/icons-material/StorageOutlined";
-import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import {
   alpha,
   Box,
@@ -20,24 +16,20 @@ import {
   Divider,
   Drawer,
   IconButton,
-  ListSubheader,
-  Menu,
-  MenuItem,
   Stack,
   Tooltip,
   Typography
 } from "@mui/material";
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { ProfileMenu } from "../auth/ProfileMenu";
 import { APP_VERSION } from "../../config";
-import { COLOR_PALETTE_OPTIONS } from "../../theme";
 import type { ColorPalette } from "../../types/common";
 import type { ProjectSummary } from "../../types/projects";
 import { WorkspaceToolbarPicker } from "./WorkspaceToolbarPicker";
 
 export type DashboardSection =
   | "overview"
-  | "tasks"
   | "agents"
   | "automations"
   | "docker"
@@ -59,9 +51,7 @@ const NAV_ITEMS: Array<{
   { id: "favorites", labelKey: "navigation.sections.favorites", icon: <StarBorderOutlinedIcon /> },
   { id: "docker", labelKey: "navigation.sections.docker", icon: <StorageOutlinedIcon /> },
   { id: "agents", labelKey: "navigation.sections.agents", icon: <SmartToyOutlinedIcon /> },
-  { id: "automations", labelKey: "navigation.sections.automations", icon: <HubOutlinedIcon /> },
-  { id: "tasks", labelKey: "navigation.sections.tasks", icon: <LanOutlinedIcon /> },
-  { id: "settings", labelKey: "navigation.sections.settings", icon: <SettingsOutlinedIcon /> }
+  { id: "automations", labelKey: "navigation.sections.automations", icon: <HubOutlinedIcon /> }
 ];
 
 type DashboardSidebarProps = {
@@ -164,19 +154,14 @@ function SidebarContent({
   isMobile
 }: SidebarContentProps) {
   const { t } = useTranslation();
-  const [paletteMenuAnchor, setPaletteMenuAnchor] = React.useState<HTMLElement | null>(null);
-  const paletteMenuId = React.useId();
   const isWorkspaceBusy = isPickingRoot || isScanningRoot;
   const workspacePickerLabel = isPickingRoot
     ? t("navigation.openingFolderPicker")
     : isScanningRoot
       ? t("navigation.scanningWorkspace")
       : t("navigation.changeWorkspace");
-  const activePalette = COLOR_PALETTE_OPTIONS.find((option) => option.id === colorPalette)
-    ?? COLOR_PALETTE_OPTIONS[0];
   const counts: Record<DashboardSection, number | null> = {
     overview: null,
-    tasks: null,
     agents: null,
     automations: null,
     repositories: repositoryCount,
@@ -443,148 +428,17 @@ function SidebarContent({
       </Box>
 
       <Box sx={{ px: 1, pb: 1, flexShrink: 0, bgcolor: "var(--rc-surface-2)" }}>
-        <Tooltip
-          title={collapsed
-            ? t("navigation.appearanceActive", { palette: t(`appearance.palettes.${activePalette.id}.label`) })
-            : ""}
-          placement="right"
-        >
-          <ButtonBase
-            onClick={(event) => setPaletteMenuAnchor(event.currentTarget)}
-            aria-label={t("navigation.selectPalette", {
-              palette: t(`appearance.palettes.${activePalette.id}.label`)
-            })}
-            aria-haspopup="menu"
-            aria-controls={paletteMenuAnchor ? paletteMenuId : undefined}
-            aria-expanded={Boolean(paletteMenuAnchor)}
-            sx={{
-              width: "100%",
-              minHeight: collapsed ? 38 : 46,
-              px: collapsed ? 0 : 1,
-              justifyContent: collapsed ? "center" : "flex-start",
-              gap: 1,
-              border: "1px solid",
-              borderColor: paletteMenuAnchor ? "primary.main" : "transparent",
-              borderRadius: "var(--rc-radius-control)",
-              color: "text.secondary",
-              bgcolor: paletteMenuAnchor ? "var(--rc-accent-tint)" : "transparent",
-              transition: "background-color var(--rc-motion-fast) ease, border-color var(--rc-motion-fast) ease",
-              "&:hover": { bgcolor: "background.paper", color: "text.primary", borderColor: "divider" },
-              "&:focus-visible": {
-                outline: (theme) => `3px solid ${alpha(theme.palette.primary.main, 0.24)}`,
-                outlineOffset: 1
-              }
-            }}
-          >
-            <Box
-              aria-hidden="true"
-              sx={{
-                width: 24,
-                height: 24,
-                flexShrink: 0,
-                border: "1px solid var(--rc-border-strong)",
-                borderRadius: "50%",
-                background: `linear-gradient(135deg, ${activePalette.surface} 0 50%, ${activePalette.color} 50% 100%)`,
-                boxShadow: (theme) => `0 0 0 2px ${theme.palette.background.paper}`
-              }}
-            />
-            {collapsed ? null : (
-              <Box sx={{ minWidth: 0, textAlign: "left" }}>
-                <Typography component="div" variant="overline" color="text.disabled" sx={{ lineHeight: 1.15 }}>
-                  {t("navigation.appearance")}
-                </Typography>
-                <Typography component="div" variant="body2" noWrap sx={{ mt: 0.2, fontWeight: 500, color: "text.primary" }}>
-                  {t(`appearance.palettes.${activePalette.id}.label`)}
-                </Typography>
-              </Box>
-            )}
-            {collapsed ? null : (
-              <KeyboardArrowDownRoundedIcon
-                fontSize="small"
-                sx={{
-                  ml: "auto",
-                  transform: paletteMenuAnchor ? "rotate(180deg)" : "none",
-                  transition: "transform 160ms ease"
-                }}
-              />
-            )}
-          </ButtonBase>
-        </Tooltip>
-        <Menu
-          id={paletteMenuId}
-          anchorEl={paletteMenuAnchor}
-          open={Boolean(paletteMenuAnchor)}
-          onClose={() => setPaletteMenuAnchor(null)}
-          anchorOrigin={{ vertical: "top", horizontal: "right" }}
-          transformOrigin={{ vertical: "bottom", horizontal: "left" }}
-          slotProps={{
-            list: {
-              "aria-label": t("navigation.paletteMenu"),
-              sx: { p: 0.75, minWidth: 224 }
-            },
-            paper: {
-              sx: {
-                ml: 0.75,
-                mb: 0.75,
-                border: "1px solid",
-                borderColor: "divider"
-              }
+        <ProfileMenu
+          collapsed={collapsed}
+          colorPalette={colorPalette}
+          onColorPaletteChange={onColorPaletteChange}
+          onOpenSettings={() => {
+            onNavigate("settings");
+            if (isMobile) {
+              onCloseMobile();
             }
           }}
-        >
-          <ListSubheader
-            disableSticky
-            sx={{ px: 1.25, py: 0.75, bgcolor: "transparent", lineHeight: 1.25 }}
-          >
-            <Typography variant="overline" color="text.disabled" component="div">
-              {t("navigation.appearanceMenuTitle")}
-            </Typography>
-            <Typography color="text.secondary" sx={{ mt: 0.35, fontSize: 10.5, whiteSpace: "normal" }}>
-              {t("navigation.appearanceMenuDescription")}
-            </Typography>
-          </ListSubheader>
-          {COLOR_PALETTE_OPTIONS.map((option) => {
-            const isSelected = option.id === colorPalette;
-
-            return (
-              <MenuItem
-                key={option.id}
-                role="menuitemradio"
-                aria-label={t(`appearance.palettes.${option.id}.label`)}
-                aria-checked={isSelected}
-                selected={isSelected}
-                onClick={() => {
-                  onColorPaletteChange(option.id);
-                  setPaletteMenuAnchor(null);
-                }}
-                sx={{ minHeight: 48, borderRadius: 0.75, gap: 1.25 }}
-              >
-                <Box
-                  aria-hidden="true"
-                  sx={{
-                    width: 22,
-                    height: 22,
-                    flexShrink: 0,
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: "50%",
-                    background: `linear-gradient(135deg, ${option.surface} 0 50%, ${option.color} 50% 100%)`,
-                    boxShadow: (theme) => `0 0 0 2px ${theme.palette.background.paper}`
-                  }}
-                />
-                <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-                  <Typography variant="body2" fontWeight={isSelected ? 600 : 500}>
-                    {t(`appearance.palettes.${option.id}.label`)}
-                  </Typography>
-                  <Typography component="div" color="text.disabled" sx={{ mt: 0.1, fontSize: 10 }}>
-                    {t(`appearance.palettes.${option.id}.description`)}
-                  </Typography>
-                </Box>
-                {isSelected ? <CheckRoundedIcon color="primary" fontSize="small" /> : null}
-              </MenuItem>
-            );
-          })}
-        </Menu>
+        />
       </Box>
     </Stack>
   );

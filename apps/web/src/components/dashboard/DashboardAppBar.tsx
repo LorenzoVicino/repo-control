@@ -22,7 +22,6 @@ import {
   Tooltip,
   Typography
 } from "@mui/material";
-import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { APP_VERSION } from "../../config";
 import type { AppUpdateStatus } from "../../types/app";
@@ -31,7 +30,6 @@ import type { DashboardSection } from "./DashboardSidebar";
 
 const SECTION_LABEL_KEYS: Record<DashboardSection, `navigation.sections.${DashboardSection}`> = {
   overview: "navigation.sections.overview",
-  tasks: "navigation.sections.tasks",
   agents: "navigation.sections.agents",
   automations: "navigation.sections.automations",
   docker: "navigation.sections.docker",
@@ -51,9 +49,6 @@ type DashboardAppBarProps = {
   isLoadingAppUpdateStatus: boolean;
   isUpdatingApp: boolean;
   isFetchingProjects: boolean;
-  // Owned by the auth feature, which reads the session itself; the bar only gives it a
-  // place to sit so this component keeps no data dependency of its own.
-  sessionMenu?: ReactNode;
   onOpenMobileNavigation: () => void;
   onOpenSearch: () => void;
   onUpdateApp: () => void;
@@ -72,7 +67,6 @@ export function DashboardAppBar({
   isLoadingAppUpdateStatus,
   isUpdatingApp,
   isFetchingProjects,
-  sessionMenu,
   onOpenMobileNavigation,
   onOpenSearch,
   onUpdateApp,
@@ -310,7 +304,6 @@ export function DashboardAppBar({
               </span>
             </Tooltip>
           ) : null}
-          {sessionMenu}
         </Stack>
       </Toolbar>
     </AppBar>

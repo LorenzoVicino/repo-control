@@ -13,3 +13,4 @@ export type ProjectOperationSource = "overview" | "changes" | "branches" | "dock
 export type ViewMode = "map" | "table";
 export type ColorMode = "light" | "dark";
 export type ColorPalette = "white" | "black" | "red" | "blue" | "green";
+export type FontScale = "small" | "medium" | "large";
