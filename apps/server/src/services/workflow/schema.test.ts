@@ -21,7 +21,6 @@ test("normalizes malformed workflow definitions into safe defaults", () => {
     id: "workflow-1",
     name: `  ${"n".repeat(140)}  `,
     description: "description",
-    active: true,
     nodes: [{
       id: "node-1",
       type: "unknown",
@@ -38,7 +37,6 @@ test("normalizes malformed workflow definitions into safe defaults", () => {
 
   assert.equal(fallback.nodes.length, 6);
   assert.equal(normalized.name.length, 120);
-  assert.equal(normalized.active, true);
   assert.equal(normalized.nodes[0]?.type, "trigger.manual");
   assert.deepEqual(normalized.nodes[0]?.position, { x: 0, y: 12 });
   assert.deepEqual(normalized.nodes[0]?.config, {});
@@ -47,6 +45,33 @@ test("normalizes malformed workflow definitions into safe defaults", () => {
     source: "node-1",
     target: "node-2"
   }]);
+});
+
+test("carries a workflow saved with the old pull node over to the configurable one", () => {
+  const normalized = normalizeWorkflowDefinition({
+    id: "workflow-legacy",
+    name: "Legacy",
+    nodes: [
+      { id: "trigger", type: "trigger.manual", name: "Start", position: { x: 0, y: 0 }, config: {} },
+      // Saved before the branch became configurable: the type carried the branch name.
+      { id: "pull", type: "git.pullDevelop", name: "Pull develop", position: { x: 200, y: 0 }, config: { requireClean: false } }
+    ],
+    edges: [{ id: "edge", source: "trigger", target: "pull" }]
+  });
+
+  const pullNode = normalized.nodes[1];
+  assert.equal(pullNode?.type, "git.pullBranch");
+  // The branch it always meant, so the workflow stays runnable without being re-edited.
+  assert.equal(pullNode?.config.branch, "develop");
+  assert.equal(pullNode?.config.requireClean, false);
+  // An unknown type still falls back to the trigger; only renames are carried over.
+  assert.equal(
+    normalizeWorkflowDefinition({
+      id: "workflow-unknown",
+      nodes: [{ id: "x", type: "git.somethingElse", name: "x", position: { x: 0, y: 0 }, config: {} }]
+    }).nodes[0]?.type,
+    "trigger.manual"
+  );
 });
 
 test("normalizes persisted workflow runs and rejects unusable records", () => {

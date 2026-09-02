@@ -34,13 +34,18 @@ async function createRepository(repositoryPath: string): Promise<void> {
   await execFileAsync("git", ["commit", "-m", "Initial fixture"], { cwd: repositoryPath });
 }
 
-async function withTemporaryConfigAndRoot<T>(run: (context: WorkflowExecutionContext) => Promise<T>): Promise<T> {
+async function withTemporaryConfigAndRoot<T>(
+  run: (context: WorkflowExecutionContext) => Promise<T>,
+  repositoryNames: string[] = ["fixture-project"]
+): Promise<T> {
   const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "repo-control-workflow-service-test-"));
   const configPath = path.join(temporaryRoot, "config");
   const workspacePath = path.join(temporaryRoot, "workspace");
   const previousConfigPath = process.env.REPO_CONTROL_CONFIG_DIR;
 
-  await createRepository(path.join(workspacePath, "fixture-project"));
+  for (const repositoryName of repositoryNames) {
+    await createRepository(path.join(workspacePath, repositoryName));
+  }
   process.env.REPO_CONTROL_CONFIG_DIR = configPath;
 
   const context: WorkflowExecutionContext = {
@@ -62,7 +67,6 @@ function terminalWorkflowDraft(name: string, command: string): WorkflowDraft {
   return {
     name,
     description: "",
-    active: true,
     nodes: [
       { id: "trigger", type: "trigger.manual", name: "Start", position: { x: 0, y: 0 }, config: {} },
       {
@@ -321,5 +325,137 @@ test("reconcileStaleWorkflowRuns marks leftover pending/running records as inter
     assert.match(reconciled?.statusMessage ?? "", /restarted/);
 
     cancelWorkflowRun(run.id);
+  });
+});
+
+// A sweep is only worth running if the repositories that are fine finish. Before this, one
+// failure skipped every later node for every repository, including the summary.
+test("keeps the healthy repositories going when one of them fails", async () => {
+  await withTemporaryConfigAndRoot(async (context) => {
+    const workflow = await createWorkflow({
+      name: "Per-repository failure",
+      description: "",
+      nodes: [
+        { id: "trigger", type: "trigger.manual", name: "Start", position: { x: 0, y: 0 }, config: {} },
+        {
+          id: "select",
+          type: "repository.select",
+          name: "All repositories",
+          position: { x: 200, y: 0 },
+          config: { mode: "all", projectIds: [] }
+        },
+        {
+          id: "first",
+          type: "terminal.command",
+          name: "Fails only in breaks",
+          position: { x: 400, y: 0 },
+          config: {
+            command: 'node -e "process.exit(require(\'path\').basename(process.cwd()) === \'breaks\' ? 3 : 0)"'
+          }
+        },
+        {
+          id: "second",
+          type: "terminal.command",
+          name: "Runs everywhere else",
+          position: { x: 600, y: 0 },
+          config: { command: 'node -e "console.log(\'second step\')"' }
+        },
+        { id: "summary", type: "output.summary", name: "Summary", position: { x: 800, y: 0 }, config: {} }
+      ],
+      edges: [
+        { id: "e1", source: "trigger", target: "select" },
+        { id: "e2", source: "select", target: "first" },
+        { id: "e3", source: "first", target: "second" },
+        { id: "e4", source: "second", target: "summary" }
+      ]
+    });
+
+    const started = await startWorkflowRun(workflow.id, context);
+    assert.notEqual(started, null);
+    const run = await waitForTerminalRun(started?.id ?? "");
+
+    const stepFor = (nodeId: string, projectName: string) =>
+      run.steps.find((step) => step.nodeId === nodeId && step.projectName === projectName);
+
+    assert.equal(stepFor("first", "keeps-going")?.status, "success");
+    assert.equal(stepFor("first", "breaks")?.status, "failed");
+
+    // The healthy repository carries on; only the failed one drops out of the later step.
+    assert.equal(stepFor("second", "keeps-going")?.status, "success");
+    assert.equal(stepFor("second", "breaks")?.status, "skipped");
+    assert.equal(
+      stepFor("second", "breaks")?.message,
+      "Skipped because an earlier step failed for this repository"
+    );
+
+    // The summary runs even though the run failed, and reports what happened.
+    const summaryStep = run.steps.find((step) => step.nodeId === "summary");
+    assert.equal(summaryStep?.status, "success");
+    assert.match(summaryStep?.message ?? "", /2 repositories selected/);
+    assert.match(summaryStep?.message ?? "", /failures in breaks/);
+    assert.equal(run.status, "failed");
+  }, ["keeps-going", "breaks"]);
+});
+
+// The branch is configurable now, and pulling it into a different branch would be a merge.
+test("pulls a named branch only where that branch is checked out", async () => {
+  await withTemporaryConfigAndRoot(async (context) => {
+    const workflow = await createWorkflow({
+      name: "Pull branch",
+      description: "",
+      nodes: [
+        { id: "trigger", type: "trigger.manual", name: "Start", position: { x: 0, y: 0 }, config: {} },
+        {
+          id: "select",
+          type: "repository.select",
+          name: "All repositories",
+          position: { x: 200, y: 0 },
+          config: { mode: "all", projectIds: [] }
+        },
+        {
+          id: "pull",
+          type: "git.pullBranch",
+          name: "Pull release",
+          position: { x: 400, y: 0 },
+          config: { branch: "release", requireClean: true }
+        }
+      ],
+      edges: [
+        { id: "e1", source: "trigger", target: "select" },
+        { id: "e2", source: "select", target: "pull" }
+      ]
+    });
+
+    const dryRun = await executeDryRun(workflow.id, context);
+    const pullStep = dryRun?.steps.find((step) => step.nodeId === "pull");
+
+    // The fixture repositories are on main, so the node explains itself instead of merging.
+    assert.equal(pullStep?.status, "skipped");
+    assert.match(pullStep?.message ?? "", /is on "main", not "release"/);
+  });
+});
+
+test("refuses a pull node whose branch could be read as a flag", async () => {
+  await withTemporaryConfigAndRoot(async (context) => {
+    const workflow = await createWorkflow({
+      name: "Unsafe branch",
+      description: "",
+      nodes: [
+        { id: "trigger", type: "trigger.manual", name: "Start", position: { x: 0, y: 0 }, config: {} },
+        {
+          id: "pull",
+          type: "git.pullBranch",
+          name: "Pull",
+          position: { x: 200, y: 0 },
+          config: { branch: "--upload-pack=touch /tmp/pwned" }
+        }
+      ],
+      edges: [{ id: "e1", source: "trigger", target: "pull" }]
+    });
+
+    await assert.rejects(
+      () => executeDryRun(workflow.id, context),
+      /invalid branch name/
+    );
   });
 });

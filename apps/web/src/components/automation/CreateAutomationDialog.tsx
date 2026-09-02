@@ -187,7 +187,6 @@ function buildAutomationDraft(
   return {
     name: name.trim(),
     description: description.trim(),
-    active: false,
     nodes,
     edges: nodes.slice(0, -1).map((node, index) => ({
       id: `edge-${node.id}-${nodes[index + 1].id}`,

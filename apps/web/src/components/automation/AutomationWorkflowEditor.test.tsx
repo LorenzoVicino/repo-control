@@ -143,7 +143,6 @@ const workflow: WorkflowDefinition = {
   id: "workflow-1",
   name: "Release",
   description: "Ship safely",
-  active: true,
   nodes: [
     { id: "trigger", type: "trigger.manual", name: "Trigger", position: { x: 0, y: 20 }, config: {} },
     { id: "fetch", type: "git.fetch", name: "Fetch", position: { x: 200, y: 20 }, config: {} },

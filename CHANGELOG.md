@@ -6,7 +6,18 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+### Changed
+
+- Keep a workflow going for the repositories that are still healthy. A failing step used to skip every later node for the whole selection, so one repository without an upstream cancelled the work for all the others - and the summary node was skipped too, disappearing from exactly the run whose outcome needed reading. Failure is now tracked per repository: the one that failed is skipped by the steps that follow, the rest continue, and the summary always runs.
+- Replace the `Pull develop` node with a `Pull a branch` node that takes the branch from its configuration. The old node ran `git pull origin develop`, which fails outright on git 2.34 and later whenever the branches have diverged, and merged develop into whichever branch happened to be checked out. The new node runs `git pull --ff-only origin <branch>` and skips repositories that are not on that branch, since pulling a branch into a different one is a merge nobody asked for. Workflows saved with the old node keep working: they are read back as the new node with `develop` as the branch.
+- Report the outcome of a run in the summary node instead of repeating its input. It counted the repositories in the selection, which the run panel already shows; it now reports how many steps succeeded, failed and were skipped, and names the repositories that failed.
+- Drop the `active` flag from workflows. It was validated, stored, returned by the API and written back unchanged by the editor, and read by nothing: neither the executor nor any screen. A persisted field that does nothing reads as a feature that is broken.
+
 ### Fixed
+
+- Skip, rather than fail, when a Git node cannot apply to a repository. `git pull` and `git push` on a branch with no upstream reported a command failure, which under the old semantics also cancelled the rest of the run; a local-only branch is a normal state and is now reported as a skip with its reason.
+- Say which tool is missing when a command cannot start. A workspace without Docker reported `spawn docker ENOENT`, which is accurate and unreadable; every command now explains that the executable was not found and can be given a path.
+- Report a forked workflow graph as one mistake. Connecting two nodes to the same source reported both the fork and the nodes it left unreachable, which reads as two unrelated problems.
 
 - Open the container console already scrolled to the newest output. `docker logs --tail` arrives as one large chunk whose newest lines are at its end, and the auto-scroll only followed the tail when the view was already near the bottom - which the first chunk never is - so the logs tab opened on the oldest line of the window and had to be scrolled by hand. Following the tail is now the starting state and is given up only when the reader scrolls away from it, and resumed when they come back.
 

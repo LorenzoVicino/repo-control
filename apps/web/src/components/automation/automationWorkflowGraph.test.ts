@@ -26,8 +26,8 @@ describe("automation workflow graph", () => {
     expect(flowNodes[0]).toMatchObject({ id: "trigger", type: "automation", position: { x: 0, y: 20 } });
     expect(flowEdges[0]).toMatchObject({ type: "smoothstep", markerEnd: { type: MarkerType.ArrowClosed } });
 
-    const draft = buildWorkflowDraft("  Workflow  ", "  Description  ", true, flowNodes, flowEdges);
-    expect(draft).toMatchObject({ name: "Workflow", description: "Description", active: true });
+    const draft = buildWorkflowDraft("  Workflow  ", "  Description  ", flowNodes, flowEdges);
+    expect(draft).toMatchObject({ name: "Workflow", description: "Description" });
     expect(draft.nodes[0]).toMatchObject({ id: "trigger", position: { x: 0, y: 20 } });
   });
 
@@ -63,7 +63,6 @@ describe("automation workflow graph", () => {
       id: "workflow-1",
       name: "Workflow",
       description: "Description",
-      active: false,
       nodes: workflowNodes,
       edges: [],
       createdAt: "2026-07-20T10:00:00.000Z",
@@ -73,7 +72,6 @@ describe("automation workflow graph", () => {
     expect(toWorkflowDraft(workflow)).toEqual({
       name: "Workflow",
       description: "Description",
-      active: false,
       nodes: workflowNodes,
       edges: []
     });

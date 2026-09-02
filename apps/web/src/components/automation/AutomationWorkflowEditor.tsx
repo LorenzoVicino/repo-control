@@ -105,7 +105,6 @@ export function AutomationWorkflowEditor({
   const queryClient = useQueryClient();
   const [name, setName] = React.useState(workflow.name);
   const [description, setDescription] = React.useState(workflow.description);
-  const active = workflow.active;
   const [nodes, setNodes, onNodesChange] = useNodesState<AutomationFlowNode>(toFlowNodes(workflow.nodes));
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(toFlowEdges(workflow.edges));
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
@@ -121,8 +120,8 @@ export function AutomationWorkflowEditor({
   );
 
   const draft = React.useMemo(
-    () => buildWorkflowDraft(name, description, active, nodes, edges),
-    [active, description, edges, name, nodes]
+    () => buildWorkflowDraft(name, description, nodes, edges),
+    [description, edges, name, nodes]
   );
   const dirty = JSON.stringify(draft) !== savedDraftHash;
   const validation = React.useMemo(

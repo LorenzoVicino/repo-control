@@ -52,7 +52,6 @@ export function normalizeWorkflowDefinition(value: unknown): WorkflowDefinition 
     id,
     name: getString(raw.name, "Untitled workflow").slice(0, 120),
     description: getString(raw.description, "").slice(0, 400),
-    active: typeof raw.active === "boolean" ? raw.active : false,
     nodes: nodes.length > 0 ? nodes : getDefaultNodes(id),
     edges: Array.isArray(raw.edges)
       ? raw.edges.map(normalizeWorkflowEdge).filter((edge): edge is WorkflowEdge => edge !== null)
@@ -107,7 +106,6 @@ export function getDefaultWorkflows(): WorkflowDefinition[] {
       id,
       name: "Fetch & pull favorites",
       description: "Selects the favorite repositories, keeps only the clean ones, then runs fetch and pull ff-only.",
-      active: false,
       nodes: getDefaultNodes(id),
       edges: [
         { id: "edge-trigger-select", source: `${id}-trigger`, target: `${id}-select` },
@@ -135,8 +133,22 @@ function normalizeWorkflowNode(value: unknown): WorkflowNode {
       x: getNumber(position.x, 0),
       y: getNumber(position.y, 0)
     },
-    config: isRecord(raw.config) ? raw.config : {}
+    config: normalizeNodeConfig(type, isRecord(raw.config) ? raw.config : {})
   };
+}
+
+// The branch used to be part of the node type ("git.pullDevelop"), so a workflow saved
+// before it became configurable carries no branch at all. Reading it back names the branch
+// it always meant, which keeps those workflows runnable without a migration step.
+function normalizeNodeConfig(
+  type: WorkflowNodeType,
+  config: Record<string, unknown>
+): Record<string, unknown> {
+  if (type === "git.pullBranch" && !getString(config.branch, "")) {
+    return { ...config, branch: LEGACY_PULL_BRANCH };
+  }
+
+  return config;
 }
 
 function normalizeWorkflowEdge(value: unknown): WorkflowEdge | null {
@@ -220,6 +232,15 @@ function getDefaultNodes(id: string): WorkflowNode[] {
   ];
 }
 
+const LEGACY_PULL_BRANCH = "develop";
+
+// Renamed node types, so a stored workflow or run keeps its meaning instead of falling back
+// to the trigger - which would silently turn a pull step into a second trigger and make the
+// whole workflow refuse to run.
+const RENAMED_NODE_TYPES: Record<string, WorkflowNodeType> = {
+  "git.pullDevelop": "git.pullBranch"
+};
+
 function normalizeNodeType(value: unknown): WorkflowNodeType {
   const nodeTypes: WorkflowNodeType[] = [
     "trigger.manual",
@@ -228,7 +249,7 @@ function normalizeNodeType(value: unknown): WorkflowNodeType {
     "repository.filter",
     "git.fetch",
     "git.pull",
-    "git.pullDevelop",
+    "git.pullBranch",
     "git.push",
     "docker.up",
     "docker.rebuild",
@@ -237,9 +258,15 @@ function normalizeNodeType(value: unknown): WorkflowNodeType {
     "output.summary"
   ];
 
-  return typeof value === "string" && nodeTypes.includes(value as WorkflowNodeType)
-    ? (value as WorkflowNodeType)
-    : "trigger.manual";
+  if (typeof value !== "string") {
+    return "trigger.manual";
+  }
+
+  if (nodeTypes.includes(value as WorkflowNodeType)) {
+    return value as WorkflowNodeType;
+  }
+
+  return RENAMED_NODE_TYPES[value] ?? "trigger.manual";
 }
 
 function getDefaultNodeName(type: WorkflowNodeType): string {
@@ -250,7 +277,7 @@ function getDefaultNodeName(type: WorkflowNodeType): string {
     "repository.filter": "Filter repositories",
     "git.fetch": "Git fetch",
     "git.pull": "Git pull",
-    "git.pullDevelop": "Pull develop",
+    "git.pullBranch": "Pull branch",
     "git.push": "Git push",
     "docker.up": "Compose up",
     "docker.rebuild": "Compose rebuild",

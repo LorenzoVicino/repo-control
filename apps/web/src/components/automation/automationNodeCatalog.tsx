@@ -86,11 +86,11 @@ export const AUTOMATION_NODE_DEFINITIONS: AutomationNodeDefinition[] = [
     defaultConfig: { requireClean: true }
   },
   {
-    type: "git.pullDevelop",
+    type: "git.pullBranch",
     group: "git",
     color: "#7c3aed",
     icon: DownloadOutlinedIcon,
-    defaultConfig: { requireClean: true }
+    defaultConfig: { branch: "develop", requireClean: true }
   },
   {
     type: "git.push",
@@ -191,10 +191,18 @@ export function getAutomationNodeSummary(t: TFunction, node: WorkflowNode): stri
       return values.length > 0 ? values.join(" · ") : t("automation.nodeSummary.noFilter");
     }
     case "git.pull":
-    case "git.pullDevelop":
       return getConfigBoolean(node, "requireClean", true)
         ? t("automation.nodeSummary.cleanOnly")
         : t("automation.nodeSummary.allowDirty");
+    case "git.pullBranch": {
+      const branch = getConfigString(node, "branch", "");
+
+      if (!branch) return t("automation.nodeSummary.branchMissing");
+
+      return getConfigBoolean(node, "requireClean", true)
+        ? t("automation.nodeSummary.branchCleanOnly", { branch })
+        : t("automation.nodeSummary.branchAllowDirty", { branch });
+    }
     case "terminal.command":
       return getConfigString(node, "command", "") || t("automation.nodeSummary.commandMissing");
     default:

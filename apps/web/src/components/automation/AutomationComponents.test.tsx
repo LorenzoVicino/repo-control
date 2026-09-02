@@ -34,7 +34,6 @@ const workflow: WorkflowDefinition = {
   id: "workflow-1",
   name: "Release",
   description: "Ship production",
-  active: true,
   nodes: [
     node("trigger.manual"),
     node("git.fetch"),

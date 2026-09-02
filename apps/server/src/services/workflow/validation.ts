@@ -1,3 +1,4 @@
+import { isSafeGitRef } from "../gitService.js";
 import type {
   WorkflowDefinition,
   WorkflowNode
@@ -7,7 +8,7 @@ import { getString, getStringArray } from "./value.js";
 const EXECUTABLE_NODE_TYPES = new Set<WorkflowNode["type"]>([
   "git.fetch",
   "git.pull",
-  "git.pullDevelop",
+  "git.pullBranch",
   "git.push",
   "docker.up",
   "docker.rebuild",
@@ -53,6 +54,18 @@ export function getExecutableWorkflowNodes(workflow: WorkflowDefinition): Workfl
       && getStringArray(node.config.projectIds).length === 0
     ) {
       errors.push(`repository node "${node.name}" has an empty manual selection`);
+    }
+
+    if (node.type === "git.pullBranch") {
+      const branch = getString(node.config.branch, "");
+
+      // The branch reaches git as an argument, so it is checked here rather than trusted:
+      // a value starting with "-" would be read as a flag.
+      if (!branch) {
+        errors.push(`pull node "${node.name}" has no branch`);
+      } else if (!isSafeGitRef(branch)) {
+        errors.push(`pull node "${node.name}" has an invalid branch name "${branch}"`);
+      }
     }
   }
 
@@ -109,7 +122,10 @@ export function getExecutableWorkflowNodes(workflow: WorkflowDefinition): Workfl
   }
 
   const disconnectedNodes = workflow.nodes.filter((node) => !visitedNodeIds.has(node.id));
-  if (triggerNode && disconnectedNodes.length > 0) {
+  // A fan-out or fan-in already explains why the walk stopped early, and reporting the
+  // nodes it could not reach as a second problem reads as two mistakes instead of one.
+  const hasBranchingError = errors.some((error) => error.includes("more than one"));
+  if (triggerNode && disconnectedNodes.length > 0 && !hasBranchingError) {
     const names = disconnectedNodes.slice(0, 3).map((node) => `"${node.name}"`).join(", ");
     const remainingCount = disconnectedNodes.length - 3;
     errors.push(
