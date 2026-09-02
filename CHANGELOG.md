@@ -6,6 +6,8 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+## [0.13.0] - 2026-09-02
+
 ### Changed
 
 - Keep a workflow going for the repositories that are still healthy. A failing step used to skip every later node for the whole selection, so one repository without an upstream cancelled the work for all the others - and the summary node was skipped too, disappearing from exactly the run whose outcome needed reading. Failure is now tracked per repository: the one that failed is skipped by the steps that follow, the rest continue, and the summary always runs.
@@ -18,7 +20,6 @@ This project follows semantic versioning where practical.
 - Skip, rather than fail, when a Git node cannot apply to a repository. `git pull` and `git push` on a branch with no upstream reported a command failure, which under the old semantics also cancelled the rest of the run; a local-only branch is a normal state and is now reported as a skip with its reason.
 - Say which tool is missing when a command cannot start. A workspace without Docker reported `spawn docker ENOENT`, which is accurate and unreadable; every command now explains that the executable was not found and can be given a path.
 - Report a forked workflow graph as one mistake. Connecting two nodes to the same source reported both the fork and the nodes it left unreachable, which reads as two unrelated problems.
-
 - Open the container console already scrolled to the newest output. `docker logs --tail` arrives as one large chunk whose newest lines are at its end, and the auto-scroll only followed the tail when the view was already near the bottom - which the first chunk never is - so the logs tab opened on the oldest line of the window and had to be scrolled by hand. Following the tail is now the starting state and is given up only when the reader scrolls away from it, and resumed when they come back.
 
 ## [0.12.0] - 2026-09-01
