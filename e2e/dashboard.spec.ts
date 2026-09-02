@@ -152,6 +152,7 @@ test("switches and persists all five dashboard color palettes", async ({ page })
     await profileTab.click();
     await paletteItem.click();
     await page.getByRole("menuitemradio", { name: label, exact: true }).click();
+    await expect(page.getByRole("menuitemradio", { name: label, exact: true })).toHaveCount(0);
     expect(
       await page.evaluate(() => window.localStorage.getItem("repo-control-color-palette"))
     ).toBe(value);
@@ -186,6 +187,9 @@ test("opens settings from the profile tab and scales the interface text", async 
   const profileTab = page.getByRole("button", { name: /Profile menu|Session menu for/ });
   await profileTab.click();
   await page.getByRole("menuitem", { name: "Settings" }).click();
+  // The menu is a Modal: its invisible backdrop stays mounted for the closing transition
+  // and swallows any click made before the popover has left the DOM.
+  await expect(page.getByRole("menuitem", { name: "Settings" })).toHaveCount(0);
 
   const title = page.getByRole("heading", { name: "Settings", exact: true });
   await expect(title).toBeVisible();
