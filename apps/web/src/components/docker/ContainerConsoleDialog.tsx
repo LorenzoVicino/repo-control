@@ -33,6 +33,9 @@ import type { ContainerSession, ContainerSessionKind, DockerContainer } from "..
 // a busy loop against the local API.
 const SESSION_POLL_INTERVAL_MS = 450;
 const MAX_TRANSCRIPT_CHARACTERS = 200_000;
+// How close to the end still counts as "reading the tail". Wide enough that a line arriving
+// mid-scroll does not unpin the view, narrow enough that scrolling up to read does.
+const PINNED_TO_BOTTOM_THRESHOLD_PX = 120;
 const COMMAND_HISTORY_LIMIT = 50;
 
 type ContainerConsoleDialogProps = {
@@ -153,6 +156,9 @@ function ContainerSessionPane({
   const [historyIndex, setHistoryIndex] = React.useState<number | null>(null);
   const [inputError, setInputError] = React.useState<string | null>(null);
   const transcriptRef = React.useRef<HTMLPreElement | null>(null);
+  // Starts pinned: `docker logs --tail` arrives as one large chunk, and the newest lines are
+  // at its end, so the first thing shown has to be the bottom of it.
+  const isPinnedToBottomRef = React.useRef(true);
   const cursorRef = React.useRef(0);
   const sessionIdRef = React.useRef<string | null>(null);
 
@@ -170,6 +176,7 @@ function ContainerSessionPane({
     let cancelled = false;
     setState({ ...EMPTY_SESSION_STATE, isOpening: true });
     cursorRef.current = 0;
+    isPinnedToBottomRef.current = true;
 
     async function openSession(): Promise<void> {
       try {
@@ -260,20 +267,25 @@ function ContainerSessionPane({
     };
   }, [active, isRunning, sessionId, t]);
 
+  // Whether the view follows the tail is the reader's, tracked from their own scrolling
+  // rather than inferred from the current position: measuring it at append time cannot tell
+  // "has not scrolled yet" from "scrolled far up", and the first chunk is always far from
+  // the bottom the moment it lands.
+  function handleTranscriptScroll(event: React.UIEvent<HTMLPreElement>): void {
+    const element = event.currentTarget;
+    const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
+    isPinnedToBottomRef.current = distanceFromBottom < PINNED_TO_BOTTOM_THRESHOLD_PX;
+  }
+
   React.useLayoutEffect(() => {
     const element = transcriptRef.current;
 
-    if (!element || hidden) {
+    // A hidden pane has no layout to scroll, so the pin is applied when its tab comes back.
+    if (!element || hidden || !isPinnedToBottomRef.current) {
       return;
     }
 
-    // Only chase the tail when the reader is already there: scrolling up to read something
-    // must not be undone by the next chunk.
-    const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
-
-    if (distanceFromBottom < 120) {
-      element.scrollTop = element.scrollHeight;
-    }
+    element.scrollTop = element.scrollHeight;
   }, [state.transcript, hidden]);
 
   async function submitCommand(): Promise<void> {
@@ -384,7 +396,10 @@ function ContainerSessionPane({
             <IconButton
               size="small"
               aria-label={t("docker.console.clear")}
-              onClick={() => setState((previous) => ({ ...previous, transcript: "", truncated: false }))}
+              onClick={() => {
+                isPinnedToBottomRef.current = true;
+                setState((previous) => ({ ...previous, transcript: "", truncated: false }));
+              }}
             >
               <DeleteSweepOutlinedIcon sx={{ fontSize: 17 }} />
             </IconButton>
@@ -416,6 +431,7 @@ function ContainerSessionPane({
       <Box
         component="pre"
         ref={transcriptRef}
+        onScroll={handleTranscriptScroll}
         tabIndex={0}
         aria-label={t(kind === "exec" ? "docker.console.shellTranscript" : "docker.console.logsTranscript")}
         sx={{
