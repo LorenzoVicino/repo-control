@@ -111,6 +111,7 @@ apps/web/src/
     dashboard/  navigation, health views and repository discovery
     docker/     container console sessions and resource-usage formatting
     project/    capability-driven overview, Git diff, branch, terminal and Docker panels
+    settings/   local interface preferences: language, palette and text size
     shared/     reusable presentation components with no feature ownership
     task/       hidden Task engineering UI retained for redesign work
   types/        API and UI contracts split by domain
@@ -125,7 +126,11 @@ Repository details use a single full-width shell: Overview is the default and fe
 
 The application shell reads the sign-in state once and chooses between the sign-in screen and the dashboard from it. A request that any feature makes and the API answers with `401 UNAUTHENTICATED` updates that same cached state through the shared query cache, so a lapsed session returns to the sign-in screen instead of leaving a page of failed panels behind. An unreadable sign-in state falls through to the dashboard on purpose: the API enforces the gate, and a local tool should not lock its owner out because one request failed.
 
-Dashboard sections are lazy-loaded. Task engineering still has code and server endpoints but is deliberately absent from the sidebar and quick actions; documentation and user-facing navigation should not present it as a current capability until the redesign is complete.
+Dashboard sections are lazy-loaded. Task engineering still has code and server endpoints but is deliberately absent from the sidebar, the section router and quick actions; documentation and user-facing navigation should not present it as a current capability until the redesign is complete.
+
+Interface preferences are owned by the application shell rather than by the screen that presents them: `App.tsx` holds the palette and text size, writes them to `localStorage` and passes them down, so the theme is rebuilt in one place. Both are offered twice on purpose - as a quick switch in the sidebar profile menu and as a described choice in the settings section - and the profile menu is the only sign-out entry point. It renders whether or not credentials are configured, because a workspace with no session still has preferences to reach.
+
+Text size is applied through the theme's `unstable_sxConfig` transform for `fontSize`, not by editing components. Most type sizes here are written inline as `sx={{ fontSize: 10.5 }}`, so scaling `typography` alone would grow the headings and leave the small mono labels untouched; the transform reaches every inline number, the themed sizes and the icon sizes from one definition. A new inline size therefore scales automatically, and a size that must stay fixed is written as a CSS string.
 
 ## Persistence
 

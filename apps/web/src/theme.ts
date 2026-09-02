@@ -63,7 +63,7 @@ const DARK_SURFACES = {
   strongDivider: "rgba(233, 233, 237, 0.18)",
   textPrimary: "#e9e9ed",
   textSecondary: "#9397ab",
-  textTertiary: "#75798c"
+  textTertiary: "#9295a4"
 };
 
 const COLOR_PALETTE_TOKENS: Record<ColorPalette, ThemePaletteTokens> = {
@@ -77,7 +77,7 @@ const COLOR_PALETTE_TOKENS: Record<ColorPalette, ThemePaletteTokens> = {
     strongDivider: "rgba(41, 43, 49, 0.22)",
     textPrimary: "#292b31",
     textSecondary: "#595d6c",
-    textTertiary: "#75798c",
+    textTertiary: "#646778",
     primary: {
       main: "#5d5294",
       dark: "#423a6a",
@@ -99,7 +99,7 @@ const COLOR_PALETTE_TOKENS: Record<ColorPalette, ThemePaletteTokens> = {
       dark: "#796cbf",
       light: "#b5abfc",
       contrastText: "#161826",
-      tint: "#2b2741"
+      tint: "#28243c"
     },
     secondary: {
       main: "#a7a1db",
@@ -118,7 +118,7 @@ const COLOR_PALETTE_TOKENS: Record<ColorPalette, ThemePaletteTokens> = {
     strongDivider: "rgba(244, 224, 230, 0.18)",
     textPrimary: "#f0e8eb",
     textSecondary: "#aa959c",
-    textTertiary: "#8c7880",
+    textTertiary: "#9f8d94",
     primary: {
       main: "#e0836f",
       dark: "#b75f4c",
@@ -143,7 +143,7 @@ const COLOR_PALETTE_TOKENS: Record<ColorPalette, ThemePaletteTokens> = {
     strongDivider: "rgba(225, 238, 247, 0.18)",
     textPrimary: "#e8eef2",
     textSecondary: "#95a5b1",
-    textTertiary: "#788b98",
+    textTertiary: "#8d9da9",
     primary: {
       main: "#74b3d9",
       dark: "#4b8db6",
@@ -168,7 +168,7 @@ const COLOR_PALETTE_TOKENS: Record<ColorPalette, ThemePaletteTokens> = {
     strongDivider: "rgba(226, 241, 233, 0.18)",
     textPrimary: "#e8f0ec",
     textSecondary: "#94a79e",
-    textTertiary: "#778c82",
+    textTertiary: "#8da097",
     primary: {
       main: "#6cc2a1",
       dark: "#489778",
@@ -185,17 +185,22 @@ const COLOR_PALETTE_TOKENS: Record<ColorPalette, ThemePaletteTokens> = {
   }
 };
 
+// A swatch fill cannot carry its own edge at both ends of the range: white sits at 1.02:1
+// on a light panel and black at 1.27:1 on a dark one. One mid-slate ring contrasts both
+// extremes (4.3:1 against white, 4.9:1 against black) and stays visible on every panel,
+// so the dots read as one set instead of two that disappear.
+export const COLOR_SWATCH_RING = "#75798c";
+
 // Labels and descriptions live in the i18n resources under `appearance.palettes.<id>`.
 export const COLOR_PALETTE_OPTIONS: ReadonlyArray<{
   id: ColorPalette;
-  color: string;
-  surface: string;
+  swatch: string;
 }> = [
-  { id: "white", color: "#5d5294", surface: "#fdfdff" },
-  { id: "black", color: "#9184d9", surface: "#161826" },
-  { id: "red", color: "#e0836f", surface: "#1b1618" },
-  { id: "blue", color: "#74b3d9", surface: "#131a21" },
-  { id: "green", color: "#6cc2a1", surface: "#131b18" }
+  { id: "white", swatch: "#ffffff" },
+  { id: "black", swatch: "#000000" },
+  { id: "red", swatch: "#e0836f" },
+  { id: "blue", swatch: "#74b3d9" },
+  { id: "green", swatch: "#6cc2a1" }
 ];
 
 export function createAppTheme(

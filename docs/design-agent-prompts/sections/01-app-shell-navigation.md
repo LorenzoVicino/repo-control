@@ -6,6 +6,8 @@
 - `apps/web/src/components/dashboard/DashboardAppBar.tsx`
 - `apps/web/src/components/dashboard/ProjectsDashboard.tsx`
 - `apps/web/src/components/dashboard/WorkspaceToolbarPicker.tsx`
+- `apps/web/src/components/auth/ProfileMenu.tsx`
+- `apps/web/src/components/settings/SettingsPage.tsx`
 - `apps/web/src/theme.ts`
 
 ## Prompt pronto da incollare
@@ -14,14 +16,15 @@ Progetta la nuova app shell di repo-control applicando la direzione visiva scelt
 
 ### Funzioni da preservare
 
-- Navigazione verso Dashboard, Agent sessions, Automazioni, Docker, Preferiti e Repository.
-- Predisposizione per Task engineering, anche se la sua visibilità potrà essere capability-driven.
+- Navigazione verso Dashboard, Agent sessions, Automazioni, Docker, Preferiti e Repository: sono sei voci e la navigazione non deve contenerne altre. Impostazioni non è una voce di navigazione: si raggiunge dal tab Profilo.
 - Badge numerici per repository, preferiti e gruppi Docker.
 - Docker nascosto quando il runtime non è disponibile.
 - Sidebar desktop espansa/compressa e drawer mobile.
 - Workspace locale attivo, cambio cartella con `Ctrl+O` ed errore del picker.
-- Selezione palette/tema.
-- App bar con titolo contestuale, repository attivo, ricerca `Ctrl+P`, refresh, versione e aggiornamento applicazione.
+- Tab **Profilo** in fondo alla sidebar: identità della sessione, ingresso alla sezione Impostazioni, switch rapido della palette e sign-out. È l'unico punto di uscita dalla sessione e resta presente anche quando il server non richiede credenziali, perché le preferenze vanno comunque raggiunte.
+- Selezione palette/tema, offerta due volte per scopi diversi: switch rapido nel menu profilo e scelta descritta nella sezione Impostazioni.
+- Dimensione del testo dell'interfaccia su tre livelli. Scala testo, label e icone senza cambiare la larghezza dei pannelli, quindi il design deve reggere il livello grande senza troncare le label.
+- App bar con titolo contestuale, repository attivo, ricerca `Ctrl+P`, refresh, versione e aggiornamento applicazione. L'app bar non porta più l'avatar della sessione.
 - Fascia dei repository aperti, progettata nella sezione 09, integrabile senza creare una terza navigazione competitiva.
 
 ### Problema da risolvere
@@ -49,6 +52,8 @@ La shell corrente è leggibile ma somiglia a un template admin: sidebar, app bar
 - Docker disponibile/non disponibile;
 - update disponibile, aggiornamento in corso, errore e versione aggiornata;
 - sidebar espansa, compressa e mobile;
+- profilo con sessione attiva e in modalità locale senza credenziali configurate;
+- dimensione del testo piccola, media e grande;
 - repository attivo/non attivo, dirty e con processo attivo;
 - contenuto in navigazione o refresh.
 

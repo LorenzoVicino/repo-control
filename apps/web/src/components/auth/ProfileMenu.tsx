@@ -22,7 +22,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { signOut } from "../../api/auth";
-import { COLOR_PALETTE_OPTIONS } from "../../theme";
+import { COLOR_PALETTE_OPTIONS, COLOR_SWATCH_RING } from "../../theme";
 import type { ColorPalette } from "../../types/common";
 import { AUTH_SESSION_QUERY_KEY, useAuthSession } from "./authSession";
 
@@ -234,9 +234,10 @@ export function ProfileMenu({
                   width: 17,
                   height: 17,
                   flexShrink: 0,
-                  border: "1px solid var(--rc-border-strong)",
+                  border: "1px solid",
+                  borderColor: COLOR_SWATCH_RING,
                   borderRadius: "50%",
-                  background: `linear-gradient(135deg, ${activePalette.surface} 0 50%, ${activePalette.color} 50% 100%)`
+                  bgcolor: activePalette.swatch
                 }}
               />
               <Box sx={{ minWidth: 0, flexGrow: 1 }}>{t("navigation.appearance")}</Box>
@@ -303,10 +304,9 @@ export function ProfileMenu({
                       height: 22,
                       flexShrink: 0,
                       border: "1px solid",
-                      borderColor: "divider",
+                      borderColor: COLOR_SWATCH_RING,
                       borderRadius: "50%",
-                      background: `linear-gradient(135deg, ${option.surface} 0 50%, ${option.color} 50% 100%)`,
-                      boxShadow: (theme) => `0 0 0 2px ${theme.palette.background.paper}`
+                      bgcolor: option.swatch
                     }}
                   />
                   <Stack sx={{ minWidth: 0, flexGrow: 1 }}>

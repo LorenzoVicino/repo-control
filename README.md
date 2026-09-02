@@ -10,11 +10,11 @@ When work spans several repositories, the important state is scattered across te
 
 <p align="center">
   <a href="docs/repo-control-demo.webm">
-    <img src="docs/repo-control-demo.gif" alt="repo-control v0.7.0 demo: workspace triage, repository search, scoped Git details, persistent terminal and Task Engineering" width="100%" />
+    <img src="docs/repo-control-demo.gif" alt="repo-control v0.7.0 demo: workspace triage, repository search, scoped Git details and persistent terminal" width="100%" />
   </a>
 </p>
 
-<p align="center"><sub>Dashboard → repository catalog → Ctrl+P search → repository overview → branches → persistent terminal → Task Engineering. Captured from the live v0.7.0 application with local paths normalized; click the GIF for the full-quality video.</sub></p>
+<p align="center"><sub>Dashboard → repository catalog → Ctrl+P search → repository overview → branches → persistent terminal. Captured from the live v0.7.0 application with local paths normalized; click the GIF for the full-quality video. Its closing segment shows a Task Engineering screen that is no longer part of the interface.</sub></p>
 
 ## The problem
 
@@ -63,6 +63,7 @@ repo-control keeps the convenience of a dashboard without moving control to a re
 | Docker Compose | Inspect configured and stopped services, health, images and published ports; open web ports, tail per-service logs, restart a service or operate the complete stack. |
 | Docker runtime | Read live CPU, memory, network and block I/O per container, open an interactive shell inside one, and follow its logs - including standalone containers that belong to no Compose project. |
 | Automations | Build visual Git, Docker and terminal workflows with graph validation, runtime text inputs, dry runs, background execution, cancellation and inspectable history. A repository that fails leaves the run; the others finish. |
+| Interface | Pick one of five complete color palettes, three interface text sizes and the language, from the sidebar profile tab or the settings section. Preferences are stored per device. |
 
 The Docker runtime page opens a console on any running container: a **Shell** tab holding a live `docker exec` session, where the working directory and environment persist between commands, and a **Logs** tab following `docker logs`. The shell is a pipe rather than a terminal, so full-screen programs such as `vim` or `top` do not work; everything else does. Sessions live in the server's memory, are capped in number, and are closed when the dialog closes, when the server stops, or after 15 minutes without a reader.
 
@@ -175,6 +176,7 @@ REPO_CONTROL_AUTH_PASSWORD=choose-a-long-unique-passphrase
 - Both variables must be set together. With only one, the server refuses to start rather than leaving an API you believe is protected wide open.
 - The session is an opaque token in an `HttpOnly`, `SameSite=Strict` cookie. It lasts 12 hours, or 30 days when *Remember me* is used, and lives in the server's memory only: restarting repo-control signs everyone out.
 - Five wrong answers pause sign-in for 30 seconds.
+- Sign out from the **Profile** tab at the bottom of the sidebar, which also holds the settings section and the palette switch. With no credentials configured the same tab reports the local mode and simply has nothing to sign out of.
 - `GET /api/health` stays reachable without a session so a supervisor can probe the API, and answers `{ "ok": true, "authRequired": true }` without naming the workspace folder.
 - There is no recovery flow. Change the values in `.env` and restart.
 
@@ -202,7 +204,7 @@ repo-control stores its own data outside Git by default:
 - macOS: `~/Library/Application Support/repo-control`
 - Linux/WSL: `${XDG_CONFIG_HOME:-~/.config}/repo-control`
 
-The directory contains `preferences.json`, `terminal-history.json`, `workflows.json` and `workflow-runs.json` as those features are used. Terminal command suggestions persist in `terminal-history.json`; the visible terminal transcript stays mounted while its repository remains open, but is not written to disk. Workflow history includes command output and retains at most 100 runs. Older task-engineering data, if present, remains in the `brain/` subdirectory. UI palette and dashboard quote choices are kept in browser local storage.
+The directory contains `preferences.json`, `terminal-history.json`, `workflows.json` and `workflow-runs.json` as those features are used. Terminal command suggestions persist in `terminal-history.json`; the visible terminal transcript stays mounted while its repository remains open, but is not written to disk. Workflow history includes command output and retains at most 100 runs. Older task-engineering data, if present, remains in the `brain/` subdirectory. Interface choices - palette, text size, language and the dashboard quote - are kept in browser local storage rather than on the server, so they follow the browser and not the workspace.
 
 ### Windows with WSL
 
