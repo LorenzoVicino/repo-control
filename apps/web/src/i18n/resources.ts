@@ -917,7 +917,10 @@ export const en = {
       git: {
         fetch: { label: "Git fetch", description: "Update every remote reference" },
         pull: { label: "Git pull", description: "Fast-forward pull of the current branch" },
-        pullDevelop: { label: "Pull develop", description: "Update from origin/develop" },
+        pullBranch: {
+          label: "Pull a branch",
+          description: "Fast-forward from a named branch, where it is checked out"
+        },
         push: { label: "Git push", description: "Send the current branch to the remote" }
       },
       docker: {
@@ -942,6 +945,9 @@ export const en = {
       noFilter: "No filter",
       cleanOnly: "Clean checkouts only",
       allowDirty: "Allow local changes",
+      branchCleanOnly: "origin/{{branch}} · clean only",
+      branchAllowDirty: "origin/{{branch}} · local changes allowed",
+      branchMissing: "Branch not configured",
       commandMissing: "Command not configured",
       defaultInputLabel: "Input"
     },
@@ -976,6 +982,8 @@ export const en = {
       docker: "Docker Compose",
       dockerOptions: { any: "Any", yes: "Present", no: "Absent" },
       requireClean: "Require a clean checkout",
+      branch: "Branch",
+      branchHint: "Pulled with --ff-only, and only in repositories that have this branch checked out.",
       command: "Command",
       deleteNode: "Delete node"
     },
@@ -2011,7 +2019,10 @@ export const it: TranslationSchema<typeof en> = {
       git: {
         fetch: { label: "Git fetch", description: "Aggiorna tutti i riferimenti remoti" },
         pull: { label: "Git pull", description: "Pull fast-forward del branch corrente" },
-        pullDevelop: { label: "Pull develop", description: "Aggiorna da origin/develop" },
+        pullBranch: {
+          label: "Pull di un branch",
+          description: "Fast-forward da un branch scelto, dove è quello attivo"
+        },
         push: { label: "Git push", description: "Invia il branch corrente al remoto" }
       },
       docker: {
@@ -2036,6 +2047,9 @@ export const it: TranslationSchema<typeof en> = {
       noFilter: "Nessun filtro",
       cleanOnly: "Solo checkout puliti",
       allowDirty: "Consenti modifiche locali",
+      branchCleanOnly: "origin/{{branch}} · solo se pulito",
+      branchAllowDirty: "origin/{{branch}} · anche con modifiche locali",
+      branchMissing: "Branch da configurare",
       commandMissing: "Comando da configurare",
       defaultInputLabel: "Input"
     },
@@ -2070,6 +2084,8 @@ export const it: TranslationSchema<typeof en> = {
       docker: "Docker Compose",
       dockerOptions: { any: "Qualsiasi", yes: "Presente", no: "Assente" },
       requireClean: "Richiedi checkout pulito",
+      branch: "Branch",
+      branchHint: "Pull con --ff-only, e solo nei repository che hanno questo branch attivo.",
       command: "Comando",
       deleteNode: "Elimina nodo"
     },

@@ -126,7 +126,6 @@ test("boots the API and serves safe workspace endpoints", async (context) => {
     payload: {
       name: "Input workflow",
       description: "Collects a release message",
-      active: false,
       nodes: [
         {
           id: "trigger",
@@ -215,7 +214,6 @@ test("boots the API and serves safe workspace endpoints", async (context) => {
     payload: {
       name: "Disconnected workflow",
       description: "",
-      active: true,
       nodes: [
         {
           id: "disconnected-trigger",
@@ -249,7 +247,6 @@ test("boots the API and serves safe workspace endpoints", async (context) => {
     payload: {
       name: "Fail fast workflow",
       description: "",
-      active: true,
       nodes: [
         {
           id: "fail-fast-trigger",
@@ -309,7 +306,7 @@ test("boots the API and serves safe workspace endpoints", async (context) => {
   );
   assert.equal(
     completedFailFastRun.steps.find((step) => step.nodeId === "must-not-run")?.message,
-    "Skipped because a previous step failed"
+    "Skipped because an earlier step failed for this repository"
   );
 
   const warningWorkflowResponse = await app.inject({
@@ -318,7 +315,6 @@ test("boots the API and serves safe workspace endpoints", async (context) => {
     payload: {
       name: "Warning workflow",
       description: "",
-      active: true,
       nodes: [
         {
           id: "warning-trigger",
@@ -382,7 +378,6 @@ test("boots the API and serves safe workspace endpoints", async (context) => {
     payload: {
       name: "Cancellable workflow",
       description: "",
-      active: true,
       nodes: [
         {
           id: "cancel-trigger",
@@ -440,7 +435,6 @@ test("boots the API and serves safe workspace endpoints", async (context) => {
   const concurrentWorkflowPayload = (name: string) => ({
     name,
     description: "",
-    active: false,
     nodes: [{
       id: `${name}-trigger`,
       type: "trigger.manual",

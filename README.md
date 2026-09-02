@@ -47,7 +47,7 @@ repo-control keeps the convenience of a dashboard without moving control to a re
 - **Local-first safety boundary.** The Fastify API binds to `127.0.0.1` by default, resolves project identifiers server-side and scopes project commands to discovered repositories.
 - **Real developer operations.** The UI reads actual Git and Docker state and exposes explicit actions instead of simulating a project-management view.
 - **Private session discovery.** Agent history is read from the CLI files already on the machine, filtered to the active workspace and searched locally.
-- **Failure-aware automation.** Background runs expose live step results, can be cancelled and stop downstream work after a failed action.
+- **Failure-aware automation.** Background runs expose live step results, can be cancelled, and drop a repository that fails out of the steps that follow while the rest of the workspace carries on.
 - **Verifiable engineering quality.** Server tests, React Testing Library, 80% coverage thresholds and Playwright browser flows run in CI across Node.js 20, 22 and 24.
 
 ## Main capabilities
@@ -62,7 +62,7 @@ repo-control keeps the convenience of a dashboard without moving control to a re
 | Local tooling | Open a repository in VS Code and run scoped terminal commands whose output survives project-tab navigation and whose active process can be stopped. |
 | Docker Compose | Inspect configured and stopped services, health, images and published ports; open web ports, tail per-service logs, restart a service or operate the complete stack. |
 | Docker runtime | Read live CPU, memory, network and block I/O per container, open an interactive shell inside one, and follow its logs - including standalone containers that belong to no Compose project. |
-| Automations | Build visual Git, Docker and terminal workflows with graph validation, runtime text inputs, dry runs, background execution, cancellation and inspectable history. |
+| Automations | Build visual Git, Docker and terminal workflows with graph validation, runtime text inputs, dry runs, background execution, cancellation and inspectable history. A repository that fails leaves the run; the others finish. |
 
 The Docker runtime page opens a console on any running container: a **Shell** tab holding a live `docker exec` session, where the working directory and environment persist between commands, and a **Logs** tab following `docker logs`. The shell is a pipe rather than a terminal, so full-screen programs such as `vim` or `top` do not work; everything else does. Sessions live in the server's memory, are capped in number, and are closed when the dialog closes, when the server stops, or after 15 minutes without a reader.
 
@@ -79,6 +79,8 @@ Resuming a session requires the matching CLI and a supported graphical terminal.
 Add a **Text input** node when a workflow needs a value at launch, then reference its key from a terminal node with `{{inputs.key}}`. Preview and execution both prompt for required values. repo-control passes each value through an execution-scoped environment variable instead of concatenating raw text into the shell command.
 
 Workflow runs execute in the background and report pending, running and terminal states. Only one run per workflow can be active at a time. A server restart marks unfinished runs as interrupted rather than silently leaving them active.
+
+A step that fails removes **that repository** from the steps that follow, and the remaining repositories continue: a sweep across a workspace is worth running only if one broken clone cannot cancel the rest of it. The **Summary** node always runs and reports what happened, including which repositories failed. Nodes explain themselves when they cannot act on a repository rather than failing: no Compose file, no upstream for the current branch, or a **Pull a branch** node whose branch is not the one checked out.
 
 ## Architecture at a glance
 

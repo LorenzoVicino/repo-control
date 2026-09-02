@@ -7,7 +7,7 @@ export type WorkflowNodeType =
   | "repository.filter"
   | "git.fetch"
   | "git.pull"
-  | "git.pullDevelop"
+  | "git.pullBranch"
   | "git.push"
   | "docker.up"
   | "docker.rebuild"
@@ -38,7 +38,6 @@ export type WorkflowDefinition = {
   id: string;
   name: string;
   description: string;
-  active: boolean;
   nodes: WorkflowNode[];
   edges: WorkflowEdge[];
   createdAt: string;
@@ -123,7 +122,6 @@ export type WorkflowRunsFile = {
 export type WorkflowDraft = {
   name?: unknown;
   description?: unknown;
-  active?: unknown;
   nodes?: unknown;
   edges?: unknown;
 };

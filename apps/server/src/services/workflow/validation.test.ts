@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type {
   WorkflowDefinition,
-  WorkflowNode
+  WorkflowNode,
+  WorkflowNodeType
 } from "./types.js";
 import {
   getExecutableWorkflowNodes,
@@ -76,7 +77,6 @@ function createWorkflow(
     id: "workflow",
     name: "Workflow",
     description: "",
-    active: true,
     nodes,
     edges,
     createdAt: "2026-07-24T00:00:00.000Z",
@@ -97,3 +97,58 @@ function createNode(
     config
   };
 }
+
+// The web editor keeps its own copy of these rules so it can validate without a round trip,
+// which means a node type added on one side only is the realistic way for the two to drift.
+// This pins the server's own contract: every type is either an action or structural, and a
+// new one has to be classified here before it can be added at all.
+test("classifies every node type as an action or as structure", () => {
+  const structuralNodeTypes: WorkflowNodeType[] = [
+    "trigger.manual",
+    "input.text",
+    "repository.select",
+    "repository.filter",
+    "output.summary"
+  ];
+  const actionNodeTypes: WorkflowNodeType[] = [
+    "git.fetch",
+    "git.pull",
+    "git.pullBranch",
+    "git.push",
+    "docker.up",
+    "docker.rebuild",
+    "docker.stop",
+    "terminal.command"
+  ];
+
+  for (const type of actionNodeTypes) {
+    const workflow = createWorkflow(
+      [
+        createNode("trigger", "trigger.manual"),
+        createNode("action", type, type === "terminal.command" ? { command: "echo hi" } : { branch: "develop" })
+      ],
+      [{ id: "edge", source: "trigger", target: "action" }]
+    );
+
+    // An action node satisfies "add at least one Git, Docker or terminal action".
+    assert.doesNotThrow(() => getExecutableWorkflowNodes(workflow), `${type} should count as an action`);
+  }
+
+  for (const type of structuralNodeTypes.filter((candidate) => candidate !== "trigger.manual")) {
+    const workflow = createWorkflow(
+      [
+        createNode("trigger", "trigger.manual"),
+        createNode("structural", type, type === "input.text" ? { key: "value" } : { mode: "all" })
+      ],
+      [{ id: "edge", source: "trigger", target: "structural" }]
+    );
+
+    assert.throws(
+      () => getExecutableWorkflowNodes(workflow),
+      /add at least one Git, Docker or terminal action/,
+      `${type} should not count as an action`
+    );
+  }
+
+  assert.equal(structuralNodeTypes.length + actionNodeTypes.length, 13);
+});

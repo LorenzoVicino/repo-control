@@ -177,7 +177,7 @@ function runManagedCommand(
     });
 
     child.on("error", (error) => {
-      stderr = appendOutput(stderr, error.message);
+      stderr = appendOutput(stderr, describeSpawnError(error, displayCommand));
       settle(null);
     });
 
@@ -216,6 +216,19 @@ export function killProcessTree(child: ChildProcess, signalToSend: NodeJS.Signal
       // Process already gone.
     }
   }
+}
+
+// "spawn docker ENOENT" is accurate and useless to the person reading it. Optional tools -
+// Docker, an agent CLI, an editor launcher - are missing often enough that the message
+// should say so.
+function describeSpawnError(error: Error, displayCommand: string): string {
+  if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+    return error.message;
+  }
+
+  const [executable] = displayCommand.split(" ");
+
+  return `${executable || "The command"} was not found on this machine. Install it, or set its path in the environment.`;
 }
 
 function appendOutput(current: string, next: string): string {

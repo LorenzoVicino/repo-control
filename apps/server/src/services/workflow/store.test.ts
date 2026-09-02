@@ -32,7 +32,6 @@ function createWorkflow(id: string): WorkflowDefinition {
     id,
     name: id,
     description: "",
-    active: true,
     nodes: [{ id: `${id}-trigger`, type: "trigger.manual", name: "Start", position: { x: 0, y: 0 }, config: {} }],
     edges: [],
     createdAt: "2026-08-14T00:00:00.000Z",

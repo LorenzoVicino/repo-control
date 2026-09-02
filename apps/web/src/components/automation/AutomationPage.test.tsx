@@ -48,7 +48,6 @@ vi.mock("./CreateAutomationDialog", () => ({
       <button onClick={() => (props.onCreate as (draft: unknown) => void)({
         name: "Created",
         description: "",
-        active: false,
         nodes: [],
         edges: []
       })}>dialog-create</button>
@@ -61,7 +60,6 @@ const alpha: WorkflowDefinition = {
   id: "alpha",
   name: "Alpha workflow",
   description: "",
-  active: true,
   nodes: [],
   edges: [],
   createdAt: "2026-08-01T00:00:00.000Z",

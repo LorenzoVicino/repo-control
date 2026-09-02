@@ -10,7 +10,7 @@ import { getWorkflowInputConfigurationIssue } from "./workflowInputs";
 const EXECUTABLE_NODE_TYPES = new Set<WorkflowNode["type"]>([
   "git.fetch",
   "git.pull",
-  "git.pullDevelop",
+  "git.pullBranch",
   "git.push",
   "docker.up",
   "docker.rebuild",
@@ -62,6 +62,18 @@ export function validateWorkflow(
       && getConfigStringArray(node, "projectIds").length === 0
     ) {
       errors.push({ code: "repositorySelectionRequired", values: { name: node.name }, nodeId: node.id });
+    }
+
+    if (node.type === "git.pullBranch") {
+      const branch = getConfigString(node, "branch", "").trim();
+
+      // Mirrors isSafeGitRef on the server: the branch becomes a git argument, so a value
+      // starting with "-" would be read as a flag.
+      if (!branch) {
+        errors.push({ code: "branchRequired", values: { name: node.name }, nodeId: node.id });
+      } else if (!/^[A-Za-z0-9._/-]+$/.test(branch) || /^[-/]|[/.]$|\/\/|\.\.|@\{|\.lock$/.test(branch)) {
+        errors.push({ code: "branchInvalid", values: { name: node.name, branch }, nodeId: node.id });
+      }
     }
   }
 
@@ -135,7 +147,12 @@ export function validateWorkflow(
   }
 
   const disconnectedNodes = nodes.filter((node) => !visitedNodeIds.has(node.id));
-  if (triggerNode && disconnectedNodes.length > 0) {
+  // A fan-out or fan-in already explains why the walk stopped early; reporting the nodes it
+  // could not reach as a second problem reads as two mistakes instead of one.
+  const hasBranchingError = errors.some(
+    (issue) => issue.code === "multipleOutputs" || issue.code === "multipleInputs"
+  );
+  if (triggerNode && disconnectedNodes.length > 0 && !hasBranchingError) {
     errors.push({ ...getDisconnectedNodesIssue(disconnectedNodes), nodeId: disconnectedNodes[0]?.id });
   }
 

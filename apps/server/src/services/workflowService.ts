@@ -35,10 +35,14 @@ import type {
 import { getExecutableWorkflowNodes } from "./workflow/validation.js";
 import { getBoolean, getString, getStringArray } from "./workflow/value.js";
 
-type ProjectAction = {
-  command: string;
-  run: () => Promise<CommandResult>;
-};
+// Either the command to run in a repository, or the reason this repository is not a
+// candidate for this node. Keeping the reason next to the guard that produced it is what
+// stops the two from drifting apart.
+const NO_COMPOSE_SKIP_REASON = "Skipped because the repository has no Docker Compose file";
+
+type ProjectStepPlan =
+  | { kind: "run"; command: string; run: () => Promise<CommandResult> }
+  | { kind: "skip"; reason: string };
 
 export class WorkflowRunConflictError extends Error {
   constructor(message: string) {
@@ -67,7 +71,6 @@ export async function createWorkflow(draft: WorkflowDraft): Promise<WorkflowDefi
       id: randomUUID(),
       name: draft.name,
       description: draft.description,
-      active: draft.active,
       nodes: draft.nodes,
       edges: draft.edges,
       createdAt: now,
@@ -91,7 +94,6 @@ export async function updateWorkflow(id: string, draft: WorkflowDraft): Promise<
       ...existingWorkflow,
       name: draft.name,
       description: draft.description,
-      active: draft.active,
       nodes: draft.nodes,
       edges: draft.edges,
       updatedAt: new Date().toISOString()
@@ -346,7 +348,9 @@ async function runWorkflowNodes(
   const projects = await scanProjects(context.getActiveRootPath());
   let selectedProjects = projects;
   const steps: WorkflowRunStep[] = [];
-  let previousNodeFailed = false;
+  // A repository that fails drops out of the steps that follow, while the others carry on:
+  // the point of a sweep is that the healthy repositories finish.
+  const failedProjectIds = new Set<string>();
 
   const pushStep = async (step: WorkflowRunStep) => {
     steps.push(step);
@@ -358,11 +362,6 @@ async function runWorkflowNodes(
   for (const node of orderedNodes) {
     if (mode === "run" && signal.aborted) {
       await pushStep(createStep(node, "cancelled", null, null, "Cancelled by user"));
-      continue;
-    }
-
-    if (previousNodeFailed) {
-      await pushStep(createStep(node, "skipped", null, null, "Skipped because a previous step failed"));
       continue;
     }
 
@@ -391,10 +390,10 @@ async function runWorkflowNodes(
         );
         break;
       }
+      // Computed from the steps recorded so far, and never skipped: the run that failed is
+      // exactly the run whose outcome someone needs to read.
       case "output.summary":
-        await pushStep(
-          createStep(node, "success", null, null, `${selectedProjects.length} repositories in current selection`)
-        );
+        await pushStep(createStep(node, "success", null, null, describeRunOutcome(selectedProjects, steps)));
         break;
       default: {
         const nodeSteps = await executeProjectNode(
@@ -404,12 +403,20 @@ async function runWorkflowNodes(
           context,
           terminalCommands,
           resolvedInputs.environment,
-          signal
+          signal,
+          failedProjectIds
         );
         for (const step of nodeSteps) {
           await pushStep(step);
         }
-        previousNodeFailed = mode === "run" && nodeSteps.some((step) => step.status === "failed");
+
+        if (mode === "run") {
+          for (const step of nodeSteps) {
+            if (step.status === "failed" && step.projectId) {
+              failedProjectIds.add(step.projectId);
+            }
+          }
+        }
         break;
       }
     }
@@ -480,7 +487,8 @@ async function executeProjectNode(
   context: WorkflowExecutionContext,
   terminalCommands: Map<string, string>,
   inputEnvironment: NodeJS.ProcessEnv,
-  signal: AbortSignal
+  signal: AbortSignal,
+  failedProjectIds: ReadonlySet<string>
 ): Promise<WorkflowRunStep[]> {
   if (projects.length === 0) {
     return [createStep(node, "skipped", null, null, "No repositories selected")];
@@ -489,26 +497,33 @@ async function executeProjectNode(
   const steps: WorkflowRunStep[] = [];
 
   for (const project of projects) {
+    if (failedProjectIds.has(project.id)) {
+      steps.push(
+        createStep(node, "skipped", project, null, "Skipped because an earlier step failed for this repository")
+      );
+      continue;
+    }
+
     if (mode === "run" && signal.aborted) {
       steps.push(createStep(node, "cancelled", project, null, "Cancelled by user"));
       continue;
     }
 
-    const action = getProjectAction(node, project, context, terminalCommands, inputEnvironment, signal);
+    const plan = getProjectStepPlan(node, project, context, terminalCommands, inputEnvironment, signal);
 
-    if (!action) {
-      steps.push(createStep(node, "skipped", project, null, getSkipMessage(node, project)));
+    if (plan.kind === "skip") {
+      steps.push(createStep(node, "skipped", project, null, plan.reason));
       continue;
     }
 
     if (mode === "dry-run") {
-      steps.push(createStep(node, "success", project, action.command, "Dry run preview"));
+      steps.push(createStep(node, "success", project, plan.command, "Dry run preview"));
       continue;
     }
 
     const startedAt = Date.now();
     const startedAtIso = new Date().toISOString();
-    const result = await action.run();
+    const result = await plan.run();
     const status: WorkflowStepStatus = signal.aborted ? "cancelled" : result.ok ? "success" : "failed";
 
     steps.push({
@@ -531,62 +546,104 @@ async function executeProjectNode(
   return steps;
 }
 
-function getProjectAction(
+function getProjectStepPlan(
   node: WorkflowNode,
   project: ProjectSummary,
   context: WorkflowExecutionContext,
   terminalCommands: Map<string, string>,
   inputEnvironment: NodeJS.ProcessEnv,
   signal: AbortSignal
-): ProjectAction | null {
+): ProjectStepPlan {
   switch (node.type) {
     case "git.fetch":
       return {
+        kind: "run",
         command: "git fetch --all --prune",
         run: () =>
           context.runProjectCommand(project.path, "git", ["fetch", "--all", "--prune"], undefined, { signal })
       };
-    case "git.pull":
+    case "git.pull": {
       if (getBoolean(node.config.requireClean, true) && !project.isClean) {
-        return null;
+        return { kind: "skip", reason: "Skipped because the repository has local changes" };
+      }
+
+      // Without an upstream there is nothing to fast-forward from. A local-only branch is a
+      // normal state, not a failure of the workflow.
+      if (!project.upstream) {
+        return {
+          kind: "skip",
+          reason: `Skipped because branch "${project.branch}" has no upstream`
+        };
       }
 
       return {
+        kind: "run",
         command: "git pull --ff-only",
         run: () =>
           context.runProjectCommand(project.path, "git", ["pull", "--ff-only"], 1000 * 60 * 5, { signal })
       };
-    case "git.pullDevelop":
+    }
+    case "git.pullBranch": {
+      const branch = getString(node.config.branch, "develop");
+
       if (getBoolean(node.config.requireClean, true) && !project.isClean) {
-        return null;
+        return { kind: "skip", reason: "Skipped because the repository has local changes" };
+      }
+
+      // Pulling a branch into a different one is a merge, which --ff-only would refuse and
+      // which nobody wants applied across a whole workspace by accident.
+      if (project.branch !== branch) {
+        return {
+          kind: "skip",
+          reason: `Skipped because the repository is on "${project.branch}", not "${branch}"`
+        };
       }
 
       return {
-        command: "git pull origin develop",
+        kind: "run",
+        command: `git pull --ff-only origin ${branch}`,
         run: () =>
-          context.runProjectCommand(project.path, "git", ["pull", "origin", "develop"], 1000 * 60 * 5, { signal })
+          context.runProjectCommand(
+            project.path,
+            "git",
+            ["pull", "--ff-only", "origin", branch],
+            1000 * 60 * 5,
+            { signal }
+          )
       };
-    case "git.push":
+    }
+    case "git.push": {
+      if (!project.upstream) {
+        return {
+          kind: "skip",
+          reason: `Skipped because branch "${project.branch}" has no upstream`
+        };
+      }
+
       return {
+        kind: "run",
         command: "git push",
         run: () => context.runProjectCommand(project.path, "git", ["push"], 1000 * 60 * 5, { signal })
       };
+    }
     case "docker.up":
       if (!project.hasDockerCompose) {
-        return null;
+        return { kind: "skip", reason: NO_COMPOSE_SKIP_REASON };
       }
 
       return {
+        kind: "run",
         command: "docker compose up -d",
         run: () =>
           context.runProjectCommand(project.path, "docker", ["compose", "up", "-d"], 1000 * 60 * 10, { signal })
       };
     case "docker.rebuild":
       if (!project.hasDockerCompose) {
-        return null;
+        return { kind: "skip", reason: NO_COMPOSE_SKIP_REASON };
       }
 
       return {
+        kind: "run",
         command: "docker compose up -d --build",
         run: () =>
           context.runProjectCommand(project.path, "docker", ["compose", "up", "-d", "--build"], 1000 * 60 * 10, {
@@ -595,10 +652,11 @@ function getProjectAction(
       };
     case "docker.stop":
       if (!project.hasDockerCompose) {
-        return null;
+        return { kind: "skip", reason: NO_COMPOSE_SKIP_REASON };
       }
 
       return {
+        kind: "run",
         command: "docker compose stop",
         run: () =>
           context.runProjectCommand(project.path, "docker", ["compose", "stop"], 1000 * 60 * 5, { signal })
@@ -607,34 +665,49 @@ function getProjectAction(
       const command = terminalCommands.get(node.id) ?? "";
 
       if (!command) {
-        return null;
+        return { kind: "skip", reason: "Skipped because no terminal command is configured" };
       }
 
       return {
+        kind: "run",
         command,
         run: () =>
           context.runShellCommand(project.path, command, 1000 * 60 * 10, { env: inputEnvironment, signal })
       };
     }
     default:
-      return null;
+      return { kind: "skip", reason: "Skipped" };
   }
 }
 
-function getSkipMessage(node: WorkflowNode, project: ProjectSummary): string {
-  if ((node.type === "git.pull" || node.type === "git.pullDevelop") && !project.isClean) {
-    return "Skipped because repository has local changes";
+// Reads back what actually happened, which is the one thing no other step reports: the run
+// panel counts steps, but not which repositories the failures belong to.
+function describeRunOutcome(projects: ProjectSummary[], steps: WorkflowRunStep[]): string {
+  const repositorySteps = steps.filter((step) => step.projectId !== null);
+  const succeeded = repositorySteps.filter((step) => step.status === "success").length;
+  const failed = repositorySteps.filter((step) => step.status === "failed").length;
+  const skipped = repositorySteps.filter((step) => step.status === "skipped").length;
+  const failedNames = [
+    ...new Set(
+      repositorySteps
+        .filter((step) => step.status === "failed")
+        .map((step) => step.projectName ?? "unknown")
+    )
+  ];
+  const outcome = [
+    `${projects.length} repositories selected`,
+    `${succeeded} steps succeeded`,
+    `${failed} failed`,
+    `${skipped} skipped`
+  ];
+
+  if (failedNames.length > 0) {
+    const named = failedNames.slice(0, 3).join(", ");
+    const remaining = failedNames.length - 3;
+    outcome.push(`failures in ${named}${remaining > 0 ? ` and ${remaining} more` : ""}`);
   }
 
-  if (node.type.startsWith("docker.") && !project.hasDockerCompose) {
-    return "Skipped because repository has no Docker Compose file";
-  }
-
-  if (node.type === "terminal.command") {
-    return "Skipped because no terminal command is configured";
-  }
-
-  return "Skipped";
+  return outcome.join(" · ");
 }
 
 function createStep(

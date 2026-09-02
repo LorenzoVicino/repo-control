@@ -7,6 +7,8 @@ export type WorkflowIssueCode =
   | "singleTrigger"
   | "needsAction"
   | "commandRequired"
+  | "branchRequired"
+  | "branchInvalid"
   | "repositorySelectionRequired"
   | "edgeMissingNode"
   | "selfConnection"

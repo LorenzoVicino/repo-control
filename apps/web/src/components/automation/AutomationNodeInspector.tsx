@@ -251,7 +251,22 @@ export function AutomationNodeInspector({
           </Stack>
         ) : null}
 
-        {node.type === "git.pull" || node.type === "git.pullDevelop" ? (
+        {node.type === "git.pullBranch" ? (
+          <TextField
+            size="small"
+            label={t("automation.inspector.branch")}
+            helperText={t("automation.inspector.branchHint")}
+            value={getConfigString(node, "branch", "")}
+            onChange={(event) => updateConfig({ branch: event.target.value.trim() })}
+            inputProps={{
+              maxLength: 160,
+              spellCheck: false,
+              style: { fontFamily: "var(--rc-font-mono)", fontSize: 12 }
+            }}
+          />
+        ) : null}
+
+        {node.type === "git.pull" || node.type === "git.pullBranch" ? (
           <FormControlLabel
             control={
               <Switch

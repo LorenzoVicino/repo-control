@@ -97,6 +97,8 @@ Workflow definitions are validated as a connected, directed graph before preview
 
 Only one active run is allowed per workflow. Cancellation propagates an `AbortSignal` to running commands. On startup, persisted `pending` or `running` records are marked `interrupted` because their in-memory controllers cannot be recovered.
 
+Failure is tracked per repository, not per run: a repository whose step fails is skipped by the steps that follow, while the others carry on. The summary node is never skipped, because the run that failed is the one whose outcome has to be readable. Each node decides per repository whether it can act at all and returns the reason next to the guard that produced it, so a skip message cannot drift from the condition behind it.
+
 ## Web
 
 ```text

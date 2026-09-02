@@ -38,14 +38,12 @@ export function toFlowEdge(connection: Connection): Edge {
 export function buildWorkflowDraft(
   name: string,
   description: string,
-  active: boolean,
   nodes: AutomationFlowNode[],
   edges: Edge[]
 ): WorkflowDraft {
   return {
     name: name.trim(),
     description: description.trim(),
-    active,
     nodes: nodes.map((node) => ({ ...node.data.workflowNode, position: node.position })),
     edges: edges.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target }))
   };
@@ -55,7 +53,6 @@ export function toWorkflowDraft(workflow: WorkflowDefinition): WorkflowDraft {
   return {
     name: workflow.name,
     description: workflow.description,
-    active: workflow.active,
     nodes: workflow.nodes,
     edges: workflow.edges
   };

@@ -26,7 +26,6 @@ const workflowParamsSchema = z.object({ id: z.string().trim().min(1).max(160) })
 const workflowBodySchema = z.object({
   name: z.string().trim().min(1).max(120),
   description: z.string().trim().max(400).default(""),
-  active: z.boolean().default(false),
   nodes: z.array(z.unknown()).min(1).max(80),
   edges: z.array(z.unknown()).max(120)
 });
