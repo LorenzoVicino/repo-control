@@ -77,25 +77,36 @@ test("keeps the application backdrop static and lightweight", async ({ page }) =
   await expect(backdrop).toHaveCSS("pointer-events", "none");
 });
 
-test("draws the readiness ring and groups the change bars by file state", async ({ page }) => {
+test("draws the readiness ring and reads a signal from it", async ({ page }) => {
   await page.goto("/");
 
   const ring = page.getByRole("img", { name: /Operational distribution/ });
   await expect(ring).toBeVisible();
   // One arc per occupied signal, and never an arc for a signal at zero.
-  expect(await ring.locator("[data-signal-key]").count()).toBeGreaterThan(0);
-  await expect(page.getByText(/^\d+%$/).first()).toBeVisible();
+  const arcs = ring.locator("[data-signal-key]");
+  expect(await arcs.count()).toBeGreaterThan(0);
 
-  await expect(page.getByRole("heading", { name: "Change concentration" })).toBeVisible();
-  const changeRows = page.getByRole("img", { name: /staged, .* modified, .* new/ });
-  const rowCount = await changeRows.count();
-  for (let index = 0; index < rowCount; index += 1) {
-    // Grouped, so each state keeps its own bar - including the ones at zero.
-    await expect(changeRows.nth(index).locator("[data-change-kind]")).toHaveCount(3);
-  }
+  const readout = page.getByTestId("signal-readout");
+  await expect(readout).toContainText("%");
 
-  // The panel no longer animates its data marks; nothing should re-introduce a loop.
-  await expect(page.locator('[data-animation="continuous"]')).toHaveCount(0);
+  // Pointing at the band - not the hole - puts that state's own count in the middle.
+  const box = await ring.boundingBox();
+  const bandRadius = (box!.height / 138) * 61;
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2 - bandRadius);
+  await expect(ring.locator("[data-signal-key][data-active]")).toHaveCount(1);
+  await expect(readout).not.toContainText("%");
+});
+
+test("keeps operational status bars moving continuously unless reduced motion is requested", async ({ page }) => {
+  await page.goto("/");
+
+  const animatedBar = page.locator('[data-animation="continuous"]').first();
+  await expect(animatedBar).toBeVisible();
+  expect(await animatedBar.evaluate((element) => getComputedStyle(element).animationIterationCount)).toBe("infinite");
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(animatedBar).toHaveCSS("animation-name", "none");
+  await expect(animatedBar).toHaveCSS("background-image", "none");
 });
 
 test("shares one motion backdrop across every dashboard section", async ({ page }) => {

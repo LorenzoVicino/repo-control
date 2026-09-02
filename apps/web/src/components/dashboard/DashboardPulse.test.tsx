@@ -31,11 +31,52 @@ describe("DashboardPulse", () => {
 
     // Two of the three repositories are clean and not behind, which is what the figure in
     // the hole reports - the same definition the dashboard header uses.
-    expect(screen.getByText("67%")).toBeVisible();
-    expect(screen.getByText("2 of 3 repositories")).toBeVisible();
+    const readout = within(screen.getByTestId("signal-readout"));
+    expect(readout.getByText("67%")).toBeVisible();
+    expect(readout.getByText("2 of 3 repositories")).toBeVisible();
   });
 
-  it("groups the three file states on one scale and opens a repository", async () => {
+  it("reads the pointed-at signal in the hole and dims the rest of the ring", async () => {
+    const user = userEvent.setup();
+    const projects = [
+      createProjectFixture("blocked", { isClean: false, staged: 2, modified: 3, untracked: 1, behind: 2 }),
+      createProjectFixture("stale-a", { behind: 1 }),
+      createProjectFixture("stale-b", { behind: 1 }),
+      createProjectFixture("ready")
+    ];
+    const snapshot = buildDashboardSnapshot(projects, [], undefined);
+
+    renderWithTheme(
+      <DashboardPulse projects={projects} snapshot={snapshot} onOpenProject={vi.fn()} />
+    );
+
+    const distribution = screen.getByRole("img", { name: /operational distribution/i });
+    const actionArc = distribution.querySelector('[data-signal-key="action"]');
+    const readout = () => within(screen.getByTestId("signal-readout"));
+    expect(actionArc).toBeInTheDocument();
+    expect(readout().getByText("25%")).toBeVisible();
+
+    // Pointing at a state turns the hole into that state's readout.
+    await user.hover(actionArc as Element);
+    expect(readout().getByText("2")).toBeVisible();
+    expect(readout().getByText("Needs action")).toBeVisible();
+    expect(readout().queryByText("25%")).not.toBeInTheDocument();
+    expect(actionArc).toHaveAttribute("data-active", "true");
+    expect(distribution.querySelector('[data-signal-key="ready"]')).not.toHaveAttribute("data-active");
+
+    await user.unhover(actionArc as Element);
+    expect(readout().getByText("25%")).toBeVisible();
+
+    // The legend drives the same state, so the ring answers from either side.
+    await user.hover(screen.getByText("Blocked"));
+    expect(distribution.querySelector('[data-signal-key="blocked"]')).toHaveAttribute("data-active", "true");
+
+    // A state at zero has no arc, so its row must not dim the ring for nothing.
+    await user.hover(screen.getByText("Ahead"));
+    expect(readout().getByText("25%")).toBeVisible();
+  });
+
+  it("keeps the stacked change chart and opens a repository from it", async () => {
     const user = userEvent.setup();
     const onOpenProject = vi.fn();
     const projects = [
@@ -51,14 +92,12 @@ describe("DashboardPulse", () => {
     const changeDistribution = screen.getByRole("img", { name: "2 staged, 3 modified, 1 new" });
     expect(changeDistribution).toBeVisible();
 
-    // Every state keeps its own bar, including the ones at zero, so the rows stay aligned
-    // and "nothing staged here" is readable rather than absent.
     for (const kind of ["staged", "modified", "untracked"]) {
-      expect(changeDistribution.querySelector(`[data-change-kind="${kind}"]`)).toBeInTheDocument();
+      expect(changeDistribution.querySelector(`[data-change-kind="${kind}"]`)).toHaveAttribute(
+        "data-animation",
+        "continuous"
+      );
     }
-
-    // The shared scale is the largest single state, not the largest repository total.
-    expect(screen.getByText("scale 0–3 files")).toBeVisible();
 
     const row = screen.getByRole("button", { name: "Open blocked, 6 changed files" });
     expect(within(row).getByText("6")).toBeVisible();
