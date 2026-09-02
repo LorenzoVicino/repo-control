@@ -10,11 +10,11 @@ When work spans several repositories, the important state is scattered across te
 
 <p align="center">
   <a href="docs/repo-control-demo.webm">
-    <img src="docs/repo-control-demo.gif" alt="repo-control v0.7.0 demo: workspace triage, repository search, scoped Git details and persistent terminal" width="100%" />
+    <img src="docs/repo-control-demo.gif" alt="repo-control v0.14.0 demo: the widget dashboard with its attention queue and workspace ring, customizing the layout, opening a repository that is behind, its branches and scoped terminal, then Ctrl+P search" width="100%" />
   </a>
 </p>
 
-<p align="center"><sub>Dashboard → repository catalog → Ctrl+P search → repository overview → branches → persistent terminal. Captured from the live v0.7.0 application with local paths normalized; click the GIF for the full-quality video. Its closing segment shows a Task Engineering screen that is no longer part of the interface.</sub></p>
+<p align="center"><sub>Dashboard triage → customize the widgets → open the repository that is behind → branches → scoped terminal → Ctrl+P search → back to the dashboard. Captured from the live v0.14.0 application on a small demonstration workspace of seven repositories with realistic states (dirty trees, a branch behind, a commit to push); click the GIF for the full-quality video.</sub></p>
 
 ## The problem
 
