@@ -6,6 +6,16 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+### Added
+
+- Add an interface text size preference with three steps: **Small**, **Medium** and **Large**. The dashboard writes most of its type sizes inline rather than through the theme, so scaling only the theme would have grown the headings while leaving the small mono labels - the ones hardest to read - exactly as they were. The scale is applied to the `sx` font-size transformer instead, which reaches every inline size, the themed variants and the icon sizes beside them from one place. Panel widths are unchanged, so a larger size trades content for legibility; the setting says so. It is stored per device in browser local storage, next to the palette.
+
+### Changed
+
+- Move the account menu from the top-right of the app bar into a **Profile** tab at the bottom of the sidebar, and give it the settings entry, the colour palettes and sign-out. Reaching preferences meant hunting across three corners of the shell - settings in the sidebar navigation, palettes in a row of their own above it, sign-out behind an avatar in the opposite corner - for three things that are all "how this interface is set up for me". They now share one tab: the footer drops from three rows to two, and the palettes open as a second panel inside the same popover rather than a nested menu, so keyboard order stays inside it. The tab renders whether or not the server asks for credentials; with no session it names the local mode and withholds only the sign-out entry, because there is still a settings section to reach.
+- Offer the colour palettes in the settings section as well, with the same labels and descriptions the profile menu shows. The quick switch is for changing your mind; the settings page is where someone looks when they do not already know the choice exists.
+- Hide the Task engineering section from the interface. `docs/architecture.md` has described it as hidden pending redesign for some time, but the sidebar still linked to it and the section still rendered, so an unfinished feature was the eighth thing in the navigation. The screen, its components and its server endpoints are retained for that redesign - only the entry point and the route are gone, so nothing can reach it by accident.
+
 ## [0.13.0] - 2026-09-02
 
 ### Changed

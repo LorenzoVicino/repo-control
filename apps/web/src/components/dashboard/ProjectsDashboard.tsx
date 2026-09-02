@@ -24,7 +24,6 @@ import {
   setRootPath,
   updatePreferences
 } from "../../api/workspace";
-import { SessionMenu } from "../auth/SessionMenu";
 import { ContainerConsoleDialog } from "../docker/ContainerConsoleDialog";
 import { AppUpdateDialog } from "./AppUpdateDialog";
 import { ControlCenter } from "./ControlCenter";
@@ -55,7 +54,13 @@ import {
   type OperationRecord
 } from "../shared/OperationFeedback";
 import type { AppUpdateResult } from "../../types/app";
-import type { ColorPalette, CommandResult, ProjectOperationSource, ViewMode } from "../../types/common";
+import type {
+  ColorPalette,
+  CommandResult,
+  FontScale,
+  ProjectOperationSource,
+  ViewMode
+} from "../../types/common";
 import type {
   ContainerSessionKind,
   DockerContainer,
@@ -82,7 +87,6 @@ const loadAppMotionBackdrop = () => import("./AppMotionBackdrop");
 const loadAgentSessionsPage = () => import("../agents/AgentSessionsPage");
 const loadAutomationPage = () => import("../automation/AutomationPage");
 const loadProjectDetailPanel = () => import("../project/ProjectDetailPanel");
-const loadTaskEngineeringPage = () => import("../task/TaskEngineeringPage");
 const AppMotionBackdrop = React.lazy(async () => {
   const module = await loadAppMotionBackdrop();
   return { default: module.AppMotionBackdrop };
@@ -99,10 +103,6 @@ const ProjectDetailPanel = React.lazy(async () => {
   const module = await loadProjectDetailPanel();
   return { default: module.ProjectDetailPanel };
 });
-const TaskEngineeringPage = React.lazy(async () => {
-  const module = await loadTaskEngineeringPage();
-  return { default: module.TaskEngineeringPage };
-});
 const sectionReveal = keyframes`
   from {
     opacity: 0;
@@ -116,12 +116,16 @@ const sectionReveal = keyframes`
 
 type ProjectsDashboardProps = {
   colorPalette: ColorPalette;
+  fontScale: FontScale;
   onColorPaletteChange: (colorPalette: ColorPalette) => void;
+  onFontScaleChange: (fontScale: FontScale) => void;
 };
 
 export function ProjectsDashboard({
   colorPalette,
-  onColorPaletteChange
+  fontScale,
+  onColorPaletteChange,
+  onFontScaleChange
 }: ProjectsDashboardProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -250,7 +254,7 @@ export function ProjectsDashboard({
   const isWorkspaceStale = Boolean(projectsError && data && !isWorkspaceSnapshotInvalid);
   const needsGenericWorkspaceLoading = !activeProject
     && (isInitialWorkspaceLoading || isScanningRoot)
-    && ["tasks", "agents", "automations", "docker"].includes(activeSection);
+    && ["agents", "automations", "docker"].includes(activeSection);
   const visiblePreferenceFailure: PreferenceFailure | null = preferencesError
     ? { kind: "load", error: preferencesError }
     : preferenceFailure;
@@ -454,7 +458,6 @@ export function ProjectsDashboard({
       return;
     }
 
-    if (section === "tasks") void loadTaskEngineeringPage();
     if (section === "agents") void loadAgentSessionsPage();
     if (section === "automations") void loadAutomationPage();
 
@@ -677,7 +680,6 @@ export function ProjectsDashboard({
         isLoadingAppUpdateStatus={isLoadingAppUpdateStatus}
         isUpdatingApp={isUpdatingApp}
         isFetchingProjects={isFetching}
-        sessionMenu={<SessionMenu />}
         onOpenMobileNavigation={() => setIsMobileSidebarOpen(true)}
         onOpenSearch={() => setIsCommandPaletteOpen(true)}
         onUpdateApp={() => void handleAppUpdate()}
@@ -803,14 +805,6 @@ export function ProjectsDashboard({
             </ViewEntrance>
           ) : null}
 
-          {!activeProject && data && !isScanningRoot && activeSection === "tasks" ? (
-            <ViewEntrance>
-              <React.Suspense fallback={<SectionLoading label={t("loading.tasks")} />}>
-                <TaskEngineeringPage projects={projects} />
-              </React.Suspense>
-            </ViewEntrance>
-          ) : null}
-
           {!activeProject && data && !isScanningRoot && activeSection === "agents" ? (
             <ViewEntrance>
               <React.Suspense fallback={<SectionLoading label={t("loading.agents")} />}>
@@ -870,7 +864,12 @@ export function ProjectsDashboard({
 
           {!activeProject && activeSection === "settings" ? (
             <ViewEntrance>
-              <SettingsPage />
+              <SettingsPage
+                colorPalette={colorPalette}
+                fontScale={fontScale}
+                onColorPaletteChange={onColorPaletteChange}
+                onFontScaleChange={onFontScaleChange}
+              />
             </ViewEntrance>
           ) : null}
 

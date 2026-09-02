@@ -22,7 +22,6 @@ export const en = {
       docker: "Docker",
       agents: "Agent sessions",
       automations: "Automations",
-      tasks: "Task engineering",
       settings: "Settings"
     },
     selectWorkspace: "Select workspace",
@@ -30,11 +29,9 @@ export const en = {
     openingFolderPicker: "Opening folder picker…",
     scanningWorkspace: "Scanning workspace…",
     appearance: "Appearance",
-    appearanceActive: "Appearance: {{palette}}",
     selectPalette: "Select color palette. Active palette: {{palette}}",
     paletteMenu: "Color palettes",
-    appearanceMenuTitle: "Interface appearance",
-    appearanceMenuDescription: "Choose a complete palette for surfaces and accents."
+    appearanceMenuTitle: "Interface appearance"
   },
   appearance: {
     palettes: {
@@ -43,6 +40,11 @@ export const en = {
       red: { label: "Red", description: "Warm dark theme" },
       blue: { label: "Blue", description: "Cool dark theme" },
       green: { label: "Green", description: "Natural dark theme" }
+    },
+    fontScales: {
+      small: { label: "Small", description: "More on screen at once" },
+      medium: { label: "Medium", description: "Recommended default" },
+      large: { label: "Large", description: "Easier to read" }
     }
   },
   appBar: {
@@ -305,7 +307,6 @@ export const en = {
     }
   },
   loading: {
-    tasks: "Loading task engineering",
     agents: "Detecting agent sessions",
     automations: "Loading automations"
   },
@@ -417,6 +418,12 @@ export const en = {
       artworkLabel: "Diagram: the repo-control workspace connects repositories, Docker, terminal, automations and agent sessions."
     },
     session: {
+      profile: "Profile",
+      profileMenu: "Profile menu",
+      profileMenuAriaLabel: "Profile menu",
+      localAccount: "Local",
+      localMode: "Local mode",
+      localModeDescription: "This server has no credentials configured, so there is no session to end.",
       menuAriaLabel: "Session menu for {{username}}",
       signedInAs: "Signed in as",
       signOut: "Sign out",
@@ -432,7 +439,7 @@ export const en = {
     title: "Settings",
     description: "Shape repo-control around the way you work. Preferences are saved locally on this device.",
     general: "General",
-    generalDescription: "Language and regional preferences",
+    generalDescription: "Language, appearance and text size",
     languageAndRegion: "Language & region",
     languageTitle: "Interface language",
     languageDescription: "Choose the language used for navigation, controls and system messages.",
@@ -441,6 +448,14 @@ export const en = {
     englishNative: "English",
     italian: "Italian",
     italianNative: "Italiano",
+    appearance: "Appearance",
+    paletteTitle: "Color palette",
+    paletteDescription: "Choose a complete palette for surfaces and accents. The same palettes are one click away in the profile menu.",
+    paletteFieldLabel: "Choose color palette",
+    textSize: "Text size",
+    fontSizeTitle: "Interface text size",
+    fontSizeDescription: "Scales the text, labels and icons across the whole dashboard. Panel widths stay the same, so larger text means less fits on screen.",
+    fontSizeFieldLabel: "Choose interface text size",
     active: "Active",
     savedAutomatically: "Changes are saved automatically",
     immediateNote: "The interface updates immediately. Your choice will be remembered the next time you open repo-control.",
@@ -1124,7 +1139,6 @@ export const it: TranslationSchema<typeof en> = {
       docker: "Docker",
       agents: "Sessioni agent",
       automations: "Automazioni",
-      tasks: "Task engineering",
       settings: "Impostazioni"
     },
     selectWorkspace: "Seleziona workspace",
@@ -1132,11 +1146,9 @@ export const it: TranslationSchema<typeof en> = {
     openingFolderPicker: "Apertura selettore cartelle…",
     scanningWorkspace: "Scansione workspace…",
     appearance: "Aspetto",
-    appearanceActive: "Aspetto: {{palette}}",
     selectPalette: "Seleziona palette colori. Palette attiva: {{palette}}",
     paletteMenu: "Palette colori",
-    appearanceMenuTitle: "Aspetto interfaccia",
-    appearanceMenuDescription: "Scegli una palette completa per superfici e accenti."
+    appearanceMenuTitle: "Aspetto interfaccia"
   },
   appearance: {
     palettes: {
@@ -1145,6 +1157,11 @@ export const it: TranslationSchema<typeof en> = {
       red: { label: "Rosso", description: "Tema scuro caldo" },
       blue: { label: "Blu", description: "Tema scuro freddo" },
       green: { label: "Verde", description: "Tema scuro naturale" }
+    },
+    fontScales: {
+      small: { label: "Piccolo", description: "Più contenuto sullo schermo" },
+      medium: { label: "Medio", description: "Impostazione consigliata" },
+      large: { label: "Grande", description: "Più leggibile" }
     }
   },
   appBar: {
@@ -1407,7 +1424,6 @@ export const it: TranslationSchema<typeof en> = {
     }
   },
   loading: {
-    tasks: "Caricamento task engineering",
     agents: "Rilevamento sessioni agent",
     automations: "Caricamento automazioni"
   },
@@ -1519,6 +1535,12 @@ export const it: TranslationSchema<typeof en> = {
       artworkLabel: "Diagramma: il workspace repo-control collega repository, Docker, terminale, automazioni e sessioni degli agent."
     },
     session: {
+      profile: "Profilo",
+      profileMenu: "Menu profilo",
+      profileMenuAriaLabel: "Menu profilo",
+      localAccount: "Locale",
+      localMode: "Modalità locale",
+      localModeDescription: "Questo server non ha credenziali configurate: non c’è nessuna sessione da chiudere.",
       menuAriaLabel: "Menu sessione di {{username}}",
       signedInAs: "Accesso come",
       signOut: "Esci",
@@ -1534,7 +1556,7 @@ export const it: TranslationSchema<typeof en> = {
     title: "Impostazioni",
     description: "Adatta repo-control al tuo modo di lavorare. Le preferenze vengono salvate localmente su questo dispositivo.",
     general: "Generali",
-    generalDescription: "Lingua e preferenze regionali",
+    generalDescription: "Lingua, aspetto e dimensione del testo",
     languageAndRegion: "Lingua e area geografica",
     languageTitle: "Lingua dell’interfaccia",
     languageDescription: "Scegli la lingua usata per navigazione, controlli e messaggi di sistema.",
@@ -1543,6 +1565,14 @@ export const it: TranslationSchema<typeof en> = {
     englishNative: "English",
     italian: "Italiano",
     italianNative: "Italiano",
+    appearance: "Aspetto",
+    paletteTitle: "Palette colori",
+    paletteDescription: "Scegli una palette completa per superfici e accenti. Le stesse palette sono a un clic nel menu profilo.",
+    paletteFieldLabel: "Scegli la palette colori",
+    textSize: "Dimensione del testo",
+    fontSizeTitle: "Dimensione del testo dell’interfaccia",
+    fontSizeDescription: "Ridimensiona testo, etichette e icone in tutta la dashboard. La larghezza dei pannelli non cambia, quindi un testo più grande lascia meno spazio ai contenuti.",
+    fontSizeFieldLabel: "Scegli la dimensione del testo dell’interfaccia",
     active: "Attiva",
     savedAutomatically: "Le modifiche vengono salvate automaticamente",
     immediateNote: "L’interfaccia si aggiorna subito. La scelta verrà ricordata alla prossima apertura di repo-control.",

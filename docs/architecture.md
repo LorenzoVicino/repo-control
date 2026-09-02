@@ -106,7 +106,7 @@ apps/web/src/
   api/          API clients split by domain; http.ts owns shared transport behavior
   components/   UI grouped by feature
     agents/     unified local agent history
-    auth/       sign-in screen, shared session read and session menu
+    auth/       sign-in screen, shared session read and sidebar profile menu
     automation/ visual workflow editor, execution and history
     dashboard/  navigation, health views and repository discovery
     docker/     container console sessions and resource-usage formatting
@@ -139,7 +139,7 @@ Dashboard sections are lazy-loaded. Task engineering still has code and server e
 | `workflow-runs.json` | The latest 100 dry runs and real runs, including step commands and output. |
 | `brain/*.json` | Existing Task engineering records retained by the hidden backend. |
 
-Agent transcripts remain in their provider-owned directories and are not copied here. Palette and dashboard quote preferences are browser `localStorage`, not server JSON.
+Agent transcripts remain in their provider-owned directories and are not copied here. Palette, text size and dashboard quote preferences are browser `localStorage`, not server JSON.
 
 Writes that can race use temporary files plus rename. Workflow definition and run-history mutations also have separate in-process queues to prevent lost updates.
 

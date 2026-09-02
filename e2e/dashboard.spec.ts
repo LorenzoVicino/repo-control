@@ -107,9 +107,10 @@ test("shares one motion backdrop across every dashboard section", async ({ page 
 test("switches and persists all five dashboard color palettes", async ({ page }) => {
   await page.goto("/");
 
-  const palettePicker = page.getByRole("button", {
-    name: /Select color palette/
-  });
+  // The sidebar profile tab is the only entry point: it names the session when the API
+  // asks for one, and reads as a plain profile menu when it does not.
+  const profileTab = page.getByRole("button", { name: /Profile menu|Session menu for/ });
+  const paletteItem = page.getByRole("menuitem", { name: /Select color palette/ });
   const palettes = [
     ["White", "white"],
     ["Black", "black"],
@@ -124,12 +125,21 @@ test("switches and persists all five dashboard color palettes", async ({ page })
   const sidebar = page.getByRole("complementary", { name: "Dashboard navigation", exact: true });
 
   for (const [label, value] of palettes) {
-    await palettePicker.click();
+    await profileTab.click();
+    await paletteItem.click();
     await page.getByRole("menuitemradio", { name: label, exact: true }).click();
-    await expect(palettePicker).toHaveAttribute("aria-label", `Select color palette. Active palette: ${label}`);
     expect(
       await page.evaluate(() => window.localStorage.getItem("repo-control-color-palette"))
     ).toBe(value);
+
+    // Reopening proves the menu reports the palette it just applied.
+    await profileTab.click();
+    await expect(paletteItem).toHaveAttribute(
+      "aria-label",
+      `Select color palette. Active palette: ${label}`
+    );
+    await page.keyboard.press("Escape");
+    await expect(paletteItem).toBeHidden();
     renderedAccents.push(
       await activeNavigationItem.evaluate((element) => getComputedStyle(element, "::before").backgroundColor)
     );
@@ -144,6 +154,53 @@ test("switches and persists all five dashboard color palettes", async ({ page })
   expect(new Set(renderedAccents).size).toBe(palettes.length);
   expect(new Set(renderedBackgrounds).size).toBe(palettes.length);
   expect(new Set(renderedSurfaces).size).toBe(palettes.length);
+});
+
+test("opens settings from the profile tab and scales the interface text", async ({ page }) => {
+  await page.goto("/");
+
+  const profileTab = page.getByRole("button", { name: /Profile menu|Session menu for/ });
+  await profileTab.click();
+  await page.getByRole("menuitem", { name: "Settings" }).click();
+
+  const title = page.getByRole("heading", { name: "Settings", exact: true });
+  await expect(title).toBeVisible();
+
+  // The version line under the logo sets its size inline, as most small labels here do.
+  // Measuring it alongside a themed heading proves both paths answer to the setting.
+  const inlineLabel = page.getByText(/^local · v/).first();
+  const sizes = async () => ({
+    title: await title.evaluate((element) => parseFloat(getComputedStyle(element).fontSize)),
+    inline: await inlineLabel.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))
+  });
+  const medium = await sizes();
+
+  await page.getByRole("radio", { name: /Easier to read/ }).click();
+  await expect.poll(async () => (await sizes()).title).toBeGreaterThan(medium.title);
+  expect((await sizes()).inline).toBeGreaterThan(medium.inline);
+  expect(
+    await page.evaluate(() => window.localStorage.getItem("repo-control-font-scale"))
+  ).toBe("large");
+
+  await page.getByRole("radio", { name: /More on screen at once/ }).click();
+  await expect.poll(async () => (await sizes()).title).toBeLessThan(medium.title);
+  expect((await sizes()).inline).toBeLessThan(medium.inline);
+  expect(
+    await page.evaluate(() => window.localStorage.getItem("repo-control-font-scale"))
+  ).toBe("small");
+
+  // The palettes are reachable from the same page the text size lives on.
+  await page.getByRole("radio", { name: /Warm dark theme/ }).click();
+  expect(
+    await page.evaluate(() => window.localStorage.getItem("repo-control-color-palette"))
+  ).toBe("red");
+});
+
+test("hides the task engineering section entirely", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.locator('[data-dashboard-section="tasks"]')).toHaveCount(0);
+  await expect(page.getByText("Task engineering")).toHaveCount(0);
 });
 
 test("navigates between lazy dashboard sections without browser errors", async ({ page }) => {
@@ -164,7 +221,7 @@ test("navigates between lazy dashboard sections without browser errors", async (
   expect(browserErrors).toEqual([]);
 });
 
-test("renders the refactored repository, favorites, task and Docker workspaces responsively", async ({ page }, testInfo) => {
+test("renders the refactored repository, favorites and Docker workspaces responsively", async ({ page }, testInfo) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
   await page.route("**/api/docker/containers", async (route) => {
@@ -225,12 +282,6 @@ test("renders the refactored repository, favorites, task and Docker workspaces r
   await expect(page.getByText(/personal launchpad/)).toBeVisible();
   await waitForInterfaceMotion(page);
   await page.screenshot({ path: testInfo.outputPath("favorites-launchpad.png"), fullPage: true });
-
-  await page.locator('[data-dashboard-section="tasks"]').first().click();
-  await expect(page.getByRole("heading", { name: "Task engineering", exact: true })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Task engineering flow" })).toContainText("Checks");
-  await waitForInterfaceMotion(page);
-  await page.screenshot({ path: testInfo.outputPath("task-engineering.png"), fullPage: true });
 
   await page.locator('[data-dashboard-section="docker"]').first().click();
   await expect(page.getByRole("heading", { name: "Docker runtime", exact: true })).toBeVisible();

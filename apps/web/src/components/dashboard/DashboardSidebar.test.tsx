@@ -1,8 +1,27 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { renderWithTheme } from "../../test/render";
+import { renderWithProviders } from "../../test/render";
 import { DashboardSidebar } from "./DashboardSidebar";
+
+// The footer carries the profile menu, which reads the session for itself.
+vi.mock("../../api/auth", () => ({
+  fetchApiHealth: vi.fn(),
+  fetchAuthSession: vi.fn().mockResolvedValue({
+    authRequired: false,
+    authenticated: true,
+    username: null
+  }),
+  signIn: vi.fn(),
+  signOut: vi.fn()
+}));
+
+// An open menu marks the rest of the application aria-hidden, and MUI only restores it
+// once the closing transition ends. Waiting for the menu to go keeps later role queries
+// looking at the sidebar rather than at a screen still owned by the popover.
+async function waitForMenuToClose() {
+  await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+}
 
 describe("DashboardSidebar", () => {
   it("navigates, changes palette and operates the workspace picker", async () => {
@@ -12,7 +31,7 @@ describe("DashboardSidebar", () => {
     const onPickWorkspace = vi.fn();
     const onColorPaletteChange = vi.fn();
 
-    renderWithTheme(
+    renderWithProviders(
       <DashboardSidebar
         activeSection="overview"
         collapsed={false}
@@ -49,9 +68,16 @@ describe("DashboardSidebar", () => {
     await user.click(navigation.getByRole("button", { name: /Change workspace/ }));
     expect(onPickWorkspace).toHaveBeenCalledOnce();
 
-    await user.click(navigation.getByRole("button", { name: /Select color palette/ }));
+    await user.click(navigation.getByRole("button", { name: "Profile menu" }));
+    await user.click(screen.getByRole("menuitem", { name: /Select color palette/ }));
     await user.click(screen.getByRole("menuitemradio", { name: "Blue" }));
     expect(onColorPaletteChange).toHaveBeenCalledWith("blue");
+    await waitForMenuToClose();
+
+    await user.click(navigation.getByRole("button", { name: "Profile menu" }));
+    await user.click(screen.getByRole("menuitem", { name: "Settings" }));
+    expect(onNavigate).toHaveBeenCalledWith("settings");
+    await waitForMenuToClose();
   });
 
   it("covers collapsed and mobile navigation states without exposing unavailable Docker", async () => {
@@ -60,7 +86,7 @@ describe("DashboardSidebar", () => {
     const onCloseMobile = vi.fn();
     const onPickWorkspace = vi.fn();
     const onColorPaletteChange = vi.fn();
-    const { rerender } = renderWithTheme(
+    const { unmount } = renderWithProviders(
       <DashboardSidebar
         activeSection="favorites"
         collapsed
@@ -83,16 +109,20 @@ describe("DashboardSidebar", () => {
 
     const mobile = within(screen.getByLabelText("Mobile dashboard navigation"));
     expect(mobile.queryByText("Docker")).not.toBeInTheDocument();
+    expect(mobile.queryByText("Task engineering")).not.toBeInTheDocument();
     await user.click(mobile.getByRole("button", { name: /Repositories/ }));
     expect(onNavigate).toHaveBeenCalledWith("repositories");
     expect(onCloseMobile).toHaveBeenCalledOnce();
-    const mobilePaletteButton = mobile.getByRole("button", { name: /Select color palette/ });
-    await user.click(mobilePaletteButton);
-    expect(mobilePaletteButton).toHaveAttribute("aria-expanded", "true");
+    const mobileProfileButton = mobile.getByRole("button", { name: "Profile menu" });
+    await user.click(mobileProfileButton);
+    expect(mobileProfileButton).toHaveAttribute("aria-expanded", "true");
+    await user.click(screen.getByRole("menuitem", { name: /Select color palette/ }));
     await user.click(screen.getByRole("menuitemradio", { name: "Green" }));
     expect(onColorPaletteChange).toHaveBeenCalledWith("green");
+    await waitForMenuToClose();
 
-    rerender(
+    unmount();
+    const { unmount: unmountCollapsed } = renderWithProviders(
       <DashboardSidebar
         activeSection="repositories"
         collapsed
@@ -117,7 +147,8 @@ describe("DashboardSidebar", () => {
     expect(desktop.getByRole("button", { name: "Expand sidebar" })).toBeVisible();
     expect(desktop.getByRole("button", { name: /Opening folder picker/ })).toBeDisabled();
 
-    rerender(
+    unmountCollapsed();
+    renderWithProviders(
       <DashboardSidebar
         activeSection="repositories"
         collapsed
