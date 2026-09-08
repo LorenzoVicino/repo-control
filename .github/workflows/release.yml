@@ -23,7 +23,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  package:
+    uses: ./.github/workflows/package-check.yml
+    with:
+      ref: ${{ github.event.release.tag_name || github.event.inputs.tag }}
+
   publish:
+    needs: package
     name: Publish to npm
     runs-on: ubuntu-latest
     permissions:
@@ -81,9 +87,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # prepublishOnly runs the typecheck and both builds, so the tarball is the compiled
-      # server and dashboard rather than sources.
+      - name: Download the tarball tested on Windows, Linux and macOS
+        uses: actions/download-artifact@v4
+        with:
+          name: package-candidate
+          path: artifacts
+
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        run: npm publish artifacts/*.tgz --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

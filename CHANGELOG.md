@@ -6,6 +6,26 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+### Added
+
+- Guide first-time users through confirming a workspace, checking required and optional
+  local tools, and opening their first repository. Put Windows-first launch instructions
+  at the top of the README and keep the guide available from Settings.
+- Add a reproducible seven-repository demo workspace and a static online tryout with
+  fictional Git, Docker, agent-session and automation data. Demo actions update only the
+  current browser session and unknown commands never reach a backend.
+- Test the packed npm artifact on native Windows across every supported Node.js line,
+  plus Linux and macOS. The smoke test launches the installed CLI from a path with spaces
+  and shell-sensitive characters, checks served assets and repository states, exercises
+  terminal exit and cancellation, and completes onboarding in Chromium on Windows and
+  Linux. Releases now publish the same tarball that passed this matrix.
+
+### Fixed
+
+- Resolve `~` and `~\\` workspace paths through the operating system home directory so
+  typed paths work on native Windows, where `HOME` is commonly unset.
+- Describe the optional sign-in layer accurately in CLI help.
+
 ## [0.14.0] - 2026-09-02
 
 ### Added

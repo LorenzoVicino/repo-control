@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import os from "node:os";
 
 export type ProjectResolver = {
   getActiveRootPath: () => string;
@@ -34,11 +35,11 @@ export async function resolveProjectPath(activeRootPath: string, id: string): Pr
 
 export function resolveRootInput(rootInput: string): string {
   if (rootInput === "~") {
-    return path.resolve(process.env.HOME ?? process.cwd());
+    return path.resolve(os.homedir());
   }
 
-  if (rootInput.startsWith("~/")) {
-    return path.resolve(process.env.HOME ?? process.cwd(), rootInput.slice(2));
+  if (rootInput.startsWith("~/") || rootInput.startsWith("~\\")) {
+    return path.resolve(os.homedir(), rootInput.slice(2));
   }
 
   return path.resolve(rootInput);

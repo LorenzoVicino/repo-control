@@ -1,0 +1,81 @@
+name: Installed package
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: ""
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Use pinned npm
+        run: npm install -g "npm@$(node -p "require('./package.json').packageManager.split('@')[1]")"
+      - run: npm ci
+      - run: npm run build
+      - name: Pack the release candidate
+        run: |
+          mkdir artifacts
+          npm pack --pack-destination artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-candidate
+          path: artifacts/*.tgz
+          if-no-files-found: error
+
+  installed:
+    name: Installed / ${{ matrix.os }} / Node ${{ matrix.node }}
+    needs: pack
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, node: "20.19.0", browser: false }
+          - { os: windows-latest, node: "22.13.0", browser: false }
+          - { os: windows-latest, node: "24", browser: true }
+          - { os: ubuntu-latest, node: "24", browser: true }
+          - { os: macos-latest, node: "24", browser: false }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Use pinned npm
+        run: npm install -g "npm@$(node -p "require('./package.json').packageManager.split('@')[1]")"
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: package-candidate
+          path: artifacts
+      - name: Install Chromium and Linux browser dependencies
+        if: matrix.browser && runner.os == 'Linux'
+        run: npx playwright install --with-deps chromium
+      - name: Install Chromium
+        if: matrix.browser && runner.os != 'Linux'
+        run: npx playwright install chromium
+      - name: Test the installed tarball
+        run: npm run test:package -- ${{ matrix.browser && '--browser' || '' }}
+        env:
+          PACKAGE_TARBALL_DIR: artifacts
+      - name: Focused native path and launcher checks
+        run: node --import tsx --test apps/server/src/runtime.test.ts apps/server/src/services/nativeTerminalService.test.ts apps/server/src/folderPicker.test.ts apps/server/src/lib/projectResolver.test.ts

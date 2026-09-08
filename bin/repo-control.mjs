@@ -42,8 +42,8 @@ const HELP = `
     $ repo-control ~/projects
     $ repo-control ~/work --port 4000 --no-open
 
-  repo-control runs Git, Docker and terminal commands on this machine and has no
-  authentication layer. Keep it bound to a loopback address.
+  repo-control runs Git, Docker and terminal commands on this machine and supports
+  optional sign-in. Keep it bound to a loopback address.
 `;
 
 function parseArguments(argv) {

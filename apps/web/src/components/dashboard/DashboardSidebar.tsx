@@ -182,7 +182,7 @@ function SidebarContent({
         <Box
           component="img"
           data-testid="repo-control-logo"
-          src="/icon/repo-control-icon-medium.svg"
+          src={`${import.meta.env.BASE_URL}icon/repo-control-icon-medium.svg`}
           alt=""
           aria-hidden="true"
           sx={{

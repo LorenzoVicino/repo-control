@@ -49,6 +49,8 @@ import { FavoriteProjects, WorkspaceMap } from "./WorkspaceMap";
 import { ProjectWorkspaceTabs } from "../project/ProjectWorkspaceTabs";
 import { getProjectPanelId } from "../project/projectWorkspaceIds";
 import { SettingsPage } from "../settings/SettingsPage";
+import { WorkspaceSetup } from "../setup/WorkspaceSetup";
+import { DemoNotice } from "../setup/DemoNotice";
 import {
   OperationFeedback,
   type OperationRecord
@@ -160,6 +162,7 @@ export function ProjectsDashboard({
   const [appUpdateResult, setAppUpdateResult] = React.useState<AppUpdateResult | null>(null);
   const [isAppUpdateDialogOpen, setIsAppUpdateDialogOpen] = React.useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = React.useState(false);
+  const [setupRequested, setSetupRequested] = React.useState(false);
   const [favoriteProjectIds, setFavoriteProjectIds] = React.useState<string[]>([]);
   const [recentProjectIds, setRecentProjectIds] = React.useState<string[]>([]);
   const [dashboardLayout, setDashboardLayout] = React.useState<DashboardLayout>(DEFAULT_DASHBOARD_LAYOUT);
@@ -831,6 +834,8 @@ export function ProjectsDashboard({
           spacing={{ xs: 2.5, md: 3 }}
           sx={{ height: isAutomationWorkspace ? "100%" : undefined, minHeight: 0 }}
         >
+          <WorkspaceSetup root={workspaceRoot} projects={projects} scanning={isFetching} onChangeRoot={applyRootPath} onOpenProject={openProject} requested={setupRequested} onClose={() => setSetupRequested(false)} />
+          {import.meta.env.MODE === "demo" && <DemoNotice />}
           {visiblePreferenceFailure ? (
             <PreferenceSyncNotice
               failure={visiblePreferenceFailure}
@@ -996,6 +1001,7 @@ export function ProjectsDashboard({
           {!activeProject && activeSection === "settings" ? (
             <ViewEntrance>
               <SettingsPage
+                onOpenSetup={() => setSetupRequested(true)}
                 colorPalette={colorPalette}
                 fontScale={fontScale}
                 onColorPaletteChange={onColorPaletteChange}

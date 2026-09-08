@@ -8,6 +8,7 @@ import { runProjectCommand, runShellCommand } from "./lib/commandRunner.js";
 import { createProjectResolver } from "./lib/projectResolver.js";
 import type { ProjectResolver } from "./lib/projectResolver.js";
 import { getAllowedHostnames, isAllowedRequestHost } from "./lib/requestHost.js";
+import { hasExistingConfiguration } from "./preferences.js";
 import { registerAppRoutes } from "./routes/appRoutes.js";
 import { registerAuthRoutes } from "./routes/authRoutes.js";
 import { registerAgentSessionRoutes } from "./routes/agentSessionRoutes.js";
@@ -59,6 +60,9 @@ export async function createServer(): Promise<{
   const env = readEnv();
   const projectResolver = createProjectResolver(env.REPO_CONTROL_ROOT);
   const auth = createAuthGuard(env);
+  // Take this snapshot before workflow recovery or any other startup service can create
+  // configuration files on behalf of an otherwise brand-new user.
+  const existingConfiguration = await hasExistingConfiguration();
   const app = Fastify({
     logController: new LogController({ disableRequestLogging: true }),
     logger: {
@@ -142,6 +146,7 @@ export async function createServer(): Promise<{
   const context = {
     ...projectResolver,
     auth,
+    existingConfiguration,
     runProjectCommand,
     runShellCommand,
     scheduleServerRestart

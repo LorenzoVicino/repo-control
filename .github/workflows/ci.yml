@@ -19,6 +19,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  package:
+    uses: ./.github/workflows/package-check.yml
+
   verify:
     name: Node ${{ matrix.node }}
     runs-on: ubuntu-latest

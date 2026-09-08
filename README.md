@@ -8,6 +8,22 @@
 
 When work spans several repositories, the important state is scattered across terminal tabs, Git clients, Docker commands and local AI-agent sessions. repo-control turns one workspace folder into a live operational view: what is clean, what is drifting, what needs attention and which action is safe to run next.
 
+```bash
+npx repo-control ~/projects
+```
+
+On **Windows (PowerShell)**, install [Node.js](https://nodejs.org/) and [Git for Windows](https://gitforwindows.org/), then run:
+
+```powershell
+npx.cmd repo-control "C:\Users\YourName\Projects"
+```
+
+Replace the folder with your own workspace. Setup helps you confirm it, check optional tools and open your first repository. Docker, VS Code and agent CLIs are optional. Native Windows does not require WSL.
+
+Using `npx.cmd` avoids PowerShell script-policy errors; changing your execution policy is unnecessary. After installing Node.js or Git, open a new terminal so it picks up the updated PATH.
+
+**[Try the interactive demo](https://lorenzovicino.github.io/repo-control/)** — a fictional workspace that stays entirely in your browser.
+
 <p align="center">
   <a href="docs/repo-control-demo.webm">
     <img src="docs/repo-control-demo.gif" alt="repo-control v0.14.0 demo: the widget dashboard with its attention queue and workspace ring, customizing the layout, opening a repository that is behind, its branches and scoped terminal, then Ctrl+P search" width="100%" />

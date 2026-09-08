@@ -23,6 +23,10 @@ Open <http://127.0.0.1:5173>. The API listens on <http://127.0.0.1:3747> by defa
 
 The default workspace is the repository root. Set `REPO_CONTROL_ROOT` or use the workspace picker when you need representative multi-repository data.
 
+For a reproducible workspace with seven fictional repositories, run `npm run demo:workspace`
+and launch repo-control with the printed path. For the browser-only tryout, run
+`npm run dev:demo`. See [First run and demo](docs/first-run-and-demo.md).
+
 ## Tests and quality gates
 
 Useful focused commands are:
@@ -40,11 +44,19 @@ Before sharing a change, run the complete gate:
 npm run verify
 npx playwright install chromium
 npm run test:e2e
+npm run test:package -- --browser
+npm run build:demo
+npm run test:demo
 ```
 
 `verify` runs linting, strict TypeScript checks, server and React tests with 80% coverage thresholds, and the production build. `test:e2e` starts the real API and Vite server and exercises critical browser-to-API flows through Chromium.
 
 CI runs `verify` on Node.js 20.19, 22.13 and 24. The browser job runs after that matrix succeeds.
+
+The installed-package matrix tests one tarball on Windows across all three Node lines,
+plus Linux and macOS on Node 24. Windows and Linux also exercise first-run onboarding
+against the packaged server in Chromium. Use the desktop checklist in the demo guide
+for graphical integrations that hosted runners cannot fully validate.
 
 ## Guidelines
 
@@ -66,6 +78,11 @@ Releases are cut from `main`:
 2. Tag that commit `vX.Y.Z` and push the tag.
 3. Publish a GitHub release for the tag.
 
-Publishing the release runs `.github/workflows/release.yml`, which checks that the tag matches `package.json`, then publishes the package to npm with provenance. It needs an `NPM_TOKEN` repository secret holding an npm automation token with publish rights. A failed publish can be retried from the Actions tab through the workflow's manual trigger without re-cutting the release.
+Publishing the release first verifies the exact candidate tarball on Windows, Linux and
+macOS. `.github/workflows/release.yml` then checks that the tag matches `package.json`
+and publishes that tested tarball to npm with provenance. It needs an `NPM_TOKEN`
+repository secret holding an npm automation token with publish rights. A failed publish
+can be retried from the Actions tab through the workflow's manual trigger without
+re-cutting the release.
 
 See [Architecture](docs/architecture.md) for dependency direction and placement conventions, and [Security](SECURITY.md) for the supported trust boundary.

@@ -5,6 +5,9 @@ const workspaceRepositoryName = path.basename(process.cwd());
 const apiBaseUrl = process.env.E2E_API_URL ?? "http://127.0.0.1:3747";
 
 test.beforeEach(async ({ page }) => {
+  // First-run persistence is exercised against the installed tarball in package-smoke.
+  // These existing workspace scenarios start after setup.
+  await page.route("**/api/setup", (route) => route.fulfill({ json: { completed: true, existing: true, tools: [] } }));
   await page.route("**/api/docker/containers", async (route) => {
     await route.fulfill({
       contentType: "application/json",

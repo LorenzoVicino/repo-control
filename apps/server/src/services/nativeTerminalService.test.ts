@@ -132,3 +132,13 @@ function restoreEnv(name: string, value: string | undefined): void {
     process.env[name] = value;
   }
 }
+
+test("quotes Windows and macOS paths containing spaces, apostrophes and shell syntax", async () => {
+  const spec = { command: "C:\\Program Files\\Agent\\agent.cmd", args: ["resume", "session-1"], displayCommand: "agent resume session-1" };
+  const windows = await getTerminalCandidates("C:\\Users\\Alex's Projects & café", spec, { platform: "win32", env: {} });
+  assert.match(windows[1].args.at(-1)!, /Set-Location -LiteralPath 'C:\\Users\\Alex''s Projects & café'/);
+  assert.match(windows[1].args.at(-1)!, /& 'C:\\Program Files\\Agent\\agent.cmd' 'resume' 'session-1'/);
+  const mac = await getTerminalCandidates("/Users/Alex's Projects & café", { ...spec, command: "agent" }, { platform: "darwin", env: {} });
+  assert.ok(mac[0].args.at(-1)!.includes("Alex'"));
+  assert.ok(mac[0].args.at(-1)!.includes("Projects & café"));
+});
