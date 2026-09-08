@@ -71,6 +71,10 @@ async function api(route, body) {
   );
   return response.json();
 }
+async function canonicalPath(value) {
+  const resolved = await fs.realpath(value.trim());
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+}
 async function stop() {
   if (!child || child.exitCode !== null) return;
   if (process.platform === "win32")
@@ -217,7 +221,10 @@ try {
     command: 'node -p "process.cwd()"',
   });
   assert.equal(command.ok, true, command.output);
-  assert.ok(command.output.includes(project.path), command.output);
+  assert.equal(
+    await canonicalPath(command.output),
+    await canonicalPath(project.path),
+  );
   const failure = await api(`projects/${project.id}/terminal/run`, {
     command: 'node -e "process.exit(7)"',
   });
