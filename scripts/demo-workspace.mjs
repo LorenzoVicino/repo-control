@@ -12,18 +12,6 @@ const scenarios = JSON.parse(
     "utf8",
   ),
 );
-const gitEnv = {
-  ...process.env,
-  GIT_CONFIG_NOSYSTEM: "1",
-  GIT_CONFIG_GLOBAL: os.devNull,
-  GIT_AUTHOR_NAME: "Alex Example",
-  GIT_AUTHOR_EMAIL: "alex@example.invalid",
-  GIT_COMMITTER_NAME: "Alex Example",
-  GIT_COMMITTER_EMAIL: "alex@example.invalid",
-  GIT_AUTHOR_DATE: "2026-01-15T10:00:00Z",
-  GIT_COMMITTER_DATE: "2026-01-15T10:00:00Z",
-};
-
 export async function createDemoWorkspace(destination) {
   // mkdir without recursive is an intentional refusal to overwrite anything existing.
   const directory = destination
@@ -34,6 +22,19 @@ export async function createDemoWorkspace(destination) {
   const support = path.join(directory, "support");
   await fs.mkdir(workspace);
   await fs.mkdir(support);
+  const gitEnv = {
+    ...process.env,
+    GIT_CONFIG_NOSYSTEM: "1",
+    // A regular path works on every supported Node/Git combination. In particular,
+    // Git for Windows rejects Node 20's \\.\nul spelling of os.devNull.
+    GIT_CONFIG_GLOBAL: path.join(support, ".gitconfig"),
+    GIT_AUTHOR_NAME: "Alex Example",
+    GIT_AUTHOR_EMAIL: "alex@example.invalid",
+    GIT_COMMITTER_NAME: "Alex Example",
+    GIT_COMMITTER_EMAIL: "alex@example.invalid",
+    GIT_AUTHOR_DATE: "2026-01-15T10:00:00Z",
+    GIT_COMMITTER_DATE: "2026-01-15T10:00:00Z",
+  };
   const git = (cwd, ...args) =>
     exec(
       "git",
