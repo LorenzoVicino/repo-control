@@ -119,7 +119,7 @@ export function LoginPage() {
       >
         <Box
           component="img"
-          src="/icon/repo-control-icon-medium.svg"
+          src={`${import.meta.env.BASE_URL}icon/repo-control-icon-medium.svg`}
           alt=""
           aria-hidden="true"
           sx={{ width: 38, height: 38, borderRadius: 1.25 }}

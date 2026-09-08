@@ -26,7 +26,9 @@ export async function requestJson<T>(
   fallbackMessage: string,
   init?: RequestInit
 ): Promise<T> {
-  const response = await fetch(path, init);
+  const response = import.meta.env.MODE === "demo"
+    ? await (await import("../demo/api")).demoRequest(path, init)
+    : await fetch(path, init);
   const payload: unknown = await response.json().catch(() => null);
 
   if (!response.ok) {

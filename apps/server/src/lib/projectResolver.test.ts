@@ -52,10 +52,11 @@ test("updates the active workspace through the resolver interface", () => {
 });
 
 test("expands home-relative root inputs", () => {
-  const homePath = process.env.HOME ?? process.cwd();
+  const homePath = os.homedir();
 
   assert.equal(resolveRootInput("~"), path.resolve(homePath));
   assert.equal(resolveRootInput("~/projects"), path.resolve(homePath, "projects"));
+  assert.equal(resolveRootInput("~\\projects"), path.resolve(homePath, "projects"));
   assert.equal(resolveRootInput("relative-root"), path.resolve("relative-root"));
 });
 

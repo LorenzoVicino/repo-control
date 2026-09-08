@@ -19,6 +19,7 @@ export type DashboardLayoutPreference = {
 };
 
 export type UserPreferences = {
+  onboardingVersion?: 1;
   favoriteProjectIds: string[];
   // Most recently opened first, capped. Written by the interface each time a repository
   // workspace is opened so the dashboard can offer the last few as a place to resume.
@@ -29,6 +30,13 @@ export type UserPreferences = {
 export const MAX_RECENT_PROJECT_IDS = 8;
 const MAX_DASHBOARD_WIDGETS = 32;
 const DASHBOARD_WIDGET_SIZES: readonly DashboardWidgetSize[] = ["small", "medium", "large"];
+const CONFIG_ENTRIES = new Set([
+  "preferences.json",
+  "terminal-history.json",
+  "workflows.json",
+  "workflow-runs.json",
+  "brain"
+]);
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   favoriteProjectIds: [],
@@ -69,6 +77,11 @@ function getPreferencesPath(): string {
   return path.join(getConfigDirectory(), "preferences.json");
 }
 
+export async function hasExistingConfiguration(): Promise<boolean> {
+  const entries = await fs.readdir(getConfigDirectory()).catch(() => []);
+  return entries.some((entry) => CONFIG_ENTRIES.has(entry));
+}
+
 export function getConfigDirectory(): string {
   if (process.env.REPO_CONTROL_CONFIG_DIR) {
     return path.resolve(process.env.REPO_CONTROL_CONFIG_DIR);
@@ -94,6 +107,7 @@ function normalizePreferences(value: unknown): UserPreferences {
   const record = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
 
   return {
+    ...(record.onboardingVersion === 1 ? { onboardingVersion: 1 } : {}),
     favoriteProjectIds: normalizeProjectIds(record.favoriteProjectIds),
     recentProjectIds: normalizeProjectIds(record.recentProjectIds).slice(0, MAX_RECENT_PROJECT_IDS),
     dashboard: normalizeDashboardLayout(record.dashboard)

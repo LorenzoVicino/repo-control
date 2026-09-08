@@ -827,14 +827,14 @@ function isUsefulPrompt(value: string | null): value is string {
     && !normalized.startsWith("<command-name>");
 }
 
-async function isExecutableAvailable(command: string, env: NodeJS.ProcessEnv): Promise<boolean> {
+export async function isExecutableAvailable(command: string, env: NodeJS.ProcessEnv): Promise<boolean> {
   if (command.includes("/") || command.includes("\\")) {
     return fs.access(command, fsConstants.X_OK).then(() => true).catch(() => false);
   }
 
-  const pathValue = env.PATH ?? "";
+  const pathValue = env.PATH ?? env.Path ?? "";
   const pathExtensions = process.platform === "win32"
-    ? (env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";")
+    ? ["", ...(env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";")]
     : [""];
 
   for (const directory of pathValue.split(path.delimiter).filter(Boolean)) {

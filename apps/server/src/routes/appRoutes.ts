@@ -6,7 +6,12 @@ import { readProjectSummary, scanProjects } from "../gitScanner.js";
 import type { CommandResult, CommandRunner } from "../lib/commandRunner.js";
 import { resolveRootInput } from "../lib/projectResolver.js";
 import type { ProjectResolver } from "../lib/projectResolver.js";
-import { MAX_RECENT_PROJECT_IDS, readPreferences, writePreferences } from "../preferences.js";
+import {
+  MAX_RECENT_PROJECT_IDS,
+  readPreferences,
+  writePreferences
+} from "../preferences.js";
+import { detectSetupTools } from "../services/setupService.js";
 import {
   getVSCodeFailureHint,
   getVSCodeLauncherCandidates
@@ -16,6 +21,7 @@ import type { AuthGuard } from "../services/authService.js";
 
 type AppRoutesContext = ProjectResolver & {
   auth: AuthGuard;
+  existingConfiguration: boolean;
   runProjectCommand: CommandRunner;
   scheduleServerRestart: () => void;
 };
@@ -24,6 +30,18 @@ const PROJECT_SCAN_TIMEOUT_MS = 30_000;
 const SLOW_PROJECT_SCAN_MS = 2_000;
 
 export async function registerAppRoutes(app: FastifyInstance, context: AppRoutesContext): Promise<void> {
+  app.get("/api/setup", async () => ({
+    existing: context.existingConfiguration,
+    completed: (await readPreferences()).onboardingVersion === 1
+  }));
+  app.get("/api/setup/tools", async () => ({
+    tools: await detectSetupTools(context.runProjectCommand)
+  }));
+  app.put("/api/setup", async (request) => {
+    z.object({ version: z.literal(1) }).strict().parse(request.body);
+    await writePreferences({ onboardingVersion: 1 });
+    return { ok: true };
+  });
   // Left outside the sign-in gate so a supervisor or an E2E harness can wait for the API
   // to answer, which means the workspace root has to stay behind it: the path alone tells a
   // caller where this machine keeps its code.

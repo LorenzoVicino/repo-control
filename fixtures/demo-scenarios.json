@@ -1,0 +1,9 @@
+[
+  { "name": "atlas-api", "state": "modified", "compose": true },
+  { "name": "atlas-web", "state": "staged", "compose": false },
+  { "name": "design-system", "state": "ahead", "compose": false },
+  { "name": "documentation", "state": "behind", "compose": false },
+  { "name": "billing-worker", "state": "clean", "compose": true },
+  { "name": "mobile-client", "state": "untracked", "compose": false },
+  { "name": "shared-utils", "state": "clean", "compose": false }
+]
