@@ -15,6 +15,7 @@ import {
 } from "./components/auth/authSession";
 import { LoginPage } from "./components/auth/LoginPage";
 import { ProjectsDashboard } from "./components/dashboard/ProjectsDashboard";
+import { LandingPage } from "./components/marketing/LandingPage";
 import {
   COLOR_PALETTE_STORAGE_KEY,
   createAppTheme,
@@ -53,6 +54,7 @@ function createAppQueryClient(): QueryClient {
 }
 
 export function App() {
+  const [hash, setHash] = React.useState(() => window.location.hash);
   const [queryClient] = React.useState(createAppQueryClient);
   const [colorPalette, setColorPalette] = React.useState<ColorPalette>(getInitialColorPalette);
   const [fontScale, setFontScale] = React.useState<FontScale>(getInitialFontScale);
@@ -69,6 +71,12 @@ export function App() {
     window.localStorage.setItem(FONT_SCALE_STORAGE_KEY, fontScale);
   }, [fontScale]);
 
+  React.useEffect(() => {
+    const onHashChange = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
   React.useLayoutEffect(() => {
     const backgroundColor = theme.palette.background.default;
     const previousRootBackground = document.documentElement.style.backgroundColor;
@@ -81,6 +89,10 @@ export function App() {
       document.body.style.backgroundColor = previousBodyBackground;
     };
   }, [theme.palette.background.default]);
+
+  if (import.meta.env.MODE === "demo" && hash !== "#/demo") {
+    return <LandingPage />;
+  }
 
   return (
     <ThemeProvider theme={theme}>

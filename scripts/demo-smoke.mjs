@@ -4,7 +4,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { chromium } from "@playwright/test";
 
 const port = process.env.DEMO_TEST_PORT || "5473";
-const base = `http://127.0.0.1:${port}${process.env.DEMO_BASE_PATH || "/repo-control/"}`;
+const base = `http://127.0.0.1:${port}${process.env.DEMO_BASE_PATH || "/repo-control/"}#/demo`;
 const server = spawn(
   process.execPath,
   [
