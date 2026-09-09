@@ -22,7 +22,7 @@ Replace the folder with your own workspace. Setup helps you confirm it, check op
 
 Using `npx.cmd` avoids PowerShell script-policy errors; changing your execution policy is unnecessary. After installing Node.js or Git, open a new terminal so it picks up the updated PATH.
 
-**[Try the interactive demo](https://lorenzovicino.github.io/repo-control/)** — a fictional workspace that stays entirely in your browser.
+**[Visit the project page](https://lorenzovicino.github.io/repo-control/)** — then open the interactive demo, a fictional workspace that stays entirely in your browser.
 
 <p align="center">
   <a href="docs/repo-control-demo.webm">
