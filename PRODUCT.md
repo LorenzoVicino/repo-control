@@ -72,8 +72,6 @@ searched and resumed together. No cloud, no team feed, no vanity analytics.
   tracked by the server; terminal command history is exposed only as per-repository
   suggestions; active terminal commands are not listed globally; stopped containers
   are absent from the workspace-wide Docker list.
-- Task engineering exists in code but is hidden pending redesign; never present it as
-  a current capability.
 - Terminology: repository (not project) in the interface; workspace for the scanned
   folder; group for a Compose project in the Docker runtime view.
 

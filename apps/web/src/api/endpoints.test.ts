@@ -2,17 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchAppUpdateStatus, updateRepoControl } from "./app";
 import { fetchApiHealth, fetchAuthSession, signIn, signOut } from "./auth";
 import {
-  approveBrainTask,
-  cancelBrainTaskPlanning,
-  createBrainTask,
-  createBrainTaskFromPlan,
-  fetchBrainContext,
-  fetchBrainTasks,
-  planBrainTask,
-  runBrainTask,
-  updateBrainTask
-} from "./brain";
-import {
   closeContainerSession,
   fetchDockerComposeProject,
   fetchDockerContainerStats,
@@ -223,58 +212,5 @@ describe("API endpoint contracts", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/workflow-runs", undefined);
     expect(fetchMock).toHaveBeenCalledWith("/api/workflows/workflow-1/runs", undefined);
     expect(fetchMock).toHaveBeenCalledWith("/api/workflow-runs/run-1/cancel", { method: "POST" });
-  });
-
-  it("covers every task-engineering endpoint, including abortable planning", async () => {
-    const controller = new AbortController();
-    await fetchBrainTasks("alpha");
-    await cancelBrainTaskPlanning("alpha", "request-1");
-    await createBrainTask("alpha", {
-      title: "Test",
-      type: "feature",
-      description: "Description",
-      motivation: "Motivation"
-    });
-    await planBrainTask("alpha", {
-      requestId: "request-1",
-      brief: "Plan it",
-      profile: "auto",
-      language: "en"
-    }, controller.signal);
-    await createBrainTaskFromPlan("alpha", {
-      title: "Test",
-      type: "feature",
-      profile: "lean",
-      brief: "Plan it",
-      description: "Description",
-      motivation: "Motivation",
-      requirements: "Requirements",
-      design: "Design",
-      breakdown: "Breakdown",
-      checks: ["npm test"],
-      assumptions: [],
-      provider: "claude",
-      generatedAt: "2026-08-03T00:00:00.000Z",
-      sessionId: null,
-      clarifications: [],
-      language: "en"
-    });
-    await updateBrainTask("alpha", "task-1", { phase: "design", content: "New design" });
-    await approveBrainTask("alpha", "task-1", "design");
-    await fetchBrainContext("alpha", "task-1");
-    await runBrainTask("alpha", "task-1", { prompt: "Implement", checks: ["npm test"] });
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/projects/alpha/tasks/plan",
-      expect.objectContaining({ method: "POST", signal: controller.signal })
-    );
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/projects/alpha/tasks/task-1/approve",
-      expect.objectContaining({ body: "{\"phase\":\"design\"}" })
-    );
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/projects/alpha/tasks/task-1/runs",
-      expect.objectContaining({ body: "{\"prompt\":\"Implement\",\"checks\":[\"npm test\"]}" })
-    );
   });
 });

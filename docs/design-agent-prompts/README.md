@@ -49,7 +49,6 @@ Ogni prompt di sezione è autosufficiente sul piano funzionale, ma presuppone ch
 - `04-favorites.md` — raccolta compatta dei repository preferiti ed empty state.
 - `05-docker-control-center.md` — runtime Docker a livello workspace.
 - `06-agent-sessions.md` — ricerca e ripresa delle conversazioni Codex, Claude Code e Gemini.
-- `07-task-engineering.md` — pianificazione AI, review con gate e implementazione. **Sezione parcheggiata:** la UI è nascosta e la sezione non è raggiungibile; usa questo prompt solo se il redesign di Task engineering torna in scope.
 - `08-automations.md` — editor visuale, nodi, input runtime, esecuzioni e storico.
 - `09-repository-workspace-shell.md` — repository aperti, header, tab interne e contesto persistente.
 - `10-repository-overview.md` — landing operativa del singolo repository.
@@ -69,7 +68,6 @@ I prompt derivano dall'implementazione corrente sotto:
 - `apps/web/src/components/automation/`
 - `apps/web/src/components/auth/`
 - `apps/web/src/components/settings/`
-- `apps/web/src/components/task/` (nascosto, conservato per il redesign)
 - `apps/web/src/theme.ts`
 - `apps/web/src/types/`
 

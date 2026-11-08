@@ -227,13 +227,6 @@ test("opens settings from the profile tab and scales the interface text", async 
   ).toBe("red");
 });
 
-test("hides the task engineering section entirely", async ({ page }) => {
-  await page.goto("/");
-
-  await expect(page.locator('[data-dashboard-section="tasks"]')).toHaveCount(0);
-  await expect(page.getByText("Task engineering")).toHaveCount(0);
-});
-
 test("navigates between lazy dashboard sections without browser errors", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));

@@ -20,6 +20,13 @@ This project follows semantic versioning where practical.
   terminal exit and cancellation, and completes onboarding in Chromium on Windows and
   Linux. Releases now publish the same tarball that passed this matrix.
 
+### Removed
+
+- Remove the hidden Task engineering feature: its UI, the `/api/projects/:id/tasks` and
+  `/api/projects/:id/claude/*` endpoints, and the Claude Code runner behind them. It was
+  unreachable from the interface. Records left in the `brain/` config subdirectory are no
+  longer read and can be deleted.
+
 ### Fixed
 
 - Resolve `~` and `~\\` workspace paths through the operating system home directory so

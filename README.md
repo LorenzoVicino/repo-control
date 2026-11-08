@@ -220,7 +220,7 @@ repo-control stores its own data outside Git by default:
 - macOS: `~/Library/Application Support/repo-control`
 - Linux/WSL: `${XDG_CONFIG_HOME:-~/.config}/repo-control`
 
-The directory contains `preferences.json`, `terminal-history.json`, `workflows.json` and `workflow-runs.json` as those features are used. Terminal command suggestions persist in `terminal-history.json`; the visible terminal transcript stays mounted while its repository remains open, but is not written to disk. Workflow history includes command output and retains at most 100 runs. Older task-engineering data, if present, remains in the `brain/` subdirectory. Interface choices - palette, text size and language - are kept in browser local storage rather than on the server, so they follow the browser and not the workspace.
+The directory contains `preferences.json`, `terminal-history.json`, `workflows.json` and `workflow-runs.json` as those features are used. Terminal command suggestions persist in `terminal-history.json`; the visible terminal transcript stays mounted while its repository remains open, but is not written to disk. Workflow history includes command output and retains at most 100 runs. Interface choices - palette, text size and language - are kept in browser local storage rather than on the server, so they follow the browser and not the workspace.
 
 ### Windows with WSL
 
