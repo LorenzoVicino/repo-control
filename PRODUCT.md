@@ -52,7 +52,7 @@ searched and resumed together. No cloud, no team feed, no vanity analytics.
 - Preferences: favourites are stored server-side in `preferences.json` under the
   config directory; palette, text size and language are browser local storage.
 - Quality gates: ESLint, strict TypeScript, server and React tests with 80% coverage
-  thresholds, Playwright browser flows; CI on Node.js 20, 22 and 24.
+  thresholds, Playwright browser flows; CI on Node.js 22 and 24.
 
 ## Capabilities and Constraints
 

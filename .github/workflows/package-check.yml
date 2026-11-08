@@ -44,7 +44,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: windows-latest, node: "20.19.0", browser: false }
           - { os: windows-latest, node: "22.13.0", browser: false }
           - { os: windows-latest, node: "24", browser: true }
           - { os: ubuntu-latest, node: "24", browser: true }

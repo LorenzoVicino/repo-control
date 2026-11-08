@@ -41,7 +41,7 @@
   "type": "module",
   "packageManager": "npm@11.4.2",
   "engines": {
-    "node": "^20.19.0 || ^22.13.0 || >=24"
+    "node": "^22.13.0 || >=24"
   },
   "scripts": {
     "check:node": "node scripts/check-node-version.cjs",
