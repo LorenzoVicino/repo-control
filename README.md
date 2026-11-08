@@ -196,6 +196,15 @@ REPO_CONTROL_AUTH_PASSWORD=choose-a-long-unique-passphrase
 - `GET /api/health` stays reachable without a session so a supervisor can probe the API, and answers `{ "ok": true, "authRequired": true }` without naming the workspace folder.
 - There is no recovery flow. Change the values in `.env` and restart.
 
+### MCP
+
+repo-control can serve its agent tools to an MCP client such as Claude Code. Over stdio no configuration is needed: `claude mcp add repo-control -- npx repo-control mcp ~/projects` (add `--allow-writes` for commit, push, Compose and workflow tools). The HTTP endpoint at `/mcp` is off until a token is set. See [docs/mcp.md](docs/mcp.md).
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `REPO_CONTROL_MCP_TOKEN` | unset | Bearer token, at least 32 characters, that turns on the HTTP MCP endpoint at `/mcp`. |
+| `REPO_CONTROL_MCP_WRITE` | off | Set to `on` to expose write tools to MCP clients. Off means read-only tools only. |
+
 ### Local tools and agent CLIs
 
 | Variable | Default | Description |

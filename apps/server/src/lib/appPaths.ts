@@ -50,3 +50,14 @@ export const webDistPath = path.join(appRootPath, "apps", "web", "dist");
 export function hasBuiltWebAssets(): boolean {
   return existsSync(path.join(webDistPath, "index.html"));
 }
+
+function readAppVersion(): string {
+  try {
+    const parsed = JSON.parse(readFileSync(path.join(appRootPath, "package.json"), "utf8")) as { version?: unknown };
+    return typeof parsed.version === "string" ? parsed.version : "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+
+export const appVersion = readAppVersion();

@@ -25,6 +25,7 @@ const HELP = `
 
   Usage
     $ repo-control [workspace] [options]
+    $ repo-control mcp [workspace] [--allow-writes]
 
   Arguments
     workspace            Folder scanned recursively for Git repositories.
@@ -37,10 +38,16 @@ const HELP = `
     -v, --version        Print the version and exit.
     -h, --help           Show this help and exit.
 
+  MCP
+    repo-control mcp serves the agent tools over stdio for an MCP client that
+    starts it, such as Claude Code or Claude Desktop. Tools are read-only unless
+    --allow-writes is given.
+
   Examples
     $ repo-control
     $ repo-control ~/projects
     $ repo-control ~/work --port 4000 --no-open
+    $ claude mcp add repo-control -- npx repo-control mcp ~/projects
 
   repo-control runs Git, Docker and terminal commands on this machine and supports
   optional sign-in. Keep it bound to a loopback address.
@@ -104,62 +111,100 @@ function openBrowser(url) {
   }
 }
 
-const options = parseArguments(process.argv.slice(2));
+// `repo-control mcp`: no HTTP server and no browser. stdout carries the MCP protocol, so
+// every message from here on goes to stderr.
+async function runMcpCommand(argv) {
+  let root = null;
 
-if (options.help) {
-  console.log(HELP);
-  process.exit(0);
+  for (const argument of argv) {
+    if (argument === "-h" || argument === "--help") {
+      console.error(HELP);
+      process.exit(0);
+    } else if (argument === "--allow-writes") {
+      process.env.REPO_CONTROL_MCP_WRITE = "1";
+    } else if (argument.startsWith("-") || root !== null) {
+      console.error(`Unexpected argument for mcp: ${argument}\nRun "repo-control --help" for usage.`);
+      process.exit(1);
+    } else {
+      root = argument;
+    }
+  }
+
+  process.env.REPO_CONTROL_ROOT = path.resolve(root ?? process.env.REPO_CONTROL_ROOT ?? process.cwd());
+  const { startMcpStdio } = await import(pathToFileURL(path.join(packageRoot, "dist", "server", "mcpStdio.js")).href);
+
+  try {
+    await startMcpStdio();
+  } catch (error) {
+    console.error(`repo-control mcp failed to start: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
 }
 
-if (options.version) {
-  console.log(packageJson.version);
-  process.exit(0);
+if (process.argv[2] === "mcp") {
+  await runMcpCommand(process.argv.slice(3));
+} else {
+  await runDashboard();
 }
 
-if (options.port !== null) {
-  const port = Number(options.port);
+async function runDashboard() {
+  const options = parseArguments(process.argv.slice(2));
 
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    console.error(`Invalid port: ${options.port}`);
+  if (options.help) {
+    console.log(HELP);
+    process.exit(0);
+  }
+
+  if (options.version) {
+    console.log(packageJson.version);
+    process.exit(0);
+  }
+
+  if (options.port !== null) {
+    const port = Number(options.port);
+
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      console.error(`Invalid port: ${options.port}`);
+      process.exit(1);
+    }
+
+    process.env.PORT = String(port);
+  }
+
+  if (options.host !== null) {
+    process.env.HOST = options.host;
+  }
+
+  // The workspace has to be resolved and exported before the server module is imported: the
+  // env schema captures process.cwd() as REPO_CONTROL_ROOT's default when it is constructed.
+  process.env.REPO_CONTROL_ROOT = path.resolve(options.root ?? process.env.REPO_CONTROL_ROOT ?? process.cwd());
+
+  // This process serves the built dashboard; there is no Vite dev server in an install.
+  process.env.REPO_CONTROL_SERVE_WEB = "1";
+
+  // server.js, not index.js: index.js is the standalone entry that starts the server on
+  // import, while server.js is the module that exports startServer for a caller to invoke.
+  const { startServer } = await import(
+    pathToFileURL(path.join(packageRoot, "dist", "server", "server.js")).href
+  );
+
+  try {
+    await startServer();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    if (error?.code === "EADDRINUSE") {
+      console.error(`\nPort ${process.env.PORT ?? 3747} is already in use.`);
+      console.error("Stop the other process or start repo-control with --port <port>.\n");
+      process.exit(1);
+    }
+
+    console.error(`\nrepo-control failed to start: ${message}\n`);
     process.exit(1);
   }
 
-  process.env.PORT = String(port);
-}
-
-if (options.host !== null) {
-  process.env.HOST = options.host;
-}
-
-// The workspace has to be resolved and exported before the server module is imported: the
-// env schema captures process.cwd() as REPO_CONTROL_ROOT's default when it is constructed.
-process.env.REPO_CONTROL_ROOT = path.resolve(options.root ?? process.env.REPO_CONTROL_ROOT ?? process.cwd());
-
-// This process serves the built dashboard; there is no Vite dev server in an install.
-process.env.REPO_CONTROL_SERVE_WEB = "1";
-
-// server.js, not index.js: index.js is the standalone entry that starts the server on
-// import, while server.js is the module that exports startServer for a caller to invoke.
-const { startServer } = await import(
-  pathToFileURL(path.join(packageRoot, "dist", "server", "server.js")).href
-);
-
-try {
-  await startServer();
-} catch (error) {
-  const message = error instanceof Error ? error.message : String(error);
-
-  if (error?.code === "EADDRINUSE") {
-    console.error(`\nPort ${process.env.PORT ?? 3747} is already in use.`);
-    console.error("Stop the other process or start repo-control with --port <port>.\n");
-    process.exit(1);
+  if (options.open) {
+    const host = process.env.HOST === "127.0.0.1" || !process.env.HOST ? "localhost" : process.env.HOST;
+    openBrowser(`http://${host}:${process.env.PORT ?? 3747}`);
   }
-
-  console.error(`\nrepo-control failed to start: ${message}\n`);
-  process.exit(1);
-}
-
-if (options.open) {
-  const host = process.env.HOST === "127.0.0.1" || !process.env.HOST ? "localhost" : process.env.HOST;
-  openBrowser(`http://${host}:${process.env.PORT ?? 3747}`);
 }

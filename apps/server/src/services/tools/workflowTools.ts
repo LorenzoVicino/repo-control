@@ -137,6 +137,7 @@ export const runWorkflow = defineTool({
     "Start a saved workflow. It runs in the background and this returns at once with a run id; follow it with get_workflow_run. " +
     "A workflow can run shell commands across many repositories, so preview it first.",
   effect: "write",
+  hints: { destructive: true, openWorld: true },
   inputShape: { workflow: workflowInput, inputs: inputsInput },
   async run(runtime, input) {
     const workflow = await findWorkflow(input.workflow);
@@ -167,6 +168,7 @@ export const cancelWorkflowRunTool = defineTool({
   title: "Cancel a workflow run",
   description: "Cancel a workflow run that is still in progress. Steps already finished are not undone.",
   effect: "write",
+  hints: { idempotent: true },
   inputShape: { runId: runInput },
   async run(_runtime, input) {
     const run = await getWorkflowRun(input.runId);
