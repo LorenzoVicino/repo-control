@@ -128,7 +128,6 @@ export function createAgentRunner(options: AgentRunnerOptions) {
         () => resolveApproval(run, approvalId, { behavior: "deny", message: "The user did not answer in time. Do not retry; ask them instead." }, "timeout"),
         approvalTimeoutMs
       );
-      timer.unref();
       run.approvals.set(approvalId, { toolName: request.toolName, resolve, timer });
       emit(run, {
         type: "approval_request",
