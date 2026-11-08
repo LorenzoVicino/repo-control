@@ -33,7 +33,12 @@ export async function registerMcpRoutes(app: FastifyInstance, context: McpRoutes
         .send({ ok: false, code: "MCP_UNAUTHORIZED", message: "A valid bearer token is required." });
     }
 
-    const server = createMcpServer({ toolkit: context.toolkit, version: context.version, allowWrites: access.allowWrites });
+    const server = createMcpServer({
+      toolkit: context.toolkit,
+      version: context.version,
+      allowWrites: access.allowWrites,
+      requestApproval: access.client === "agent" ? access.requestApproval : undefined
+    });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
 
     // The transport writes the response itself, so Fastify must not send one too.

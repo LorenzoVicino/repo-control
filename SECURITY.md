@@ -10,6 +10,8 @@ Binding to loopback alone does not keep browsers out. A page on any origin can r
 
 The MCP endpoint at `/mcp` is not covered by the sign-in, because MCP clients do not hold a browser session. It is off unless `REPO_CONTROL_MCP_TOKEN` is set, and then every request must present that token as a bearer token; the comparison is constant-time. MCP clients see read-only tools unless `REPO_CONTROL_MCP_WRITE=on` (or `--allow-writes` for `repo-control mcp` over stdio). There is no MCP tool for arbitrary commands or for editing workflows, but `run_workflow` runs commands that a saved workflow contains. See [docs/mcp.md](docs/mcp.md).
 
+The in-app agent runs the local Claude Code CLI under your own Claude account, so prompts and tool results are sent to Anthropic just as they are when you use Claude Code directly. The agent has no shell or file tools and loads none of your Claude Code settings. It reaches repo-control only through `/mcp`, with a token that lasts as long as the run, and every write tool waits for your approval in the dashboard.
+
 ## Supported trust boundary
 
 - Bind to `127.0.0.1`.

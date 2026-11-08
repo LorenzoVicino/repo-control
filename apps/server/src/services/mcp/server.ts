@@ -1,7 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult, ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
-import type { z } from "zod";
+import { z } from "zod";
 import type { Toolkit } from "../tools/index.js";
+import type { RequestApproval } from "./access.js";
+
+/** Name of the tool Claude Code calls, via --permission-prompt-tool, before a write tool runs. */
+export const APPROVAL_TOOL_NAME = "approve";
 
 // registerTool infers the callback's argument type from the input shape. Over a catalog
 // typed with the general shape that inference never terminates (TS2589), and the toolkit
@@ -17,6 +21,8 @@ export type McpServerOptions = {
   version: string;
   /** Write tools are not registered at all without this, so a client never sees them. */
   allowWrites: boolean;
+  /** Present only for an in-app agent run: answers Claude Code's permission prompts. */
+  requestApproval?: RequestApproval;
 };
 
 const INSTRUCTIONS =
@@ -25,7 +31,7 @@ const INSTRUCTIONS =
   "and inspect a repository with get_repository or git_diff before changing it. " +
   "Write tools change repositories or containers on the user's machine; explain what a write will do before calling it.";
 
-export function createMcpServer({ toolkit, version, allowWrites }: McpServerOptions): McpServer {
+export function createMcpServer({ toolkit, version, allowWrites, requestApproval }: McpServerOptions): McpServer {
   const server = new McpServer({ name: "repo-control", title: "repo-control", version }, { instructions: INSTRUCTIONS });
 
   const registerTool = server.registerTool.bind(server) as unknown as RegisterTool;
@@ -56,5 +62,38 @@ export function createMcpServer({ toolkit, version, allowWrites }: McpServerOpti
     );
   }
 
+  if (requestApproval) registerApprovalTool(registerTool, toolkit, requestApproval);
+
   return server;
+}
+
+// The permission prompt tool contract of Claude Code: it receives the tool the model wants to
+// call and its input, and answers with JSON text, {"behavior":"allow","updatedInput":...} or
+// {"behavior":"deny","message":...}. Only catalog write tools should ever reach it, because
+// read tools are pre-allowed and built-in tools are disabled; anything else is refused.
+function registerApprovalTool(registerTool: RegisterTool, toolkit: Toolkit, requestApproval: RequestApproval): void {
+  const writeTools = new Map(toolkit.tools.filter((tool) => tool.effect === "write").map((tool) => [`mcp__repo-control__${tool.name}`, tool.name]));
+
+  registerTool(
+    APPROVAL_TOOL_NAME,
+    {
+      title: "Ask the user for approval",
+      description: "Used by repo-control to ask the user before a tool changes something. Never call it yourself.",
+      inputSchema: {
+        tool_name: z.string().max(200),
+        input: z.record(z.unknown()).default({}),
+        tool_use_id: z.string().max(200).optional()
+      },
+      annotations: { title: "Ask the user for approval", readOnlyHint: true, openWorldHint: false }
+    },
+    async (raw: unknown) => {
+      const { tool_name: qualifiedName, input } = raw as { tool_name: string; input: Record<string, unknown> };
+      const toolName = writeTools.get(qualifiedName);
+      const decision = toolName
+        ? await requestApproval({ toolName, input })
+        : ({ behavior: "deny", message: `${qualifiedName} is not a repo-control action this agent may run.` } as const);
+      const payload = decision.behavior === "allow" ? { behavior: "allow", updatedInput: input } : decision;
+      return { content: [{ type: "text", text: JSON.stringify(payload) }] };
+    }
+  );
 }

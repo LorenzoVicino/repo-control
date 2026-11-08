@@ -211,7 +211,8 @@ repo-control can serve its agent tools to an MCP client such as Claude Code. Ove
 | --- | --- | --- |
 | `REPO_CONTROL_SHELL` | platform shell | Shell used by project terminal commands and automation terminal nodes. |
 | `REPO_CONTROL_VSCODE` | auto-detect | Full path or command for the VS Code launcher. |
-| `REPO_CONTROL_CLAUDE` | `claude` | Claude Code command used for detection and session resume. |
+| `REPO_CONTROL_CLAUDE` | `claude` | Claude Code command used for detection, session resume and the in-app agent. |
+| `REPO_CONTROL_AGENT_MODEL` | Claude Code default | Model for the in-app agent, passed to `claude --model` (for example `sonnet` or `haiku`). |
 | `REPO_CONTROL_CODEX` | `codex` | Codex command used for detection and session resume. |
 | `REPO_CONTROL_GEMINI` | `gemini` | Gemini CLI command used for detection and session resume. |
 | `REPO_CONTROL_TERMINAL` | auto-detect | Graphical terminal command used to resume agent sessions outside WSL. It must support `-e`. |

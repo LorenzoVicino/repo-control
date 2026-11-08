@@ -86,6 +86,18 @@ There are two transports:
 - `mcpStdio.ts`, started by `repo-control mcp`, for clients that spawn repo-control themselves. stdout belongs to the protocol, so that path logs to stderr only.
 - `routes/mcpRoutes.ts`: `POST /mcp` over Streamable HTTP in stateless mode, with a fresh server and transport per request and JSON responses instead of streams. The route sits outside the `/api` sign-in gate, since MCP clients have no browser session. `services/mcp/access.ts` authorizes each request by bearer token instead, after the global `Host` check has run.
 
+### In-app agent
+
+`services/agent/runner.ts` runs the dashboard's agent as Claude Code in headless mode (`claude -p --output-format stream-json`) and restricts it to repo-control:
+
+- built-in tools are disabled (`--tools ""`) and user and project settings are not loaded (`--setting-sources ""`), so the agent has no shell or file access, and no allow rule in `~/.claude` can pre-approve anything;
+- its only MCP server is this process's own `/mcp` (`--strict-mcp-config`), reached with a token issued for that run and revoked when it ends; the token is written to a `0600` config file in a temporary directory, never put on the command line;
+- read tools are pre-allowed (`--allowedTools`), and every write tool goes through `--permission-prompt-tool mcp__repo-control__approve`.
+
+The `approve` tool exists only on MCP servers created for an agent token. It turns Claude Code's permission prompt into an `approval_request` event and waits for the dashboard's answer. A deny tells the model not to retry. An unanswered request is denied after 10 minutes, and stopping the run denies whatever is pending. Tool names outside the catalog are refused without asking.
+
+`services/agent/events.ts` reduces stream-json to the events the dashboard renders: session, text deltas, full text blocks, tool calls and results, approvals, the result with cost and turns, errors and status. Each event carries a sequence number. `routes/agentRoutes.ts` starts runs (`POST /api/agent/runs`, which takes `sessionId` to continue a conversation through `--resume`), streams events over server-sent events with replay from `Last-Event-ID`, and accepts approvals and cancellation. Runs live in memory: one at a time, with the last 20 kept for replay.
+
 ### Container sessions
 
 `createContainerSessionStore` owns the processes behind the container console. A session is a long-lived `docker` client - `docker exec -i <id> <shell>` or `docker logs --follow <id>` - which the one-shot command runner cannot represent, because that runner resolves only once a process has exited.
