@@ -43,6 +43,8 @@ apps/server/src/
 
 Routes should stay thin: validate input, call a service and translate expected errors to HTTP responses. Services own application behavior. File persistence, normalization and compatibility code belong in a domain subdirectory rather than in the service orchestrator.
 
+Git operations that change a repository live in `services/gitActions.ts`, with the validation schemas for refs, paths, stash references and messages. `gitRoutes` and the planned agent tool layer call the same functions, so the fast-forward-only pull and the dirty-checkout guard cannot diverge between the dashboard and the agent. Guarded actions return `{ status: "blocked", message }` instead of throwing; the route maps it to HTTP 409.
+
 Current route domains are:
 
 | Domain | Responsibility |
