@@ -57,7 +57,8 @@ Read tools are always available. Write tools are listed only when writes are ena
 
 | Area | Read | Write |
 | --- | --- | --- |
-| Repositories and Git | `list_repositories`, `get_repository`, `git_log`, `git_diff`, `list_branches` | `git_fetch`, `git_pull`, `git_push`, `git_checkout`, `git_create_branch`, `git_commit` |
+| Repositories and Git | `list_repositories` (with a label filter), `get_repository`, `git_log`, `git_diff`, `list_branches` | `git_fetch`, `git_pull`, `git_push`, `git_checkout`, `git_create_branch`, `git_commit` |
+| Workspace knowledge | `search_workspace` | none |
 | Docker Compose | `list_containers`, `compose_status`, `compose_logs` | `compose_up`, `compose_stop`, `compose_restart_service` |
 | Workflows | `list_workflows`, `preview_workflow`, `get_workflow_run` | `run_workflow`, `cancel_workflow_run` |
 | Coding-agent sessions | `list_agent_sessions` | none |

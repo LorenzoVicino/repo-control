@@ -70,6 +70,7 @@ repo-control keeps the convenience of a dashboard without moving control to a re
 
 | Area | Outcome |
 | --- | --- |
+| Workspace knowledge | Every repository gets labels with evidence: what it is (api, web app, cli, library…), its languages, frameworks, tooling and, with semantic search, topics. A local full-text index over READMEs, docs, manifests and commits answers "which repositories use Fastify?" or "where is the billing logic?" for you and for the agent. Optional local embeddings add search by meaning. |
 | Dashboard | A widget home that leads with what needs attention, then where to resume: recent repositories, AI conversations, Docker health, automation runs and shortcuts. Widgets are dragged, resized, hidden and restored in an explicit edit mode; the layout is saved with the workspace preferences. |
 | Agent sessions | Search local Codex, Claude Code and Gemini CLI conversations by title or content, filter by provider and resume them from the matching repository. |
 | Repository overview | Triage attention items, working-tree health, upstream drift, Compose services and recent commits from one full-width landing view. |
@@ -212,6 +213,7 @@ repo-control can serve its agent tools to an MCP client such as Claude Code. Ove
 | `REPO_CONTROL_SHELL` | platform shell | Shell used by project terminal commands and automation terminal nodes. |
 | `REPO_CONTROL_VSCODE` | auto-detect | Full path or command for the VS Code launcher. |
 | `REPO_CONTROL_CLAUDE` | `claude` | Claude Code command used for detection, session resume and the in-app agent. |
+| `REPO_CONTROL_EMBEDDING_MODEL` | `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | Embedding model for semantic search, used only when transformers.js is installed in `<config>/extensions`. |
 | `REPO_CONTROL_AGENT_MODEL` | Claude Code default | Model for the in-app agent, passed to `claude --model` (for example `sonnet` or `haiku`). |
 | `REPO_CONTROL_CODEX` | `codex` | Codex command used for detection and session resume. |
 | `REPO_CONTROL_GEMINI` | `gemini` | Gemini CLI command used for detection and session resume. |
@@ -230,7 +232,7 @@ repo-control stores its own data outside Git by default:
 - macOS: `~/Library/Application Support/repo-control`
 - Linux/WSL: `${XDG_CONFIG_HOME:-~/.config}/repo-control`
 
-The directory contains `preferences.json`, `terminal-history.json`, `workflows.json` and `workflow-runs.json` as those features are used. Terminal command suggestions persist in `terminal-history.json`; the visible terminal transcript stays mounted while its repository remains open, but is not written to disk. Workflow history includes command output and retains at most 100 runs. Interface choices - palette, text size and language - are kept in browser local storage rather than on the server, so they follow the browser and not the workspace.
+The directory contains `preferences.json`, `terminal-history.json`, `workflows.json` and `workflow-runs.json` as those features are used, plus `knowledge.sqlite`, the workspace knowledge index (labels and excerpts of READMEs, docs, manifests and commit subjects), once the index is first used. Terminal command suggestions persist in `terminal-history.json`; the visible terminal transcript stays mounted while its repository remains open, but is not written to disk. Workflow history includes command output and retains at most 100 runs. Interface choices - palette, text size and language - are kept in browser local storage rather than on the server, so they follow the browser and not the workspace.
 
 ### Windows with WSL
 

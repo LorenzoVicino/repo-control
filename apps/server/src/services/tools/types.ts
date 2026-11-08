@@ -3,6 +3,7 @@ import type { ProjectSummary } from "../../gitScanner.js";
 import type { CommandRunner } from "../../lib/commandRunner.js";
 import type { scanAgentSessions } from "../agentSessionService.js";
 import type { GitActions } from "../gitActions.js";
+import type { KnowledgeIndex } from "../knowledge/index.js";
 import type { WorkflowExecutionContext } from "../workflow/types.js";
 
 // The tool layer is what an agent can do in a workspace. Each tool is a plain definition:
@@ -36,6 +37,8 @@ export type ToolRuntime = {
   /** What workflow runs execute with; its root and command runners match the ones above. */
   workflows: WorkflowExecutionContext;
   scanAgentSessions: typeof scanAgentSessions;
+  /** The workspace knowledge index (labels and search); absent where it is not wired in. */
+  knowledge?: () => KnowledgeIndex;
 };
 
 export type ToolDefinition<Shape extends z.ZodRawShape = z.ZodRawShape> = {

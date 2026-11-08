@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { readGitActivity, readGitDetails } from "../gitService.js";
 import { compactProject, describeState, relativePath } from "./format.js";
-import { defineTool } from "./types.js";
+import { defineTool, ToolError } from "./types.js";
 
 export const repositoryInput = z
   .string()
@@ -18,17 +18,26 @@ export const listRepositories = defineTool({
   description:
     "List the Git repositories in the active workspace with branch, upstream and working-tree state. " +
     "Filter by state to find what needs attention: dirty (uncommitted changes), ahead (commits to push), " +
-    "behind (commits to pull) or needs-attention (any of those).",
+    "behind (commits to pull) or needs-attention (any of those). Filter by label (a language, framework, kind or topic such as " +
+    '"typescript", "react", "api" or "docker") to narrow by what a repository is.',
   effect: "read",
   inputShape: {
     state: z.enum(STATE_FILTERS).default("any").describe("Only return repositories in this state."),
-    query: z.string().max(200).optional().describe("Case-insensitive substring of the repository name or path.")
+    query: z.string().max(200).optional().describe("Case-insensitive substring of the repository name or path."),
+    label: z.string().trim().min(1).max(60).optional().describe("Only repositories carrying this label, e.g. typescript, react, api, docker.")
   },
   async run(runtime, input) {
     const rootPath = runtime.rootPath();
     const query = input.query?.trim().toLowerCase();
     const all = await runtime.listRepositories();
+    // Labels come from the knowledge index; a label filter builds it on first use.
+    const knowledge = runtime.knowledge?.();
+    if (input.label && !knowledge) throw new ToolError("Label filters need the knowledge index, which is not available here.");
+    if (knowledge && input.label && !knowledge.repositories().length) await knowledge.reindex();
+    const labelsById = new Map((knowledge?.repositories() ?? []).map((repository) => [repository.id, repository.labels.map((label) => label.id)]));
+    const wantedLabel = input.label?.toLowerCase();
     const matches = all.filter((project) => {
+      if (wantedLabel && !(labelsById.get(project.id) ?? []).includes(wantedLabel)) return false;
       if (query && !`${project.name} ${relativePath(rootPath, project.path)}`.toLowerCase().includes(query)) return false;
       switch (input.state) {
         case "dirty":
@@ -46,16 +55,20 @@ export const listRepositories = defineTool({
       }
     });
 
-    const lines = matches.map(
-      (project) =>
+    const lines = matches.map((project) => {
+      const labels = labelsById.get(project.id)?.slice(0, 5) ?? [];
+      return (
         `- ${project.name} (${relativePath(rootPath, project.path)}) on ${project.branch}` +
-        `${project.upstream ? ` → ${project.upstream}` : ", no upstream"}: ${describeState(project)}`
-    );
-    const heading = `${matches.length} of ${all.length} repositories${input.state === "any" ? "" : ` (${input.state})`}.`;
+        `${project.upstream ? ` → ${project.upstream}` : ", no upstream"}: ${describeState(project)}` +
+        `${labels.length ? ` [${labels.join(", ")}]` : ""}`
+      );
+    });
+    const filters = [input.state === "any" ? "" : input.state, wantedLabel ? `label ${wantedLabel}` : ""].filter(Boolean).join(", ");
+    const heading = `${matches.length} of ${all.length} repositories${filters ? ` (${filters})` : ""}.`;
 
     return {
       text: lines.length ? `${heading}\n${lines.join("\n")}` : heading,
-      data: { total: all.length, repositories: matches.map((project) => compactProject(rootPath, project)) }
+      data: { total: all.length, repositories: matches.map((project) => ({ ...compactProject(rootPath, project), labels: labelsById.get(project.id) ?? [] })) }
     };
   }
 });

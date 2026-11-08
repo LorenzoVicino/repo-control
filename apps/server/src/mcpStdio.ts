@@ -3,6 +3,7 @@ import { readEnv } from "./config/env.js";
 import { appVersion } from "./lib/appPaths.js";
 import { runProjectCommand, runShellCommand } from "./lib/commandRunner.js";
 import { createProjectResolver } from "./lib/projectResolver.js";
+import { createLazyKnowledgeIndex } from "./services/knowledge/runtime.js";
 import { createMcpServer } from "./services/mcp/server.js";
 import { createToolkit } from "./services/tools/index.js";
 
@@ -12,7 +13,8 @@ import { createToolkit } from "./services/tools/index.js";
 export async function startMcpStdio(): Promise<void> {
   const env = readEnv();
   const resolver = createProjectResolver(env.REPO_CONTROL_ROOT);
-  const toolkit = createToolkit({ ...resolver, runProjectCommand, runShellCommand });
+  const knowledge = createLazyKnowledgeIndex({ getActiveRootPath: resolver.getActiveRootPath, runProjectCommand });
+  const toolkit = createToolkit({ ...resolver, runProjectCommand, runShellCommand, knowledge });
   const server = createMcpServer({ toolkit, version: appVersion, allowWrites: env.REPO_CONTROL_MCP_WRITE });
 
   await server.connect(new StdioServerTransport());

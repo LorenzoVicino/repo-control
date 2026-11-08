@@ -4,9 +4,11 @@ import type { CommandRunner, ShellCommandRunner } from "../../lib/commandRunner.
 import type { ProjectResolver } from "../../lib/projectResolver.js";
 import { scanAgentSessions as scanAgentSessionsFromDisk } from "../agentSessionService.js";
 import { createGitActions } from "../gitActions.js";
+import type { KnowledgeIndex } from "../knowledge/index.js";
 import { agentSessionTools } from "./agentSessionTools.js";
 import { dockerTools } from "./dockerTools.js";
 import { gitTools } from "./gitTools.js";
+import { knowledgeTools } from "./knowledgeTools.js";
 import { repositoryTools } from "./repositoryTools.js";
 import { matchRepository } from "./repositoryRef.js";
 import { workflowTools } from "./workflowTools.js";
@@ -17,6 +19,7 @@ export type { ToolDefinition, ToolEffect, ToolOutput, ToolResult } from "./types
 
 export const TOOL_CATALOG: ReadonlyArray<ToolDefinition> = [
   ...repositoryTools,
+  ...knowledgeTools,
   ...gitTools,
   ...dockerTools,
   ...workflowTools,
@@ -32,6 +35,7 @@ type ToolkitDependencies = Pick<ProjectResolver, "getActiveRootPath" | "resolveP
   runShellCommand: ShellCommandRunner;
   scan?: (rootPath: string) => Promise<ProjectSummary[]>;
   scanAgentSessions?: typeof scanAgentSessionsFromDisk;
+  knowledge?: () => KnowledgeIndex;
   now?: () => number;
 };
 
@@ -44,6 +48,7 @@ export function createToolkit({
   runShellCommand,
   scan = (root) => scanProjects(root),
   scanAgentSessions = scanAgentSessionsFromDisk,
+  knowledge,
   now = Date.now
 }: ToolkitDependencies) {
   let cache: { rootPath: string; at: number; projects: Promise<ProjectSummary[]> } | null = null;
@@ -67,6 +72,7 @@ export function createToolkit({
     git: createGitActions({ run: runProjectCommand }),
     workflows: { getActiveRootPath, runProjectCommand, runShellCommand },
     scanAgentSessions,
+    knowledge,
     async resolveRepository(reference) {
       const project = matchRepository(await listRepositories(), getActiveRootPath(), reference);
       // Revalidate through the resolver: the scan result is a hint, the boundary check is the authority.
