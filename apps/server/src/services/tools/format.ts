@@ -18,6 +18,11 @@ export function tail(text: string, limit = 4_000): string {
   return `… ${text.length - limit} earlier characters omitted …\n${text.slice(-limit)}`;
 }
 
+/** "1 workflow", "3 workflows". */
+export function count(amount: number, noun: string, plural = `${noun}s`): string {
+  return `${amount} ${amount === 1 ? noun : plural}`;
+}
+
 export function relativePath(rootPath: string, absolutePath: string): string {
   return (path.relative(rootPath, absolutePath) || ".").replace(/\\/g, "/");
 }

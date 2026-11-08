@@ -1,7 +1,9 @@
 import type { z } from "zod";
 import type { ProjectSummary } from "../../gitScanner.js";
 import type { CommandRunner } from "../../lib/commandRunner.js";
+import type { scanAgentSessions } from "../agentSessionService.js";
 import type { GitActions } from "../gitActions.js";
+import type { WorkflowExecutionContext } from "../workflow/types.js";
 
 // The tool layer is what an agent can do in a workspace. Each tool is a plain definition:
 // a name, a description written for a model, an input shape, and whether it only reads or
@@ -31,6 +33,9 @@ export type ToolRuntime = {
   resolveRepository: (reference: string) => Promise<ResolvedRepository>;
   git: GitActions;
   runProjectCommand: CommandRunner;
+  /** What workflow runs execute with; its root and command runners match the ones above. */
+  workflows: WorkflowExecutionContext;
+  scanAgentSessions: typeof scanAgentSessions;
 };
 
 export type ToolDefinition<Shape extends z.ZodRawShape = z.ZodRawShape> = {

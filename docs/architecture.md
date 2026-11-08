@@ -66,6 +66,17 @@ Tools name repositories the way a person does: by name, workspace-relative path 
 
 Write tools call the same `services/gitActions.ts` functions as the dashboard, so the fast-forward-only pull and the dirty-checkout guard apply to the agent too. There is deliberately no tool for arbitrary shell commands. The MCP server and the in-app agent are consumers of this catalog; approval for `write` tools belongs to them.
 
+The catalog covers four areas:
+
+| Area | Read | Write |
+| --- | --- | --- |
+| Repositories and Git | `list_repositories`, `get_repository`, `git_log`, `git_diff`, `list_branches` | `git_fetch`, `git_pull`, `git_push`, `git_checkout`, `git_create_branch`, `git_commit` |
+| Docker Compose | `list_containers`, `compose_status`, `compose_logs` | `compose_up`, `compose_stop`, `compose_restart_service` |
+| Workflows | `list_workflows`, `preview_workflow`, `get_workflow_run` | `run_workflow`, `cancel_workflow_run` |
+| Coding-agent sessions | `list_agent_sessions` | none |
+
+Compose tools first check that the repository has a Compose file, and service names must start with a letter or digit, so they never reach `docker compose` as an option. Workflow tools can find, preview, start and follow the workflows saved in the dashboard but not create or edit one: a workflow can contain shell commands, so authoring stays with the user. A preview is a dry run, which only resolves commands and records the preview in the run history.
+
 ### Container sessions
 
 `createContainerSessionStore` owns the processes behind the container console. A session is a long-lived `docker` client - `docker exec -i <id> <shell>` or `docker logs --follow <id>` - which the one-shot command runner cannot represent, because that runner resolves only once a process has exited.

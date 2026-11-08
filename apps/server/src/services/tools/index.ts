@@ -1,18 +1,27 @@
 import { z, ZodError } from "zod";
 import { scanProjects, type ProjectSummary } from "../../gitScanner.js";
-import type { CommandRunner } from "../../lib/commandRunner.js";
+import type { CommandRunner, ShellCommandRunner } from "../../lib/commandRunner.js";
 import type { ProjectResolver } from "../../lib/projectResolver.js";
+import { scanAgentSessions as scanAgentSessionsFromDisk } from "../agentSessionService.js";
 import { createGitActions } from "../gitActions.js";
+import { agentSessionTools } from "./agentSessionTools.js";
+import { dockerTools } from "./dockerTools.js";
 import { gitTools } from "./gitTools.js";
 import { repositoryTools } from "./repositoryTools.js";
 import { matchRepository } from "./repositoryRef.js";
+import { workflowTools } from "./workflowTools.js";
 import { ToolError, type ToolDefinition, type ToolResult, type ToolRuntime } from "./types.js";
 
 export { ToolError } from "./types.js";
 export type { ToolDefinition, ToolEffect, ToolOutput, ToolResult } from "./types.js";
 
-// Docker, workflow and agent-session tools join this list in follow-up changes.
-export const TOOL_CATALOG: ReadonlyArray<ToolDefinition> = [...repositoryTools, ...gitTools];
+export const TOOL_CATALOG: ReadonlyArray<ToolDefinition> = [
+  ...repositoryTools,
+  ...gitTools,
+  ...dockerTools,
+  ...workflowTools,
+  ...agentSessionTools
+];
 
 // A conversation calls several tools in a row; one scan per few seconds keeps that cheap
 // without serving state that is visibly stale.
@@ -20,13 +29,23 @@ const SCAN_CACHE_MS = 3_000;
 
 type ToolkitDependencies = Pick<ProjectResolver, "getActiveRootPath" | "resolveProjectPath"> & {
   runProjectCommand: CommandRunner;
+  runShellCommand: ShellCommandRunner;
   scan?: (rootPath: string) => Promise<ProjectSummary[]>;
+  scanAgentSessions?: typeof scanAgentSessionsFromDisk;
   now?: () => number;
 };
 
 export type Toolkit = ReturnType<typeof createToolkit>;
 
-export function createToolkit({ getActiveRootPath, resolveProjectPath, runProjectCommand, scan = (root) => scanProjects(root), now = Date.now }: ToolkitDependencies) {
+export function createToolkit({
+  getActiveRootPath,
+  resolveProjectPath,
+  runProjectCommand,
+  runShellCommand,
+  scan = (root) => scanProjects(root),
+  scanAgentSessions = scanAgentSessionsFromDisk,
+  now = Date.now
+}: ToolkitDependencies) {
   let cache: { rootPath: string; at: number; projects: Promise<ProjectSummary[]> } | null = null;
 
   function listRepositories(): Promise<ProjectSummary[]> {
@@ -46,6 +65,8 @@ export function createToolkit({ getActiveRootPath, resolveProjectPath, runProjec
     listRepositories,
     runProjectCommand,
     git: createGitActions({ run: runProjectCommand }),
+    workflows: { getActiveRootPath, runProjectCommand, runShellCommand },
+    scanAgentSessions,
     async resolveRepository(reference) {
       const project = matchRepository(await listRepositories(), getActiveRootPath(), reference);
       // Revalidate through the resolver: the scan result is a hint, the boundary check is the authority.
