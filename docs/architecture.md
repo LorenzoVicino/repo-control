@@ -29,7 +29,6 @@ apps/server/src/
   lib/          command execution and project-boundary helpers
   routes/       HTTP schemas, request validation and response mapping
   services/     application use cases and external-tool integrations
-    brain/      legacy Task engineering contracts and persistence helpers
     workflow/   workflow schemas, validation, inputs and JSON storage
   docker.ts     Docker discovery plus Compose service, health and port normalization
   folderPicker.ts
@@ -55,7 +54,6 @@ Current route domains are:
 | `terminalRoutes` | Scoped shell execution, one active command per repository, cancellation and command suggestions. |
 | `dockerRoutes` | Container discovery, resource samples, container shell and log sessions, plus validated Compose service state, logs, restart and stack actions. |
 | `workflowRoutes` | Workflow CRUD, dry runs, background runs, progress reads and cancellation. |
-| `brainRoutes` / `claudeRoutes` | Task-engineering backend retained while its UI entry point is hidden pending redesign. |
 
 ### Container sessions
 
@@ -113,7 +111,6 @@ apps/web/src/
     project/    capability-driven overview, Git diff, branch, terminal and Docker panels
     settings/   local interface preferences: language, palette and text size
     shared/     reusable presentation components with no feature ownership
-    task/       hidden Task engineering UI retained for redesign work
   types/        API and UI contracts split by domain
   utils/        pure cross-feature helpers
 ```
@@ -126,7 +123,7 @@ Repository details use a single full-width shell: Overview is the default and fe
 
 The application shell reads the sign-in state once and chooses between the sign-in screen and the dashboard from it. A request that any feature makes and the API answers with `401 UNAUTHENTICATED` updates that same cached state through the shared query cache, so a lapsed session returns to the sign-in screen instead of leaving a page of failed panels behind. An unreadable sign-in state falls through to the dashboard on purpose: the API enforces the gate, and a local tool should not lock its owner out because one request failed.
 
-Dashboard sections are lazy-loaded. Task engineering still has code and server endpoints but is deliberately absent from the sidebar, the section router and quick actions; documentation and user-facing navigation should not present it as a current capability until the redesign is complete.
+Dashboard sections are lazy-loaded.
 
 Interface preferences are owned by the application shell rather than by the screen that presents them: `App.tsx` holds the palette and text size, writes them to `localStorage` and passes them down, so the theme is rebuilt in one place. Both are offered twice on purpose - as a quick switch in the sidebar profile menu and as a described choice in the settings section - and the profile menu is the only sign-out entry point. It renders whether or not credentials are configured, because a workspace with no session still has preferences to reach.
 
@@ -144,7 +141,6 @@ Static files in `apps/web/public/` are copied to the served root by the build, s
 | `terminal-history.json` | Normalized terminal commands, repository paths, counts and last-used times; capped at 500 entries. |
 | `workflows.json` | Visual workflow definitions. |
 | `workflow-runs.json` | The latest 100 dry runs and real runs, including step commands and output. |
-| `brain/*.json` | Existing Task engineering records retained by the hidden backend. |
 
 Agent transcripts remain in their provider-owned directories and are not copied here. Palette, text size and language are browser `localStorage`, not server JSON.
 

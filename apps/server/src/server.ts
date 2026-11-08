@@ -12,8 +12,6 @@ import { hasExistingConfiguration } from "./preferences.js";
 import { registerAppRoutes } from "./routes/appRoutes.js";
 import { registerAuthRoutes } from "./routes/authRoutes.js";
 import { registerAgentSessionRoutes } from "./routes/agentSessionRoutes.js";
-import { registerBrainRoutes } from "./routes/brainRoutes.js";
-import { registerClaudeRoutes } from "./routes/claudeRoutes.js";
 import { registerDockerRoutes } from "./routes/dockerRoutes.js";
 import { registerGitRoutes } from "./routes/gitRoutes.js";
 import { registerTerminalRoutes } from "./routes/terminalRoutes.js";
@@ -163,8 +161,6 @@ export async function createServer(): Promise<{
   await registerDockerRoutes(app, context);
   await registerGitRoutes(app, context);
   await registerTerminalRoutes(app, context);
-  await registerBrainRoutes(app, context);
-  await registerClaudeRoutes(app, context);
   await registerWorkflowRoutes(app, context);
 
   // Registered after the API routes so the asset wildcard can never take precedence over

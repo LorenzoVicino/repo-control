@@ -1190,8 +1190,7 @@ function ViewEntrance({ children, fill = false }: React.PropsWithChildren<{ fill
 }
 
 // Order-sensitive: this guards a state update, so it must only report equality when the
-// existing array can be kept by reference. Not the same comparison as
-// haveSameProjectIdSelection in taskEngineeringUtils, which ignores order.
+// existing array can be kept by reference.
 function areProjectIdListsEqual(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((projectId, index) => projectId === right[index]);
 }

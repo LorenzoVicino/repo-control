@@ -102,22 +102,6 @@ vi.mock("../../api/workflows", () => ({
   fetchWorkflowRun: vi.fn(),
   cancelWorkflowRun: vi.fn()
 }));
-vi.mock("../../api/brain", () => ({
-  fetchBrainTasks: vi.fn().mockResolvedValue({
-    projectPath: "/workspace/alpha",
-    projectName: "Alpha",
-    remoteUrl: null,
-    tasks: []
-  }),
-  cancelBrainTaskPlanning: vi.fn(),
-  createBrainTask: vi.fn(),
-  planBrainTask: vi.fn(),
-  createBrainTaskFromPlan: vi.fn(),
-  updateBrainTask: vi.fn(),
-  approveBrainTask: vi.fn(),
-  fetchBrainContext: vi.fn(),
-  runBrainTask: vi.fn()
-}));
 vi.mock("./AppMotionBackdrop", () => ({ AppMotionBackdrop: () => <div data-testid="motion" /> }));
 vi.mock("./DashboardSidebar", () => ({
   DashboardSidebar: (props: Record<string, unknown>) => (
@@ -222,7 +206,6 @@ vi.mock("../project/ProjectWorkspaceTabs", () => ({
 }));
 vi.mock("../agents/AgentSessionsPage", () => ({ AgentSessionsPage: () => <div data-testid="agents-page" /> }));
 vi.mock("../automation/AutomationPage", () => ({ AutomationPage: () => <div data-testid="automation-page" /> }));
-vi.mock("../task/TaskEngineeringPage", () => ({ TaskEngineeringPage: () => <div data-testid="tasks-page" /> }));
 vi.mock("../settings/SettingsPage", () => ({
   SettingsPage: (props: Record<string, unknown>) => (
     <div

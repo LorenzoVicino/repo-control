@@ -34,8 +34,7 @@ const CONFIG_ENTRIES = new Set([
   "preferences.json",
   "terminal-history.json",
   "workflows.json",
-  "workflow-runs.json",
-  "brain"
+  "workflow-runs.json"
 ]);
 
 const DEFAULT_PREFERENCES: UserPreferences = {
