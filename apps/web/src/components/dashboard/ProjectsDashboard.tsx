@@ -109,6 +109,10 @@ const AssistantPage = React.lazy(async () => {
   const module = await import("../assistant/AssistantPage");
   return { default: module.AssistantPage };
 });
+const KnowledgePage = React.lazy(async () => {
+  const module = await import("../knowledge/KnowledgePage");
+  return { default: module.KnowledgePage };
+});
 const AgentSessionsPage = React.lazy(async () => {
   const module = await loadAgentSessionsPage();
   return { default: module.AgentSessionsPage };
@@ -920,6 +924,14 @@ export function ProjectsDashboard({
             <ViewEntrance>
               <React.Suspense fallback={<SectionLoading label={t("loading.assistant")} />}>
                 <AssistantPage projects={projects} workspaceRoot={workspaceRoot} />
+              </React.Suspense>
+            </ViewEntrance>
+          ) : null}
+
+          {!activeProject && !isWorkspaceUnavailable && activeSection === "knowledge" ? (
+            <ViewEntrance>
+              <React.Suspense fallback={<SectionLoading label={t("loading.knowledge")} />}>
+                <KnowledgePage onOpenProject={openProject} />
               </React.Suspense>
             </ViewEntrance>
           ) : null}

@@ -85,6 +85,11 @@ try {
   await page.getByText("1 ahead", { exact: true }).waitFor();
   await page.getByRole("button", { name: "Push", exact: true }).click();
   await page.getByText("0 ahead", { exact: true }).waitFor();
+  await page.locator('[data-dashboard-section="knowledge"]').first().click();
+  await page.getByRole("button", { name: "fastify · 1" }).click();
+  await page.getByRole("heading", { name: "1 repository labelled fastify" }).waitFor();
+  await page.getByRole("textbox", { name: "Search the workspace" }).fill("invoices");
+  await page.getByRole("list", { name: "Repositories matching invoices" }).getByRole("button", { name: "Open billing-worker" }).waitFor();
   await page.locator('[data-dashboard-section="agents"]').first().click();
   await page.getByText("Add workspace onboarding", { exact: true }).waitFor();
   await page.locator('[data-dashboard-section="automations"]').first().click();
@@ -124,7 +129,7 @@ try {
   assert.deepEqual(errors, []);
   assert.deepEqual(failures, []);
   console.log(
-    "PASS: static demo, staging/commit/push, scripted agent with approval, sessions, automation navigation, install instructions, reset, mobile layout; no network API calls or missing assets.",
+    "PASS: static demo, staging/commit/push, scripted agent with approval, knowledge labels and search, sessions, automation navigation, install instructions, reset, mobile layout; no network API calls or missing assets.",
   );
 } finally {
   await browser?.close();

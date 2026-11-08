@@ -141,3 +141,18 @@ it("serves the scripted agent and applies an approved pull to the demo workspace
     vi.useRealTimers();
   }
 });
+
+it("serves a demo knowledge index with labels and highlighted search", async () => {
+  const status = await (await request("/api/knowledge")).json();
+  expect(status).toMatchObject({ state: "idle", indexed: 7, semantic: { enabled: false, installable: false } });
+  const { repositories } = await (await request("/api/knowledge/repositories")).json();
+  expect(repositories.find((repository: { name: string }) => repository.name === "atlas-api").labels.map((label: { id: string }) => label.id)).toContain("fastify");
+  const { hits } = await (await request("/api/knowledge/search?q=invoices")).json();
+  expect(hits[0]).toMatchObject({ name: "billing-worker", via: ["text"] });
+  expect(hits[0].matches[0].snippet).toContain("«invoices»");
+  const byLabel = (await (await request("/api/knowledge/search?q=fastify")).json()).hits;
+  expect(byLabel[0]).toMatchObject({ name: "atlas-api" });
+  expect(byLabel[0].via).toContain("label");
+  expect((await (await request("/api/knowledge/search?q=?")).json()).hits).toEqual([]);
+  expect((await request("/api/knowledge/semantic", post())).status).toBe(409);
+});
