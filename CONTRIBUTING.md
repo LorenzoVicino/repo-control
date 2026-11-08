@@ -5,7 +5,7 @@ repo-control is a local developer tool. Keep changes focused, local-first and sa
 ## Requirements
 
 - Git
-- Node.js 20.19+, 22.13+ or 24+ (Node 24 recommended)
+- Node.js 22.13+ or 24+ (Node 24 recommended)
 - The npm version is pinned in `package.json` under `packageManager`. CI installs exactly that
   version; match it locally with `npm install -g npm@<version>` before regenerating the
   lockfile. Different npm versions can write lockfiles the others refuse to install, which is
@@ -51,7 +51,7 @@ npm run test:demo
 
 `verify` runs linting, strict TypeScript checks, server and React tests with 80% coverage thresholds, and the production build. `test:e2e` starts the real API and Vite server and exercises critical browser-to-API flows through Chromium.
 
-CI runs `verify` on Node.js 20.19, 22.13 and 24. The browser job runs after that matrix succeeds.
+CI runs `verify` on Node.js 22.13 and 24. The browser job runs after that matrix succeeds.
 
 The installed-package matrix tests one tarball on Windows across all three Node lines,
 plus Linux and macOS on Node 24. Windows and Linux also exercise first-run onboarding

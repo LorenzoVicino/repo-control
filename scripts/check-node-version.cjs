@@ -3,15 +3,12 @@
 var version = process.versions.node.split(".").map(Number);
 var major = version[0];
 var minor = version[1];
-var supported =
-  (major === 20 && minor >= 19) ||
-  (major === 22 && minor >= 13) ||
-  major >= 24;
+var supported = (major === 22 && minor >= 13) || major >= 24;
 
 if (!supported) {
   console.error("");
   console.error("repo-control cannot run with Node.js " + process.versions.node + ".");
-  console.error("Use Node.js 20.19+, 22.13+, or 24+ (Node 24 recommended).");
+  console.error("Use Node.js 22.13+ or 24+ (Node 24 recommended).");
 
   if (process.platform === "linux" && process.env.WSL_DISTRO_NAME) {
     console.error("");

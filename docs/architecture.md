@@ -166,4 +166,4 @@ npm run test:e2e
 
 `verify` runs ESLint, React Hooks validation, the strict TypeScript compiler, server and React test suites with 80% global coverage thresholds, and the production web build. `test:e2e` starts the real local server and dashboard, then verifies critical user flows in Chromium.
 
-The GitHub Actions matrix runs `verify` on Node.js 20.19, 22.13 and 24. Browser E2E runs on Node.js 24 after the matrix succeeds.
+The GitHub Actions matrix runs `verify` on Node.js 22.13 and 24. Browser E2E runs on Node.js 24 after the matrix succeeds.

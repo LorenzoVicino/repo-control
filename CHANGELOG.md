@@ -6,6 +6,12 @@ This project follows semantic versioning where practical.
 
 ## Unreleased
 
+### Changed
+
+- **Breaking:** require Node.js 22.13+ or 24+. Node.js 20 reached end of life in April
+  2026, and the planned local knowledge index uses the `node:sqlite` module that Node 20
+  does not have. The CLI and the install check now reject Node 20 with a clear message.
+
 ### Added
 
 - Guide first-time users through confirming a workspace, checking required and optional

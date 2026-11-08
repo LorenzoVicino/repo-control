@@ -64,7 +64,7 @@ repo-control keeps the convenience of a dashboard without moving control to a re
 - **Real developer operations.** The UI reads actual Git and Docker state and exposes explicit actions instead of simulating a project-management view.
 - **Private session discovery.** Agent history is read from the CLI files already on the machine, filtered to the active workspace and searched locally.
 - **Failure-aware automation.** Background runs expose live step results, can be cancelled, and drop a repository that fails out of the steps that follow while the rest of the workspace carries on.
-- **Verifiable engineering quality.** Server tests, React Testing Library, 80% coverage thresholds and Playwright browser flows run in CI across Node.js 20, 22 and 24.
+- **Verifiable engineering quality.** Server tests, React Testing Library, 80% coverage thresholds and Playwright browser flows run in CI across Node.js 22 and 24.
 
 ## Main capabilities
 
@@ -120,7 +120,7 @@ The browser never chooses an arbitrary working directory for a project command. 
 
 ## Try it in one command
 
-Requirements: Git and Node.js 20.19+, 22.13+ or 24+ (Node 24 recommended).
+Requirements: Git and Node.js 22.13+ or 24+ (Node 24 recommended).
 
 ```bash
 npx repo-control ~/projects
@@ -255,7 +255,7 @@ npm run test:e2e
 
 `verify` runs ESLint (including React Hooks rules), strict TypeScript checks, server and React tests with 80% coverage thresholds, and the production build. `test:e2e` starts the real local API and dashboard, then exercises critical browser-to-API flows in Chromium.
 
-CI repeats the verification gate on Node.js 20.19, 22.13 and 24, then runs the browser suite on Node.js 24.
+CI repeats the verification gate on Node.js 22.13 and 24, then runs the browser suite on Node.js 24.
 
 ## Releases
 
