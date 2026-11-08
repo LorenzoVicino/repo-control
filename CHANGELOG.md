@@ -8,6 +8,13 @@ This project follows semantic versioning where practical.
 
 ### Added
 
+- In-app agent API. repo-control runs Claude Code headless (`claude -p`) with no built-in
+  tools and no user settings, connected only to its own MCP endpoint through a token that
+  lasts as long as the run. Read tools run freely; every write tool raises an approval that
+  the dashboard answers. `/api/agent/runs` starts and continues conversations, streams
+  events over SSE with replay, and takes approvals and cancellation.
+  `REPO_CONTROL_AGENT_MODEL` picks the model.
+- `git_diff` without a path now lists untracked files too.
 - MCP server. `repo-control mcp [workspace]` serves the agent tools over stdio for Claude
   Code, Claude Desktop and other MCP clients. A running dashboard also serves them at `/mcp`
   over Streamable HTTP once `REPO_CONTROL_MCP_TOKEN` is set. 23 tools cover repositories

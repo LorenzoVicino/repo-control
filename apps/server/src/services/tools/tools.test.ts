@@ -131,6 +131,7 @@ test("tools read and change a real workspace through names, paths and the projec
   const summary = await toolkit.run("git_diff", { repository: "atlas-api" });
   assert.match(text(summary), /Staged:\n {2}none/);
   assert.match(text(summary), /server\.ts \| 2/);
+  assert.match(text(summary), /Untracked \(1\):\n {2}notes\.md/, "new files are part of the summary");
 
   const patch = await toolkit.run("git_diff", { repository: "atlas-api", path: "server.ts" });
   assert.match(text(patch), /\+export const port = 4000;/);

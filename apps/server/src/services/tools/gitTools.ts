@@ -37,7 +37,7 @@ export const gitDiff = defineTool({
   name: "git_diff",
   title: "Read changes",
   description:
-    "Without a path, summarize the uncommitted changes of a repository (files and line counts, staged and unstaged). " +
+    "Without a path, summarize the uncommitted changes of a repository: staged and unstaged files with line counts, and untracked files. " +
     "With a path, return that file's patch. Large patches are truncated.",
   effect: "read",
   inputShape: {
@@ -57,14 +57,18 @@ export const gitDiff = defineTool({
       };
     }
 
-    const [unstaged, staged] = await Promise.all([
+    const [unstaged, staged, untracked] = await Promise.all([
       runtime.runProjectCommand(path, "git", ["diff", "--stat", "--no-ext-diff"]),
-      runtime.runProjectCommand(path, "git", ["diff", "--cached", "--stat", "--no-ext-diff"])
+      runtime.runProjectCommand(path, "git", ["diff", "--cached", "--stat", "--no-ext-diff"]),
+      // `git diff` leaves new files out entirely, which reads as "nothing to commit".
+      runtime.runProjectCommand(path, "git", ["ls-files", "--others", "--exclude-standard"])
     ]);
+    const newFiles = untracked.stdout.split("\n").filter(Boolean);
     const section = (label: string, output: string) => `${label}:\n${output.trim() || "  none"}`;
+    const untrackedSection = `Untracked (${newFiles.length}):\n${newFiles.slice(0, 40).map((file) => `  ${file}`).join("\n") || "  none"}`;
     return {
-      text: truncate(`${project.name}\n${section("Staged", staged.stdout)}\n${section("Unstaged", unstaged.stdout)}`),
-      data: { staged: truncate(staged.stdout), unstaged: truncate(unstaged.stdout) }
+      text: truncate(`${project.name}\n${section("Staged", staged.stdout)}\n${section("Unstaged", unstaged.stdout)}\n${untrackedSection}`),
+      data: { staged: truncate(staged.stdout), unstaged: truncate(unstaged.stdout), untracked: newFiles.slice(0, 200) }
     };
   }
 });

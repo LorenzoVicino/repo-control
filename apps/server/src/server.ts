@@ -11,12 +11,15 @@ import { getAllowedHostnames, isAllowedRequestHost } from "./lib/requestHost.js"
 import { hasExistingConfiguration } from "./preferences.js";
 import { registerAppRoutes } from "./routes/appRoutes.js";
 import { registerAuthRoutes } from "./routes/authRoutes.js";
+import { registerAgentRoutes } from "./routes/agentRoutes.js";
 import { registerAgentSessionRoutes } from "./routes/agentSessionRoutes.js";
 import { registerDockerRoutes } from "./routes/dockerRoutes.js";
 import { registerGitRoutes } from "./routes/gitRoutes.js";
 import { registerMcpRoutes } from "./routes/mcpRoutes.js";
 import { registerTerminalRoutes } from "./routes/terminalRoutes.js";
 import { registerWorkflowRoutes } from "./routes/workflowRoutes.js";
+import { createAgentRunner } from "./services/agent/runner.js";
+import { isExecutableAvailable } from "./services/agentSessionService.js";
 import { createAuthGuard } from "./services/authService.js";
 import { createMcpAccessControl } from "./services/mcp/access.js";
 import { createToolkit } from "./services/tools/index.js";
@@ -165,10 +168,25 @@ export async function createServer(): Promise<{
   await registerGitRoutes(app, context);
   await registerTerminalRoutes(app, context);
   await registerWorkflowRoutes(app, context);
-  await registerMcpRoutes(app, {
-    toolkit: createToolkit({ ...projectResolver, runProjectCommand, runShellCommand }),
-    version: appVersion,
-    mcpAccess: createMcpAccessControl({ externalToken: env.REPO_CONTROL_MCP_TOKEN, externalWrites: env.REPO_CONTROL_MCP_WRITE })
+  const toolkit = createToolkit({ ...projectResolver, runProjectCommand, runShellCommand });
+  const mcpAccess = createMcpAccessControl({ externalToken: env.REPO_CONTROL_MCP_TOKEN, externalWrites: env.REPO_CONTROL_MCP_WRITE });
+  const claudeCommand = process.env.REPO_CONTROL_CLAUDE?.trim() || "claude";
+
+  await registerMcpRoutes(app, { toolkit, version: appVersion, mcpAccess });
+  await registerAgentRoutes(app, {
+    agentRunner: createAgentRunner({
+      claudeCommand,
+      model: env.REPO_CONTROL_AGENT_MODEL,
+      mcpUrl: () => getLocalMcpUrl(app, env.HOST),
+      mcpAccess,
+      workspaceRoot: projectResolver.getActiveRootPath,
+      tools: toolkit.tools
+    }),
+    agentStatus: async () => ({
+      available: await isExecutableAvailable(claudeCommand, process.env),
+      command: claudeCommand,
+      model: env.REPO_CONTROL_AGENT_MODEL ?? null
+    })
   });
 
   // Registered after the API routes so the asset wildcard can never take precedence over
@@ -187,6 +205,16 @@ export async function createServer(): Promise<{
     requiresSignIn: auth.enabled,
     servesWeb
   };
+}
+
+// The agent's Claude Code process reaches /mcp on this same server. A wildcard bind is
+// reachable on loopback; a specific address has to be used as is.
+export function getLocalMcpUrl(app: ReturnType<typeof Fastify>, bindHost: string): string {
+  const address = app.server.address();
+  const port = typeof address === "object" && address ? address.port : 0;
+  const wildcard = ["0.0.0.0", "::", "localhost", ""].includes(bindHost);
+  const host = wildcard ? "127.0.0.1" : bindHost.includes(":") ? `[${bindHost}]` : bindHost;
+  return `http://${host}:${port}/mcp`;
 }
 
 export async function startServer(): Promise<void> {
