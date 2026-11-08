@@ -100,6 +100,7 @@ export const gitFetch = defineTool({
   title: "Fetch from remotes",
   description: "Fetch all remotes and prune deleted branches, so ahead/behind counts are current. Does not change the working tree.",
   effect: "write",
+  hints: { idempotent: true, openWorld: true },
   inputShape: { repository: repositoryInput },
   async run(runtime, input) {
     const { project, path } = await runtime.resolveRepository(input.repository);
@@ -113,6 +114,7 @@ export const gitPull = defineTool({
   description:
     "Pull the current branch from its upstream, fast-forward only: it never creates a merge commit and fails instead if the branches diverged.",
   effect: "write",
+  hints: { openWorld: true },
   inputShape: { repository: repositoryInput },
   async run(runtime, input) {
     const { project, path } = await runtime.resolveRepository(input.repository);
@@ -127,6 +129,7 @@ export const gitPush = defineTool({
     "Push the current branch's commits to its upstream. It is rejected when the upstream has commits the branch lacks; " +
     "pull first in that case. Never force-pushes.",
   effect: "write",
+  hints: { openWorld: true },
   inputShape: { repository: repositoryInput },
   async run(runtime, input) {
     const { project, path } = await runtime.resolveRepository(input.repository);

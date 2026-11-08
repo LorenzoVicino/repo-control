@@ -1,7 +1,7 @@
 import cors from "@fastify/cors";
 import Fastify, { LogController } from "fastify";
 import { readEnv } from "./config/env.js";
-import { hasBuiltWebAssets, webDistPath } from "./lib/appPaths.js";
+import { appVersion, hasBuiltWebAssets, webDistPath } from "./lib/appPaths.js";
 import { registerWebAssets } from "./webAssets.js";
 import type { ServerEnv } from "./config/env.js";
 import { runProjectCommand, runShellCommand } from "./lib/commandRunner.js";
@@ -14,9 +14,12 @@ import { registerAuthRoutes } from "./routes/authRoutes.js";
 import { registerAgentSessionRoutes } from "./routes/agentSessionRoutes.js";
 import { registerDockerRoutes } from "./routes/dockerRoutes.js";
 import { registerGitRoutes } from "./routes/gitRoutes.js";
+import { registerMcpRoutes } from "./routes/mcpRoutes.js";
 import { registerTerminalRoutes } from "./routes/terminalRoutes.js";
 import { registerWorkflowRoutes } from "./routes/workflowRoutes.js";
 import { createAuthGuard } from "./services/authService.js";
+import { createMcpAccessControl } from "./services/mcp/access.js";
+import { createToolkit } from "./services/tools/index.js";
 import { reconcileStaleWorkflowRuns } from "./services/workflowService.js";
 
 // Reachable without a session when credentials are configured. Sign-in obviously has to
@@ -162,6 +165,11 @@ export async function createServer(): Promise<{
   await registerGitRoutes(app, context);
   await registerTerminalRoutes(app, context);
   await registerWorkflowRoutes(app, context);
+  await registerMcpRoutes(app, {
+    toolkit: createToolkit({ ...projectResolver, runProjectCommand, runShellCommand }),
+    version: appVersion,
+    mcpAccess: createMcpAccessControl({ externalToken: env.REPO_CONTROL_MCP_TOKEN, externalWrites: env.REPO_CONTROL_MCP_WRITE })
+  });
 
   // Registered after the API routes so the asset wildcard can never take precedence over
   // an /api path, and only when a build is actually present - an installed package always

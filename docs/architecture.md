@@ -77,6 +77,15 @@ The catalog covers four areas:
 
 Compose tools first check that the repository has a Compose file, and service names must start with a letter or digit, so they never reach `docker compose` as an option. Workflow tools can find, preview, start and follow the workflows saved in the dashboard but not create or edit one: a workflow can contain shell commands, so authoring stays with the user. A preview is a dry run, which only resolves commands and records the preview in the run history.
 
+### MCP server
+
+`services/mcp/server.ts` turns the tool catalog into an MCP server with the official TypeScript SDK. It registers one MCP tool per catalog entry, maps the effect and hints to MCP annotations, and leaves write tools out entirely when writes are not allowed. The callback passes input straight to `toolkit.run`, so validation, repository resolution and error handling are the toolkit's.
+
+There are two transports:
+
+- `mcpStdio.ts`, started by `repo-control mcp`, for clients that spawn repo-control themselves. stdout belongs to the protocol, so that path logs to stderr only.
+- `routes/mcpRoutes.ts`: `POST /mcp` over Streamable HTTP in stateless mode, with a fresh server and transport per request and JSON responses instead of streams. The route sits outside the `/api` sign-in gate, since MCP clients have no browser session. `services/mcp/access.ts` authorizes each request by bearer token instead, after the global `Host` check has run.
+
 ### Container sessions
 
 `createContainerSessionStore` owns the processes behind the container console. A session is a long-lived `docker` client - `docker exec -i <id> <shell>` or `docker logs --follow <id>` - which the one-shot command runner cannot represent, because that runner resolves only once a process has exited.

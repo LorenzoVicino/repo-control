@@ -8,6 +8,13 @@ This project follows semantic versioning where practical.
 
 ### Added
 
+- MCP server. `repo-control mcp [workspace]` serves the agent tools over stdio for Claude
+  Code, Claude Desktop and other MCP clients. A running dashboard also serves them at `/mcp`
+  over Streamable HTTP once `REPO_CONTROL_MCP_TOKEN` is set. 23 tools cover repositories
+  and Git, Docker Compose, saved workflows and past coding-agent sessions. They are read-only
+  unless writes are enabled (`--allow-writes` or `REPO_CONTROL_MCP_WRITE=on`), and they keep
+  the dashboard's guards: ff-only pulls, no forced pushes, no branch switch on a dirty tree,
+  and no shell or workflow-editing tools. See `docs/mcp.md`.
 - New glass app icon, matching the upcoming AI-first interface. It keeps the existing
   mark (hub, three spokes, three nodes and the broken ring) over a frosted plate and
   violet, cyan and pink glows. `npm run icons` regenerates every SVG variant, PNG size,

@@ -82,6 +82,7 @@ export const composeUp = defineTool({
   title: "Start Compose services",
   description: "Start all Compose services of a repository in the background (docker compose up -d). Set build to rebuild images first.",
   effect: "write",
+  hints: { idempotent: true },
   inputShape: {
     repository: repositoryInput,
     build: z.boolean().default(false).describe("Rebuild the images before starting (docker compose up -d --build).")
@@ -98,6 +99,7 @@ export const composeStop = defineTool({
   title: "Stop Compose services",
   description: "Stop all running Compose services of a repository (docker compose stop). Containers and volumes are kept.",
   effect: "write",
+  hints: { idempotent: true },
   inputShape: { repository: repositoryInput },
   async run(runtime, input) {
     const { project, path } = await resolveComposeRepository(runtime, input.repository);

@@ -43,6 +43,11 @@ export type ToolDefinition<Shape extends z.ZodRawShape = z.ZodRawShape> = {
   title: string;
   description: string;
   effect: ToolEffect;
+  /**
+   * Behaviour hints for clients, mirroring MCP tool annotations. Defaults: not destructive,
+   * not idempotent, and closed-world (only this machine is involved).
+   */
+  hints?: { destructive?: boolean; idempotent?: boolean; openWorld?: boolean };
   /** A zod raw shape, the form the MCP SDK accepts for a tool's input schema. */
   inputShape: Shape;
   // Method syntax on purpose: it keeps the parameter bivariant, so a tool with a specific
