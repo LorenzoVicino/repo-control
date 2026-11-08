@@ -25,3 +25,16 @@ export function accentGradient(theme: Theme): string {
 export function orbGradient(theme: Theme): string {
   return `radial-gradient(circle at 30% 30%, #ffffff, ${theme.palette.primary.main} 40%, ${theme.palette.info.main} 78%, ${alpha(theme.palette.info.main, 0)} 100%)`;
 }
+
+/** Visually hidden but read by screen readers. Pixel units on purpose: in MUI's sx a bare 1 means 100%. */
+export const visuallyHidden = {
+  position: "absolute",
+  width: "1px",
+  height: "1px",
+  margin: "-1px",
+  padding: 0,
+  border: 0,
+  overflow: "hidden",
+  clip: "rect(0 0 0 0)",
+  whiteSpace: "nowrap"
+} as const;

@@ -14,7 +14,9 @@ This project follows semantic versioning where practical.
   cost. Suggestions come from the workspace scan (a safe fast-forward, changes to review,
   commits to push). A context panel lists the repositories involved, the permissions and the
   command to resume the Claude Code session in a terminal. Conversations continue across
-  messages and survive switching sections.
+  messages and survive switching sections. After an approved change the workspace is
+  rescanned. The online demo replays scripted conversations over the demo workspace:
+  triage, pull, push and review, with real approval cards whose effects stay in the browser.
 - In-app agent API. repo-control runs Claude Code headless (`claude -p`) with no built-in
   tools and no user settings, connected only to its own MCP endpoint through a token that
   lasts as long as the run. Read tools run freely; every write tool raises an approval that

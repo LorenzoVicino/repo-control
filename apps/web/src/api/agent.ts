@@ -39,6 +39,7 @@ type RunStreamHandlers = {
  * closed once the server signals the end of the run. Returns a function that stops it.
  */
 export function subscribeToAgentRun(runId: string, after: number, handlers: RunStreamHandlers): () => void {
+  if (import.meta.env.MODE === "demo") return subscribeToDemoRun(runId, after, handlers);
   const source = new EventSource(`/api/agent/runs/${encodeURIComponent(runId)}/events?after=${after}`);
   let closed = false;
   const close = () => {
@@ -67,4 +68,17 @@ export function subscribeToAgentRun(runId: string, after: number, handlers: RunS
   });
 
   return close;
+}
+
+// The static demo has no server: its scripted agent streams from inside the page.
+function subscribeToDemoRun(runId: string, after: number, handlers: RunStreamHandlers): () => void {
+  let stop: (() => void) | null = null;
+  let stopped = false;
+  void import("../demo/api").then(({ demoSubscribeToAgentRun }) => {
+    if (!stopped) stop = demoSubscribeToAgentRun(runId, after, handlers);
+  });
+  return () => {
+    stopped = true;
+    stop?.();
+  };
 }

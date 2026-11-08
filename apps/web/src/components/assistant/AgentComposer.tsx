@@ -3,7 +3,7 @@ import StopRoundedIcon from "@mui/icons-material/StopRounded";
 import { Box, IconButton, InputBase } from "@mui/material";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { accentGradient, glassSurface } from "./glass";
+import { accentGradient, glassSurface, visuallyHidden } from "./glass";
 
 type AgentComposerProps = {
   variant: "hero" | "reply";
@@ -44,7 +44,7 @@ export function AgentComposer({ variant, busy, disabled = false, onSend, onStop,
         "&:focus-within": { borderColor: theme.palette.primary.main }
       })}
     >
-      <Box component="label" htmlFor={inputId} sx={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>
+      <Box component="label" htmlFor={inputId} sx={visuallyHidden}>
         {t("assistant.composerLabel")}
       </Box>
       <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1.25 }}>

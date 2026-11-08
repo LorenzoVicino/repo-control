@@ -1,7 +1,7 @@
 import AddCommentOutlinedIcon from "@mui/icons-material/AddCommentOutlined";
 import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { fetchAgentStatus } from "../../api/agent";
@@ -11,7 +11,7 @@ import { AgentComposer } from "./AgentComposer";
 import { AgentMarkdown } from "./AgentMarkdown";
 import { ApprovalCard } from "./ApprovalCard";
 import { conversationStore as defaultStore, type ConversationStore, type ConversationTurn } from "./conversationStore";
-import { accentGradient, glassSurface, orbGradient } from "./glass";
+import { accentGradient, glassSurface, orbGradient, visuallyHidden } from "./glass";
 import { buildSuggestions } from "./suggestions";
 import { ToolActivityGroup } from "./ToolActivityGroup";
 import { buildTurnView, type TurnView } from "./turnView";
@@ -58,10 +58,24 @@ export function AssistantPage({ projects, workspaceRoot, store = defaultStore }:
     retry: false
   });
   const [actionError, setActionError] = React.useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const refreshedTurns = React.useRef(new Set<string>());
   const available = status.data?.available ?? false;
   const unavailable = status.isError || (status.isSuccess && !available);
   const turnViews = React.useMemo(() => conversation.turns.map((turn) => ({ turn, view: buildTurnView(turn.events) })), [conversation.turns]);
   const repositories = [...new Set(turnViews.flatMap(({ view }) => view.repositories))];
+
+  // A finished turn that carried out an approved change has altered the workspace: rescan, so
+  // the rest of the dashboard and the next suggestions reflect it.
+  React.useEffect(() => {
+    for (const { turn, view } of turnViews) {
+      const changed = view.blocks.some((block) => block.kind === "approval" && block.state === "allowed");
+      if (view.status !== "running" && changed && !refreshedTurns.current.has(turn.id)) {
+        refreshedTurns.current.add(turn.id);
+        void queryClient.invalidateQueries({ queryKey: ["projects"] });
+      }
+    }
+  }, [turnViews, queryClient]);
 
   const messages = {
     startFailed: t("assistant.errors.startFailed"),
@@ -230,7 +244,7 @@ export function AssistantPage({ projects, workspaceRoot, store = defaultStore }:
             <Permission label={t("assistant.context.writeTools")} value={t("assistant.context.askFirst")} tone="primary" />
             <Permission label={t("assistant.context.shellTools")} value={t("assistant.context.off")} tone="neutral" />
           </Stack>
-          {latestSession ? (
+          {latestSession && import.meta.env.MODE !== "demo" ? (
             <Box sx={(theme) => ({ p: 1.5, borderRadius: 2, bgcolor: alpha(theme.palette.background.default, 0.45), border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`, display: "flex", flexDirection: "column", gap: 0.75 })}>
               <Typography sx={{ fontSize: "0.78rem", fontWeight: 600 }}>{t("assistant.context.session")}</Typography>
               <Typography sx={{ fontSize: "0.76rem", color: "text.secondary" }}>{t("assistant.context.sessionHint")}</Typography>
@@ -282,7 +296,7 @@ function Turn({ turn, view, onDecide }: { turn: ConversationTurn; view: TurnView
           overflowWrap: "anywhere"
         })}
       >
-        <Box component="span" sx={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>{t("assistant.you")}: </Box>
+        <Box component="span" sx={visuallyHidden}>{t("assistant.you")}: </Box>
         {turn.prompt}
       </Box>
 
@@ -302,7 +316,7 @@ function Turn({ turn, view, onDecide }: { turn: ConversationTurn; view: TurnView
           })}
         />
         <Stack spacing={1.75} sx={{ flex: 1, minWidth: 0 }}>
-          <Box component="span" sx={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>{t("assistant.agent")}:</Box>
+          <Box component="span" sx={visuallyHidden}>{t("assistant.agent")}:</Box>
           {waitingForFirstEvent ? <TypingDots /> : null}
           {view.blocks.map((block) => {
             switch (block.kind) {

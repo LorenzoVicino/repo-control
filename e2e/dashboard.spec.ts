@@ -270,6 +270,8 @@ test("opens on the agent and renders a streamed conversation", async ({ page }) 
   await expect(log.getByRole("listitem").filter({ hasText: "local changes" })).toBeVisible();
   await expect(page.getByText("Done in 2.1 s · 2 steps · 0.0040 USD")).toBeVisible();
   await expect(page.getByRole("button", { name: "New conversation" })).toBeEnabled();
+  // Hidden screen-reader labels once used `width: 1`, which MUI reads as 100%, and widened the page.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
   expect(browserErrors).toEqual([]);
 });
 
