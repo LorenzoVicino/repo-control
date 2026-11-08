@@ -8,6 +8,10 @@ This project follows semantic versioning where practical.
 
 ### Added
 
+- New glass app icon, matching the upcoming AI-first interface. It keeps the existing
+  mark (hub, three spokes, three nodes and the broken ring) over a frosted plate and
+  violet, cyan and pink glows. `npm run icons` regenerates every SVG variant, PNG size,
+  `favicon.ico` and the Open Graph card from one script.
 - Guide first-time users through confirming a workspace, checking required and optional
   local tools, and opening their first repository. Put Windows-first launch instructions
   at the top of the README and keep the guide available from Settings.

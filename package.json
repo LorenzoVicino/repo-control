@@ -70,7 +70,8 @@
     "verify": "npm run check && npm run test:coverage && npm run build",
     "lint": "eslint apps/server/src apps/web/src apps/web/vite.config.ts e2e vitest.config.ts playwright.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",

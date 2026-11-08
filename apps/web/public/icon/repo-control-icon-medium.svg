@@ -1,19 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="repo-control">
-  <rect width="512" height="512" rx="112" fill="#161826"></rect>
-  <g fill="none" stroke="#9184d9" stroke-width="28" stroke-linecap="round">
-    <path d="M309 121.4 A140 140 0 0 1 394.7 269.9"></path>
-    <path d="M341.7 361.7 A140 140 0 0 1 170.3 361.7"></path>
-    <path d="M117.3 269.9 A140 140 0 0 1 203 121.4"></path>
+  <defs>
+    <clipPath id="rc-clip"><rect width="512" height="512" rx="112"/></clipPath>
+    <filter id="rc-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="46"/></filter>
+    <filter id="rc-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="14" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <radialGradient id="rc-hub" cx="0.38" cy="0.35" r="0.7"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#b5abfc"/></radialGradient>
+    <linearGradient id="rc-sheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.22"/><stop offset="0.5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  </defs>
+  <g clip-path="url(#rc-clip)">
+    <rect width="512" height="512" fill="#0b0e1e"/>
+    <g filter="url(#rc-blur)">
+      <circle cx="140" cy="130" r="190" fill="#8b7cff" fill-opacity="0.8"/>
+      <circle cx="420" cy="420" r="180" fill="#22d3ee" fill-opacity="0.55"/>
+      <circle cx="440" cy="90" r="110" fill="#f472b6" fill-opacity="0.45"/>
+    </g>
+    <rect x="36" y="36" width="440" height="440" rx="92" fill="#fff" fill-opacity="0.07" stroke="#fff" stroke-opacity="0.28" stroke-width="3"/>
+    <rect x="36" y="36" width="440" height="440" rx="92" fill="url(#rc-sheen)"/>
+    <g>
+    <g fill="none" stroke="#fff" stroke-opacity="0.92" stroke-width="28" stroke-linecap="round">
+      <path d="M297.2 117.2 A140 140 0 0 1 392.5 282.3"/>
+      <path d="M351.3 353.6 A140 140 0 0 1 160.7 353.6"/>
+      <path d="M119.5 282.3 A140 140 0 0 1 214.8 117.2"/>
+    </g>
+    <g fill="none" stroke="#fff" stroke-opacity="0.72" stroke-width="24" stroke-linecap="round">
+      <path d="M256 251 L256 111"/>
+      <path d="M256 251 L377.2 321"/>
+      <path d="M256 251 L134.8 321"/>
+    </g>
+    <g fill="#fff" fill-opacity="0.95">
+      <circle cx="256" cy="111" r="36"/>
+      <circle cx="377.2" cy="321" r="36"/>
+      <circle cx="134.8" cy="321" r="36"/>
+    </g>
+    <circle cx="256" cy="251" r="48" fill="url(#rc-hub)" filter="url(#rc-glow)"/>
+    </g>
   </g>
-  <g fill="none" stroke="#9184d9" stroke-width="24" stroke-linecap="round">
-    <path d="M256 251 L256 111"></path>
-    <path d="M256 251 L377.2 321"></path>
-    <path d="M256 251 L134.8 321"></path>
-  </g>
-  <g fill="#9184d9">
-    <circle cx="256" cy="111" r="36"></circle>
-    <circle cx="377.2" cy="321" r="36"></circle>
-    <circle cx="134.8" cy="321" r="36"></circle>
-  </g>
-  <circle cx="256" cy="251" r="46" fill="#b5abfc"></circle>
 </svg>
