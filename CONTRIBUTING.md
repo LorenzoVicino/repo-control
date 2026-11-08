@@ -68,6 +68,7 @@ for graphical integrations that hosted runners cannot fully validate.
 - Resolve project paths on the server from project identifiers; do not accept arbitrary command working directories from the browser.
 - Write interface font sizes as `sx={{ fontSize: 12 }}` numbers so the text size preference scales them; reach for a CSS string only when a size must stay fixed regardless of that setting.
 - Treat agent transcripts, terminal history and workflow output as private local data in code, fixtures and screenshots.
+- Change the app icon in `scripts/generate-icons.mjs` and run `npm run icons`: it rewrites the SVG variants, every PNG size, `favicon.ico` and the Open Graph card. Edit the monochrome `repo-control-mark.svg` and `safari-pinned-tab.svg` by hand; they share the same geometry.
 - Update the README, architecture guide, `.env.example` and changelog when a change affects public behavior, configuration, persistence or supported tooling.
 
 ## Releases
