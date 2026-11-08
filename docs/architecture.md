@@ -30,6 +30,7 @@ apps/server/src/
   routes/       HTTP schemas, request validation and response mapping
   services/     application use cases and external-tool integrations
     workflow/   workflow schemas, validation, inputs and JSON storage
+    tools/      the agent tool catalog: definitions, repository matching and the registry
   docker.ts     Docker discovery plus Compose service, health and port normalization
   folderPicker.ts
                 native workspace selection across supported platforms
@@ -56,6 +57,14 @@ Current route domains are:
 | `terminalRoutes` | Scoped shell execution, one active command per repository, cancellation and command suggestions. |
 | `dockerRoutes` | Container discovery, resource samples, container shell and log sessions, plus validated Compose service state, logs, restart and stack actions. |
 | `workflowRoutes` | Workflow CRUD, dry runs, background runs, progress reads and cancellation. |
+
+### Agent tool layer
+
+`services/tools/` is the catalog of what an agent may do in the workspace. A tool is a plain definition: a name, a description written for a model, a zod input shape (the form the MCP SDK accepts) and an effect, `read` or `write`. `createToolkit` turns the catalog into a callable registry: it validates input strictly, runs the tool and converts expected failures, such as an unknown or ambiguous repository or a refused checkout, into `isError` results the model can read and recover from.
+
+Tools name repositories the way a person does: by name, workspace-relative path or the ID from an earlier result. `matchRepository` turns that into exactly one discovered repository and lists the candidates when it cannot; the resolver then revalidates the chosen ID, so the boundary check stays the authority. Results use workspace-relative paths and truncate long diffs and command output.
+
+Write tools call the same `services/gitActions.ts` functions as the dashboard, so the fast-forward-only pull and the dirty-checkout guard apply to the agent too. There is deliberately no tool for arbitrary shell commands. The MCP server and the in-app agent are consumers of this catalog; approval for `write` tools belongs to them.
 
 ### Container sessions
 
