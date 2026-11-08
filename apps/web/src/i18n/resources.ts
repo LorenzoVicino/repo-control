@@ -56,6 +56,7 @@ export const en = {
     expandSidebar: "Expand sidebar",
     collapseSidebar: "Collapse sidebar",
     sections: {
+      assistant: "Agent",
       overview: "Dashboard",
       repositories: "Repositories",
       favorites: "Favorites",
@@ -471,6 +472,7 @@ export const en = {
     }
   },
   loading: {
+    assistant: "Loading the agent",
     agents: "Detecting agent sessions",
     automations: "Loading automations"
   },
@@ -678,6 +680,101 @@ export const en = {
     cliUnavailable: "CLI unavailable",
     notDetected: "not detected",
     unknownDate: "Unknown date"
+  },
+  assistant: {
+    greeting: {
+      morning: "Good morning.",
+      afternoon: "Good afternoon.",
+      evening: "Good evening."
+    },
+    title: "What should we do in your workspace?",
+    composerLabel: "Message the agent",
+    placeholder: "Ask about your repositories, or tell the agent what to do…",
+    replyPlaceholder: "Reply, or ask something else…",
+    send: "Send",
+    stop: "Stop",
+    newConversation: "New conversation",
+    writesNote: "Read tools run on their own. Anything that changes a repository asks you first.",
+    repositoryCount_one: "{{count}} repository",
+    repositoryCount_other: "{{count}} repositories",
+    engine: "Claude Code · headless",
+    suggestionsTitle: "Suggested from your workspace",
+    suggestions: {
+      triage: {
+        title: "What needs me today?",
+        reason: "Check every repository and sort it into safe now, needs you, and can wait.",
+        prompt: "What needs my attention in the workspace today? Sort it into what you can do safely now, what needs me, and what can wait."
+      },
+      pull: {
+        title: "Pull {{name}}",
+        reason: "Behind its upstream with a clean working tree, so a fast-forward is safe.",
+        prompt: "Pull {{name}}. Check first that its working tree is clean."
+      },
+      push: {
+        title: "Push {{name}}",
+        reason: "Has local commits that have not reached the remote yet.",
+        prompt: "Show me the unpushed commits in {{name}}, then push them."
+      },
+      review: {
+        title: "Review {{name}}",
+        reason: "Has uncommitted changes waiting for a decision.",
+        prompt: "Summarize the uncommitted changes in {{name}} and propose a commit message."
+      }
+    },
+    unavailable: {
+      title: "Claude Code is not available",
+      body: "The agent runs the Claude Code CLI on this machine. Install it and sign in, or set REPO_CONTROL_CLAUDE to its path, then reload.",
+      demo: "The online demo cannot run the agent. Run repo-control on your machine to talk to your own workspace."
+    },
+    activity: {
+      running_one: "Working · {{count}} tool",
+      running_other: "Working · {{count}} tools",
+      done_one: "Used {{count}} tool",
+      done_other: "Used {{count}} tools",
+      failed: "failed",
+      pending: "running"
+    },
+    approval: {
+      ask: "Approve this change?",
+      note: "Nothing runs until you approve.",
+      approve: "Approve",
+      deny: "Deny",
+      allowed: "Approved",
+      denied: "Declined",
+      expired: "Expired without an answer",
+      cancelled: "Cancelled with the run"
+    },
+    summary: {
+      done: "Done in {{seconds}} s",
+      turns_one: "{{count}} step",
+      turns_other: "{{count}} steps",
+      cost: "{{cost}} USD",
+      stopped: "Stopped.",
+      failed: "The agent stopped with an error."
+    },
+    errors: {
+      status: "Could not check whether Claude Code is available.",
+      startFailed: "Could not start the agent.",
+      streamLost: "Lost the connection to the agent. It may still be working; reload to see the result.",
+      decisionFailed: "Could not send your decision.",
+      cancelFailed: "Could not stop the agent."
+    },
+    context: {
+      label: "Conversation context",
+      repositories: "Repositories in this conversation",
+      none: "None yet.",
+      permissions: "Permissions",
+      readTools: "Read tools",
+      automatic: "automatic",
+      writeTools: "Changes",
+      askFirst: "ask first",
+      shellTools: "Terminal and file edits",
+      off: "off",
+      session: "Claude Code session",
+      sessionHint: "Continue it in a terminal:"
+    },
+    you: "You",
+    agent: "Agent"
   },
   shared: {
     exitStatus: "exit {{code}} - {{duration}}ms",
@@ -1193,6 +1290,7 @@ export const it: TranslationSchema<typeof en> = {
     expandSidebar: "Espandi sidebar",
     collapseSidebar: "Comprimi sidebar",
     sections: {
+      assistant: "Agente",
       overview: "Dashboard",
       repositories: "Repository",
       favorites: "Preferiti",
@@ -1608,6 +1706,7 @@ export const it: TranslationSchema<typeof en> = {
     }
   },
   loading: {
+    assistant: "Caricamento dell'agente",
     agents: "Rilevamento sessioni agent",
     automations: "Caricamento automazioni"
   },
@@ -1815,6 +1914,101 @@ export const it: TranslationSchema<typeof en> = {
     cliUnavailable: "CLI non disponibile",
     notDetected: "non rilevato",
     unknownDate: "Data sconosciuta"
+  },
+  assistant: {
+    greeting: {
+      morning: "Buongiorno.",
+      afternoon: "Buon pomeriggio.",
+      evening: "Buonasera."
+    },
+    title: "Cosa facciamo nel tuo workspace?",
+    composerLabel: "Scrivi all'agente",
+    placeholder: "Chiedi dei tuoi repository, o di' all'agente cosa fare…",
+    replyPlaceholder: "Rispondi, o chiedi altro…",
+    send: "Invia",
+    stop: "Ferma",
+    newConversation: "Nuova conversazione",
+    writesNote: "Gli strumenti di lettura partono da soli. Tutto ciò che modifica un repository chiede prima a te.",
+    repositoryCount_one: "{{count}} repository",
+    repositoryCount_other: "{{count}} repository",
+    engine: "Claude Code · headless",
+    suggestionsTitle: "Suggerimenti dal tuo workspace",
+    suggestions: {
+      triage: {
+        title: "Cosa mi aspetta oggi?",
+        reason: "Controlla ogni repository e dividili tra da fare subito, serve il tuo intervento e può aspettare.",
+        prompt: "Cosa richiede la mia attenzione nel workspace oggi? Dividi tra quello che puoi fare subito in sicurezza, quello che richiede me e quello che può aspettare."
+      },
+      pull: {
+        title: "Pull di {{name}}",
+        reason: "È indietro rispetto all'upstream e senza modifiche locali: un fast-forward è sicuro.",
+        prompt: "Fai il pull di {{name}}. Prima controlla che non abbia modifiche locali."
+      },
+      push: {
+        title: "Push di {{name}}",
+        reason: "Ha commit locali non ancora arrivati sul remoto.",
+        prompt: "Mostrami i commit non pubblicati di {{name}}, poi fai il push."
+      },
+      review: {
+        title: "Rivedi {{name}}",
+        reason: "Ha modifiche non committate in attesa di una decisione.",
+        prompt: "Riassumi le modifiche non committate di {{name}} e proponi un messaggio di commit."
+      }
+    },
+    unavailable: {
+      title: "Claude Code non è disponibile",
+      body: "L'agente usa la CLI di Claude Code su questo computer. Installala ed effettua l'accesso, oppure imposta REPO_CONTROL_CLAUDE con il suo percorso, poi ricarica.",
+      demo: "La demo online non può avviare l'agente. Avvia repo-control sul tuo computer per usarlo sul tuo workspace."
+    },
+    activity: {
+      running_one: "Al lavoro · {{count}} strumento",
+      running_other: "Al lavoro · {{count}} strumenti",
+      done_one: "Ha usato {{count}} strumento",
+      done_other: "Ha usato {{count}} strumenti",
+      failed: "non riuscito",
+      pending: "in corso"
+    },
+    approval: {
+      ask: "Approvi questa modifica?",
+      note: "Non parte nulla finché non approvi.",
+      approve: "Approva",
+      deny: "Rifiuta",
+      allowed: "Approvata",
+      denied: "Rifiutata",
+      expired: "Scaduta senza risposta",
+      cancelled: "Annullata insieme al run"
+    },
+    summary: {
+      done: "Completato in {{seconds}} s",
+      turns_one: "{{count}} passaggio",
+      turns_other: "{{count}} passaggi",
+      cost: "{{cost}} USD",
+      stopped: "Fermato.",
+      failed: "L'agente si è fermato con un errore."
+    },
+    errors: {
+      status: "Impossibile verificare se Claude Code è disponibile.",
+      startFailed: "Impossibile avviare l'agente.",
+      streamLost: "Connessione con l'agente persa. Potrebbe essere ancora al lavoro: ricarica per vedere il risultato.",
+      decisionFailed: "Impossibile inviare la tua decisione.",
+      cancelFailed: "Impossibile fermare l'agente."
+    },
+    context: {
+      label: "Contesto della conversazione",
+      repositories: "Repository in questa conversazione",
+      none: "Ancora nessuno.",
+      permissions: "Permessi",
+      readTools: "Strumenti di lettura",
+      automatic: "automatici",
+      writeTools: "Modifiche",
+      askFirst: "chiedono prima",
+      shellTools: "Terminale e modifica file",
+      off: "disattivati",
+      session: "Sessione Claude Code",
+      sessionHint: "Riprendila da terminale:"
+    },
+    you: "Tu",
+    agent: "Agente"
   },
   shared: {
     exitStatus: "exit {{code}} - {{duration}}ms",

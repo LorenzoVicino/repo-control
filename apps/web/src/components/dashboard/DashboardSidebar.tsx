@@ -1,4 +1,5 @@
 import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import type { SvgIconProps } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -30,6 +31,7 @@ import type { ProjectSummary } from "../../types/projects";
 import { WorkspaceToolbarPicker } from "./WorkspaceToolbarPicker";
 
 export type DashboardSection =
+  | "assistant"
   | "overview"
   | "agents"
   | "automations"
@@ -47,6 +49,7 @@ const NAV_ITEMS: Array<{
   labelKey: `navigation.sections.${DashboardSection}`;
   icon: React.ReactElement<SvgIconProps>;
 }> = [
+  { id: "assistant", labelKey: "navigation.sections.assistant", icon: <AutoAwesomeOutlinedIcon /> },
   { id: "overview", labelKey: "navigation.sections.overview", icon: <DashboardOutlinedIcon /> },
   { id: "repositories", labelKey: "navigation.sections.repositories", icon: <AccountTreeOutlinedIcon /> },
   { id: "favorites", labelKey: "navigation.sections.favorites", icon: <StarBorderOutlinedIcon /> },
@@ -162,6 +165,7 @@ function SidebarContent({
       ? t("navigation.scanningWorkspace")
       : t("navigation.changeWorkspace");
   const counts: Record<DashboardSection, number | null> = {
+    assistant: null,
     overview: null,
     agents: null,
     automations: null,

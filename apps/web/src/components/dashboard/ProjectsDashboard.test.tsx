@@ -17,6 +17,7 @@ import {
   setRootPath,
   updatePreferences
 } from "../../api/workspace";
+import type { DashboardSection } from "./DashboardSidebar";
 import { ProjectsDashboard } from "./ProjectsDashboard";
 
 vi.mock("../../api/app", () => ({
@@ -205,6 +206,7 @@ vi.mock("../project/ProjectWorkspaceTabs", () => ({
   )
 }));
 vi.mock("../agents/AgentSessionsPage", () => ({ AgentSessionsPage: () => <div data-testid="agents-page" /> }));
+vi.mock("../assistant/AssistantPage", () => ({ AssistantPage: () => <div data-testid="assistant-page" /> }));
 vi.mock("../automation/AutomationPage", () => ({ AutomationPage: () => <div data-testid="automation-page" /> }));
 vi.mock("../settings/SettingsPage", () => ({
   SettingsPage: (props: Record<string, unknown>) => (
@@ -254,7 +256,7 @@ const dockerStatus: DockerContainersResponse = {
   error: null
 };
 
-function renderDashboard() {
+function renderDashboard({ initialSection }: { initialSection?: DashboardSection } = { initialSection: "overview" }) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false, refetchOnWindowFocus: false, gcTime: Infinity }
@@ -269,6 +271,7 @@ function renderDashboard() {
         fontScale="medium"
         onColorPaletteChange={onColorPaletteChange}
         onFontScaleChange={onFontScaleChange}
+        initialSection={initialSection}
       />
     </QueryClientProvider>
   );
@@ -324,6 +327,11 @@ describe("ProjectsDashboard orchestration", () => {
       output: "",
       durationMs: 1
     });
+  });
+
+  it("opens on the agent once the workspace scan is done", async () => {
+    renderDashboard({});
+    expect(await screen.findByTestId("assistant-page")).toBeInTheDocument();
   });
 
   it("walks every main section and successful action", async () => {

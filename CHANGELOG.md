@@ -8,6 +8,13 @@ This project follows semantic versioning where practical.
 
 ### Added
 
+- The dashboard now opens on the agent, in the glass, AI-first design. You ask in plain
+  language and see the agent's tool calls grouped as it works, its answer stream in, and an
+  approval card for every change it wants to make. The closing summary shows time, steps and
+  cost. Suggestions come from the workspace scan (a safe fast-forward, changes to review,
+  commits to push). A context panel lists the repositories involved, the permissions and the
+  command to resume the Claude Code session in a terminal. Conversations continue across
+  messages and survive switching sections.
 - In-app agent API. repo-control runs Claude Code headless (`claude -p`) with no built-in
   tools and no user settings, connected only to its own MCP endpoint through a token that
   lasts as long as the run. Read tools run freely; every write tool raises an approval that
