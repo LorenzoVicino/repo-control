@@ -14,6 +14,24 @@ This project follows semantic versioning where practical.
 
 ### Added
 
+- In-app agent API. repo-control runs Claude Code headless (`claude -p`) with no built-in
+  tools and no user settings, connected only to its own MCP endpoint through a token that
+  lasts as long as the run. Read tools run freely; every write tool raises an approval that
+  the dashboard answers. `/api/agent/runs` starts and continues conversations, streams
+  events over SSE with replay, and takes approvals and cancellation.
+  `REPO_CONTROL_AGENT_MODEL` picks the model.
+- `git_diff` without a path now lists untracked files too.
+- MCP server. `repo-control mcp [workspace]` serves the agent tools over stdio for Claude
+  Code, Claude Desktop and other MCP clients. A running dashboard also serves them at `/mcp`
+  over Streamable HTTP once `REPO_CONTROL_MCP_TOKEN` is set. 23 tools cover repositories
+  and Git, Docker Compose, saved workflows and past coding-agent sessions. They are read-only
+  unless writes are enabled (`--allow-writes` or `REPO_CONTROL_MCP_WRITE=on`), and they keep
+  the dashboard's guards: ff-only pulls, no forced pushes, no branch switch on a dirty tree,
+  and no shell or workflow-editing tools. See `docs/mcp.md`.
+- New glass app icon, matching the upcoming AI-first interface. It keeps the existing
+  mark (hub, three spokes, three nodes and the broken ring) over a frosted plate and
+  violet, cyan and pink glows. `npm run icons` regenerates every SVG variant, PNG size,
+  `favicon.ico` and the Open Graph card from one script.
 - Guide first-time users through confirming a workspace, checking required and optional
   local tools, and opening their first repository. Put Windows-first launch instructions
   at the top of the README and keep the guide available from Settings.

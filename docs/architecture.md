@@ -30,6 +30,7 @@ apps/server/src/
   routes/       HTTP schemas, request validation and response mapping
   services/     application use cases and external-tool integrations
     workflow/   workflow schemas, validation, inputs and JSON storage
+    tools/      the agent tool catalog: definitions, repository matching and the registry
   docker.ts     Docker discovery plus Compose service, health and port normalization
   folderPicker.ts
                 native workspace selection across supported platforms
@@ -43,6 +44,8 @@ apps/server/src/
 
 Routes should stay thin: validate input, call a service and translate expected errors to HTTP responses. Services own application behavior. File persistence, normalization and compatibility code belong in a domain subdirectory rather than in the service orchestrator.
 
+Git operations that change a repository live in `services/gitActions.ts`, with the validation schemas for refs, paths, stash references and messages. `gitRoutes` and the planned agent tool layer call the same functions, so the fast-forward-only pull and the dirty-checkout guard cannot diverge between the dashboard and the agent. Guarded actions return `{ status: "blocked", message }` instead of throwing; the route maps it to HTTP 409.
+
 Current route domains are:
 
 | Domain | Responsibility |
@@ -54,6 +57,46 @@ Current route domains are:
 | `terminalRoutes` | Scoped shell execution, one active command per repository, cancellation and command suggestions. |
 | `dockerRoutes` | Container discovery, resource samples, container shell and log sessions, plus validated Compose service state, logs, restart and stack actions. |
 | `workflowRoutes` | Workflow CRUD, dry runs, background runs, progress reads and cancellation. |
+
+### Agent tool layer
+
+`services/tools/` is the catalog of what an agent may do in the workspace. A tool is a plain definition: a name, a description written for a model, a zod input shape (the form the MCP SDK accepts) and an effect, `read` or `write`. `createToolkit` turns the catalog into a callable registry: it validates input strictly, runs the tool and converts expected failures, such as an unknown or ambiguous repository or a refused checkout, into `isError` results the model can read and recover from.
+
+Tools name repositories the way a person does: by name, workspace-relative path or the ID from an earlier result. `matchRepository` turns that into exactly one discovered repository and lists the candidates when it cannot; the resolver then revalidates the chosen ID, so the boundary check stays the authority. Results use workspace-relative paths and truncate long diffs and command output.
+
+Write tools call the same `services/gitActions.ts` functions as the dashboard, so the fast-forward-only pull and the dirty-checkout guard apply to the agent too. There is deliberately no tool for arbitrary shell commands. The MCP server and the in-app agent are consumers of this catalog; approval for `write` tools belongs to them.
+
+The catalog covers four areas:
+
+| Area | Read | Write |
+| --- | --- | --- |
+| Repositories and Git | `list_repositories`, `get_repository`, `git_log`, `git_diff`, `list_branches` | `git_fetch`, `git_pull`, `git_push`, `git_checkout`, `git_create_branch`, `git_commit` |
+| Docker Compose | `list_containers`, `compose_status`, `compose_logs` | `compose_up`, `compose_stop`, `compose_restart_service` |
+| Workflows | `list_workflows`, `preview_workflow`, `get_workflow_run` | `run_workflow`, `cancel_workflow_run` |
+| Coding-agent sessions | `list_agent_sessions` | none |
+
+Compose tools first check that the repository has a Compose file, and service names must start with a letter or digit, so they never reach `docker compose` as an option. Workflow tools can find, preview, start and follow the workflows saved in the dashboard but not create or edit one: a workflow can contain shell commands, so authoring stays with the user. A preview is a dry run, which only resolves commands and records the preview in the run history.
+
+### MCP server
+
+`services/mcp/server.ts` turns the tool catalog into an MCP server with the official TypeScript SDK. It registers one MCP tool per catalog entry, maps the effect and hints to MCP annotations, and leaves write tools out entirely when writes are not allowed. The callback passes input straight to `toolkit.run`, so validation, repository resolution and error handling are the toolkit's.
+
+There are two transports:
+
+- `mcpStdio.ts`, started by `repo-control mcp`, for clients that spawn repo-control themselves. stdout belongs to the protocol, so that path logs to stderr only.
+- `routes/mcpRoutes.ts`: `POST /mcp` over Streamable HTTP in stateless mode, with a fresh server and transport per request and JSON responses instead of streams. The route sits outside the `/api` sign-in gate, since MCP clients have no browser session. `services/mcp/access.ts` authorizes each request by bearer token instead, after the global `Host` check has run.
+
+### In-app agent
+
+`services/agent/runner.ts` runs the dashboard's agent as Claude Code in headless mode (`claude -p --output-format stream-json`) and restricts it to repo-control:
+
+- built-in tools are disabled (`--tools ""`) and user and project settings are not loaded (`--setting-sources ""`), so the agent has no shell or file access, and no allow rule in `~/.claude` can pre-approve anything;
+- its only MCP server is this process's own `/mcp` (`--strict-mcp-config`), reached with a token issued for that run and revoked when it ends; the token is written to a `0600` config file in a temporary directory, never put on the command line;
+- read tools are pre-allowed (`--allowedTools`), and every write tool goes through `--permission-prompt-tool mcp__repo-control__approve`.
+
+The `approve` tool exists only on MCP servers created for an agent token. It turns Claude Code's permission prompt into an `approval_request` event and waits for the dashboard's answer. A deny tells the model not to retry. An unanswered request is denied after 10 minutes, and stopping the run denies whatever is pending. Tool names outside the catalog are refused without asking.
+
+`services/agent/events.ts` reduces stream-json to the events the dashboard renders: session, text deltas, full text blocks, tool calls and results, approvals, the result with cost and turns, errors and status. Each event carries a sequence number. `routes/agentRoutes.ts` starts runs (`POST /api/agent/runs`, which takes `sessionId` to continue a conversation through `--resume`), streams events over server-sent events with replay from `Last-Event-ID`, and accepts approvals and cancellation. Runs live in memory: one at a time, with the last 20 kept for replay.
 
 ### Container sessions
 

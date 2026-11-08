@@ -8,6 +8,10 @@ The API and Vite development server bind to `127.0.0.1` by default. Keep both on
 
 Binding to loopback alone does not keep browsers out. A page on any origin can re-resolve its own hostname to `127.0.0.1` (DNS rebinding); the browser then treats requests to the API as same-origin, so CORS never runs and the origin allowlist is not consulted. The API therefore validates the `Host` header on every request and rejects anything that is not a loopback name or the configured bind host with `403 FORBIDDEN_HOST`. Set `ALLOWED_HOSTS` (comma-separated) if you reach the API through another hostname.
 
+The MCP endpoint at `/mcp` is not covered by the sign-in, because MCP clients do not hold a browser session. It is off unless `REPO_CONTROL_MCP_TOKEN` is set, and then every request must present that token as a bearer token; the comparison is constant-time. MCP clients see read-only tools unless `REPO_CONTROL_MCP_WRITE=on` (or `--allow-writes` for `repo-control mcp` over stdio). There is no MCP tool for arbitrary commands or for editing workflows, but `run_workflow` runs commands that a saved workflow contains. See [docs/mcp.md](docs/mcp.md).
+
+The in-app agent runs the local Claude Code CLI under your own Claude account, so prompts and tool results are sent to Anthropic just as they are when you use Claude Code directly. The agent has no shell or file tools and loads none of your Claude Code settings. It reaches repo-control only through `/mcp`, with a token that lasts as long as the run, and every write tool waits for your approval in the dashboard.
+
 ## Supported trust boundary
 
 - Bind to `127.0.0.1`.
@@ -35,6 +39,7 @@ Command arguments, command output and agent transcript snippets may contain secr
 - Container shell and log sessions accept a container ID, never a name or a command, and the ID is revalidated against the containers the daemon currently reports as running before any process starts. The shell is fixed to `bash` or `sh` and is spawned as an argument list, so nothing from the browser is interpreted by a host shell.
 - Invalid or disconnected workflow graphs are rejected, and failed actions stop downstream steps.
 - Agent session resume validates that the session belongs to the requested discovered repository before opening a terminal.
+- MCP tools resolve every repository through the same project resolver and call the same guarded Git actions as the dashboard. Their input is validated strictly, and write tools are not even listed unless writes are enabled.
 
 These controls reduce accidental misuse; they are not a sandbox. A terminal command, workflow node, Git hook, Docker configuration or resumed external agent can still execute code with the permissions of the repo-control process.
 

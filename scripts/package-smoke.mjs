@@ -87,6 +87,59 @@ async function stop() {
   if (child.exitCode === null) child.kill("SIGKILL");
 }
 
+// Speaks newline-delimited JSON-RPC to `repo-control mcp` the way an MCP client does. Run
+// through node rather than the npm shim: the subject is the installed command, and stdout
+// has to stay a clean protocol stream on every platform.
+async function mcpStdioSession(binary, workspace) {
+  const server = spawn(process.execPath, [binary, "mcp", workspace], { env });
+  let buffer = "";
+  let stderr = "";
+  const pending = new Map();
+  server.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+  server.stdout.on("data", (chunk) => {
+    buffer += chunk;
+    let newline;
+    while ((newline = buffer.indexOf("\n")) >= 0) {
+      const line = buffer.slice(0, newline).trim();
+      buffer = buffer.slice(newline + 1);
+      if (!line) continue;
+      const message = JSON.parse(line);
+      pending.get(message.id)?.(message);
+      pending.delete(message.id);
+    }
+  });
+  let nextId = 1;
+  const request = (method, params) =>
+    new Promise((resolve, reject) => {
+      const id = nextId++;
+      const timer = setTimeout(
+        () => reject(new Error(`MCP ${method} timed out: ${stderr}`)),
+        30_000,
+      );
+      pending.set(id, (message) => {
+        clearTimeout(timer);
+        if (message.error) reject(new Error(`MCP ${method}: ${message.error.message}`));
+        else resolve(message.result);
+      });
+      server.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
+    });
+  try {
+    const initialized = await request("initialize", {
+      protocolVersion: "2025-06-18",
+      capabilities: {},
+      clientInfo: { name: "package-smoke", version: "1.0.0" },
+    });
+    server.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`);
+    const { tools } = await request("tools/list", {});
+    const listed = await request("tools/call", { name: "list_repositories", arguments: {} });
+    return { initialized, tools: tools.map((tool) => tool.name), listed, stderr };
+  } finally {
+    server.kill();
+  }
+}
+
 try {
   const archiveDirectory = process.env.PACKAGE_TARBALL_DIR;
   if (archiveDirectory) {
@@ -236,6 +289,14 @@ try {
   await api(`projects/${project.id}/terminal/cancel`, {});
   assert.equal((await pending).ok, false);
 
+  const mcp = await mcpStdioSession(path.join(installed, "bin", "repo-control.mjs"), workspace);
+  assert.equal(mcp.initialized.serverInfo.name, "repo-control");
+  assert.equal(mcp.initialized.serverInfo.version, metadata.version);
+  assert.ok(mcp.tools.includes("list_repositories"), mcp.tools.join(", "));
+  assert.ok(!mcp.tools.includes("git_push"), "repo-control mcp is read-only without --allow-writes");
+  assert.match(mcp.listed.content[0].text, /^7 of 7 repositories\./);
+  assert.match(mcp.stderr, /MCP server ready on stdio/);
+
   if (process.argv.includes("--browser")) {
     const { chromium } = await import("@playwright/test");
     browser = await chromium.launch();
@@ -269,7 +330,7 @@ try {
     browser = undefined;
   }
   console.log(
-    `PASS: installed repo-control@${metadata.version} on ${process.platform}; CLI, assets, Git fixtures, terminal exit/cancel${process.argv.includes("--browser") ? ", browser onboarding" : ""}.`,
+    `PASS: installed repo-control@${metadata.version} on ${process.platform}; CLI, assets, Git fixtures, terminal exit/cancel, MCP stdio${process.argv.includes("--browser") ? ", browser onboarding" : ""}.`,
   );
 } catch (error) {
   console.error(output);

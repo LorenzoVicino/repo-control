@@ -28,7 +28,28 @@ const envSchema = z
     REPO_CONTROL_AUTH_PASSWORD: z
       .string()
       .optional()
-      .transform((value) => (value ? value : undefined))
+      .transform((value) => (value ? value : undefined)),
+    // Bearer token that turns on the HTTP MCP endpoint (/mcp) for external clients. Unset
+    // or empty leaves the endpoint off. Long enough that guessing it is not an option.
+    REPO_CONTROL_MCP_TOKEN: z
+      .string()
+      .optional()
+      .transform((value) => (value?.trim() ? value.trim() : undefined))
+      .refine((value) => value === undefined || value.length >= 32, "REPO_CONTROL_MCP_TOKEN must be at least 32 characters"),
+    // Expose write tools (commit, push, pull, Compose, workflow runs) to external MCP
+    // clients. Off by default: an external client then sees read-only tools only.
+    // Model for the in-app agent, passed to `claude --model` (an alias such as "sonnet" or a
+    // full model name). Unset uses Claude Code's own default.
+    REPO_CONTROL_AGENT_MODEL: z
+      .string()
+      .trim()
+      .regex(/^[\w.:[\]-]*$/, "REPO_CONTROL_AGENT_MODEL must be a model name or alias")
+      .optional()
+      .transform((value) => (value ? value : undefined)),
+    REPO_CONTROL_MCP_WRITE: z
+      .string()
+      .optional()
+      .transform((value) => ["1", "true", "on"].includes(value?.trim().toLowerCase() ?? ""))
   })
   .superRefine((value, context) => {
     const hasUsername = Boolean(value.REPO_CONTROL_AUTH_USERNAME);
