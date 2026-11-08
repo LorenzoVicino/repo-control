@@ -59,6 +59,10 @@ test("knowledge routes report status, index in the background, list labels and s
   assert.equal(search.hits[0].name, "docs");
   assert.deepEqual(search.hits[0].via, ["text"]);
   assert.equal((await app.inject({ url: "/api/knowledge/search?q=a" })).statusCode, 400);
+
+  const semantic = await app.inject({ method: "POST", url: "/api/knowledge/semantic" });
+  assert.equal(semantic.statusCode, 409, "an index without an installer cannot enable semantic search");
+  assert.equal(semantic.json().code, "SEMANTIC_NOT_INSTALLABLE");
 });
 
 test("the agent searches the workspace and filters repositories by label", async (context) => {

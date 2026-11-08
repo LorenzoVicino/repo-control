@@ -1,10 +1,15 @@
+import { promises as fs } from "node:fs";
 import path from "node:path";
 import { scanProjects } from "../../gitScanner.js";
 import type { CommandRunner } from "../../lib/commandRunner.js";
 import { getConfigDirectory } from "../../preferences.js";
-import { loadTransformersProvider, resolveTransformers } from "./embeddings.js";
+import { getNpmCommand } from "../../runtime.js";
+import { loadTransformersProvider, resolveTransformers, TRANSFORMERS_PACKAGE } from "./embeddings.js";
 import { createKnowledgeIndex, type KnowledgeIndex } from "./index.js";
 import { openKnowledgeStore } from "./store.js";
+
+// Pinned, so enabling semantic search installs exactly the version this code was built against.
+export const TRANSFORMERS_VERSION = "4.3.2";
 
 /**
  * The knowledge index as the server and the MCP command use it: opened on first use (so
@@ -25,7 +30,19 @@ export function createLazyKnowledgeIndex(options: { getActiveRootPath: () => str
       loadProvider: async () =>
         resolveTransformers([extensions])
           ? loadTransformersProvider({ searchFolders: [extensions], cacheDir: path.join(configDirectory, "models"), model: process.env.REPO_CONTROL_EMBEDDING_MODEL?.trim() || undefined })
-          : null
+          : null,
+      async installProvider() {
+        // A private package.json keeps the install self-contained in the extensions folder.
+        await fs.mkdir(extensions, { recursive: true });
+        await fs.writeFile(path.join(extensions, "package.json"), JSON.stringify({ name: "repo-control-extensions", private: true }), { flag: "wx" }).catch(() => undefined);
+        const result = await options.runProjectCommand(
+          extensions,
+          getNpmCommand(),
+          ["install", "--no-audit", "--no-fund", "--omit=dev", `${TRANSFORMERS_PACKAGE}@${TRANSFORMERS_VERSION}`],
+          20 * 60_000
+        );
+        return { ok: result.ok, output: result.output };
+      }
     });
     return index;
   };

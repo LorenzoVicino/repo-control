@@ -20,7 +20,13 @@ export type KnowledgeStatus = {
   /** Repositories processed in the current or last run. */
   progress: { done: number; total: number } | null;
   lastRun: { startedAt: string; finishedAt: string; updated: number; skipped: number; removed: number; failed: string[] } | null;
-  semantic: { enabled: boolean; model: string | null };
+  semantic: {
+    enabled: boolean;
+    model: string | null;
+    /** Whether this installation can download the semantic search runtime on request. */
+    installable: boolean;
+    install: { state: "idle" | "installing" | "failed"; message: string | null };
+  };
 };
 
 type KnowledgeDependencies = {
@@ -30,6 +36,8 @@ type KnowledgeDependencies = {
   runProjectCommand: CommandRunner;
   /** Resolved lazily, once; null means full-text only. */
   loadProvider?: () => Promise<EmbeddingProvider | null>;
+  /** Downloads the embedding runtime, for the opt-in "enable semantic search" action. */
+  installProvider?: () => Promise<{ ok: boolean; output: string }>;
   now?: () => Date;
 };
 
@@ -48,13 +56,23 @@ export function fingerprint(docs: RepositoryDocuments): string {
   return hash.digest("hex").slice(0, 32);
 }
 
-export function createKnowledgeIndex({ store, getActiveRootPath, scan, runProjectCommand, loadProvider = async () => null, now = () => new Date() }: KnowledgeDependencies) {
+export function createKnowledgeIndex({
+  store,
+  getActiveRootPath,
+  scan,
+  runProjectCommand,
+  loadProvider = async () => null,
+  installProvider,
+  now = () => new Date()
+}: KnowledgeDependencies) {
   let providerPromise: Promise<EmbeddingProvider | null> | null = null;
   let provider: EmbeddingProvider | null = null;
   let running: Promise<KnowledgeStatus["lastRun"]> | null = null;
   let progress: KnowledgeStatus["progress"] = null;
   let lastRun: KnowledgeStatus["lastRun"] = null;
   let topicVectors: Array<{ id: string; description: string; vector: Float32Array }> | null = null;
+  let install: KnowledgeStatus["semantic"]["install"] = { state: "idle", message: null };
+  let installing: Promise<void> | null = null;
 
   function getProvider(): Promise<EmbeddingProvider | null> {
     providerPromise ??= loadProvider()
@@ -165,8 +183,35 @@ export function createKnowledgeIndex({ store, getActiveRootPath, scan, runProjec
         total: progress?.total ?? store.listRepositories(root).length,
         progress,
         lastRun,
-        semantic: { enabled: provider !== null, model: provider?.id ?? null }
+        semantic: { enabled: provider !== null, model: provider?.id ?? null, installable: Boolean(installProvider), install }
       };
+    },
+
+    /**
+     * Installs the embedding runtime, loads it and re-indexes so every repository gets vectors
+     * and topic labels. Runs once at a time; the status reports progress and failures.
+     */
+    enableSemantic(): Promise<void> {
+      if (!installProvider) return Promise.reject(new Error("Semantic search cannot be installed from here."));
+      installing ??= (async () => {
+        install = { state: "installing", message: null };
+        try {
+          if (!(await getProvider())) {
+            const result = await installProvider();
+            if (!result.ok) throw new Error(result.output.trim().split("\n").slice(-6).join("\n") || "The install failed.");
+            providerPromise = null;
+            topicVectors = null;
+            if (!(await getProvider())) throw new Error("The runtime was installed but could not be loaded.");
+          }
+          await this.reindex();
+          install = { state: "idle", message: null };
+        } catch (error) {
+          install = { state: "failed", message: error instanceof Error ? error.message : String(error) };
+        } finally {
+          installing = null;
+        }
+      })();
+      return installing;
     },
 
     repositories(): StoredRepository[] {

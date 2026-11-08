@@ -75,7 +75,7 @@ test("indexes a workspace incrementally and finds repositories by words, labels 
   assert.equal(index.status().state, "idle");
   const first = await index.reindex();
   assert.deepEqual({ updated: first?.updated, skipped: first?.skipped, removed: first?.removed, failed: first?.failed }, { updated: 3, skipped: 0, removed: 0, failed: [] });
-  assert.deepEqual(index.status().semantic, { enabled: false, model: null });
+  assert.deepEqual(index.status().semantic, { enabled: false, model: null, installable: false, install: { state: "idle", message: null } });
   assert.deepEqual(index.repositories().map((repository) => repository.name), ["atlas-api", "billing-worker", "handbook"]);
   assert.deepEqual(index.repositories()[0].labels.map((label) => label.id), ["api", "typescript", "fastify"]);
   assert.match(index.repositories()[0].summary, /^atlas-api: Orders API\./);
@@ -118,7 +118,8 @@ test("with an embedding provider, search also matches meaning and labels gain to
   const italian = await index.search("fatturazione");
   assert.equal(italian[0].repository.name, "billing-worker", "an Italian query finds the English README by meaning");
   assert.deepEqual(italian[0].via, ["semantic"]);
-  assert.deepEqual(index.status().semantic, { enabled: true, model: "fake:concepts" });
+  assert.equal(index.status().semantic.enabled, true);
+  assert.equal(index.status().semantic.model, "fake:concepts");
   assert.ok(store.vectors(root).length > 0);
   const billing = index.repositories().find((repository) => repository.name === "billing-worker");
   const topic = billing?.labels.find((label) => label.kind === "topic");
@@ -135,4 +136,49 @@ test("free text becomes a safe FTS5 query", () => {
   assert.equal(toFtsQuery('Where is "billing" (v2)? a'), '"where"* OR "is"* OR "billing"* OR "v2"*');
   assert.equal(toFtsQuery("NEAR(x y) OR -z"), '"near"* OR "or"*');
   assert.equal(toFtsQuery("??"), "");
+});
+
+test("semantic search is enabled on request: install, load, re-index, or report the failure", async (context) => {
+  const root = await workspace(context);
+  const store = openKnowledgeStore(":memory:");
+  context.after(() => store.close());
+  let installed = false;
+  let installs = 0;
+  const index = createKnowledgeIndex({
+    store,
+    getActiveRootPath: () => root,
+    scan: (rootPath) => scanProjects(rootPath),
+    runProjectCommand,
+    loadProvider: async () => (installed ? fakeProvider() : null),
+    installProvider: async () => {
+      installs += 1;
+      installed = true;
+      return { ok: true, output: "added 120 packages" };
+    }
+  });
+
+  await index.reindex();
+  assert.deepEqual(index.status().semantic, { enabled: false, model: null, installable: true, install: { state: "idle", message: null } });
+
+  const enabling = index.enableSemantic();
+  assert.equal(index.status().semantic.install.state, "installing");
+  assert.equal(index.enableSemantic(), enabling, "a second request joins the running install");
+  await enabling;
+  assert.equal(installs, 1);
+  assert.deepEqual(index.status().semantic, { enabled: true, model: "fake:concepts", installable: true, install: { state: "idle", message: null } });
+  assert.ok(store.vectors(root).length > 0, "every repository was re-embedded");
+
+  const failing = createKnowledgeIndex({
+    store: openKnowledgeStore(":memory:"),
+    getActiveRootPath: () => root,
+    scan: (rootPath) => scanProjects(rootPath),
+    runProjectCommand,
+    installProvider: async () => ({ ok: false, output: "npm ERR! network\nnpm ERR! request to registry failed" })
+  });
+  await failing.enableSemantic();
+  assert.deepEqual(failing.status().semantic.install, { state: "failed", message: "npm ERR! network\nnpm ERR! request to registry failed" });
+
+  const notInstallable = createKnowledgeIndex({ store: openKnowledgeStore(":memory:"), getActiveRootPath: () => root, scan: async () => [], runProjectCommand });
+  assert.equal(notInstallable.status().semantic.installable, false);
+  await assert.rejects(notInstallable.enableSemantic(), /cannot be installed/);
 });

@@ -19,6 +19,17 @@ export async function registerKnowledgeRoutes(app: FastifyInstance, context: Kno
     return reply.code(202).send(knowledge.status());
   });
 
+  // Opt-in semantic search: downloads the embedding runtime, then re-indexes. Progress and
+  // failures are reported in the status.
+  app.post("/api/knowledge/semantic", async (_request, reply) => {
+    const knowledge = context.knowledge();
+    if (!knowledge.status().semantic.installable) {
+      return reply.code(409).send({ ok: false, code: "SEMANTIC_NOT_INSTALLABLE", message: "Semantic search cannot be installed from here." });
+    }
+    void knowledge.enableSemantic();
+    return reply.code(202).send(knowledge.status());
+  });
+
   app.get("/api/knowledge/repositories", async () => ({
     repositories: context.knowledge().repositories().map(({ id, name, relativePath, labels, summary, indexedAt }) => ({ id, name, relativePath, labels, summary, indexedAt }))
   }));
