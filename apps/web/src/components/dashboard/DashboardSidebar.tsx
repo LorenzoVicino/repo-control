@@ -1,4 +1,5 @@
 import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
+import type { SvgIconProps } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
@@ -44,7 +45,7 @@ const MOBILE_SIDEBAR_WIDTH = 276;
 const NAV_ITEMS: Array<{
   id: DashboardSection;
   labelKey: `navigation.sections.${DashboardSection}`;
-  icon: React.ReactElement;
+  icon: React.ReactElement<SvgIconProps>;
 }> = [
   { id: "overview", labelKey: "navigation.sections.overview", icon: <DashboardOutlinedIcon /> },
   { id: "repositories", labelKey: "navigation.sections.repositories", icon: <AccountTreeOutlinedIcon /> },

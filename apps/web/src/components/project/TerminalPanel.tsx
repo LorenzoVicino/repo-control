@@ -21,6 +21,7 @@ import {
   Stack,
   Typography
 } from "@mui/material";
+import type { SvgIconProps } from "@mui/material";
 import React from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -632,7 +633,7 @@ const TerminalEntryBlock = React.memo(function TerminalEntryBlock({
 
 type TerminalComposerProps = {
   command: string;
-  inputRef: React.RefObject<HTMLTextAreaElement>;
+  inputRef: React.RefObject<HTMLTextAreaElement | null>;
   promptPath: string;
   isRunning: boolean;
   suggestions: string[];
@@ -860,7 +861,7 @@ function RailSection({
   children
 }: {
   title: string;
-  icon?: React.ReactElement;
+  icon?: React.ReactElement<SvgIconProps>;
   action?: React.ReactNode;
   children: React.ReactNode;
 }) {
