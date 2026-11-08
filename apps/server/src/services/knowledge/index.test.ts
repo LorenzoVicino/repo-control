@@ -9,7 +9,7 @@ import { scanProjects } from "../../gitScanner.js";
 import { runProjectCommand } from "../../lib/commandRunner.js";
 import type { EmbeddingProvider } from "./embeddings.js";
 import { createKnowledgeIndex } from "./index.js";
-import { toFtsQuery } from "./search.js";
+import { namesRepository, toFtsQuery } from "./search.js";
 import { openKnowledgeStore } from "./store.js";
 
 const execFileAsync = promisify(execFile);
@@ -130,6 +130,13 @@ test("with an embedding provider, search also matches meaning and labels gain to
   const switched = createKnowledgeIndex({ store, getActiveRootPath: () => root, scan: (rootPath) => scanProjects(rootPath), runProjectCommand, loadProvider: async () => fakeProvider("fake:v2") });
   const run = await switched.reindex();
   assert.equal(run?.updated, 3);
+});
+
+test("only a distinctive name or the whole query counts as naming a repository", () => {
+  assert.equal(namesRepository("handbook", "handbook"), true);
+  assert.equal(namesRepository("what changed in atlas-api today?", "atlas-api"), true);
+  assert.equal(namesRepository("mcp server", "server"), false);
+  assert.equal(namesRepository("a.b", "a.b"), true);
 });
 
 test("free text becomes a safe FTS5 query", () => {

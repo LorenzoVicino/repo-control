@@ -32,6 +32,17 @@ function snippetOf(text: string, length = 220): string {
   return flat.length > length ? `${flat.slice(0, length - 1)}…` : flat;
 }
 
+/**
+ * Whether the query names the repository. A distinctive name ("atlas-api", "repo-control")
+ * counts wherever it appears; a plain word like "server" or "docs" only when it is the whole
+ * query, so "mcp server" does not promote a repository that happens to be called "server".
+ */
+export function namesRepository(query: string, name: string): boolean {
+  const trimmed = query.trim();
+  if (trimmed === name) return true;
+  return /[-_.]/.test(name) && name.length >= 4 && trimmed.includes(name);
+}
+
 export async function searchKnowledge(
   store: KnowledgeStore,
   root: string,
@@ -104,7 +115,7 @@ export async function searchKnowledge(
       score += 2 / RRF_K;
       via.add("label");
     }
-    if (lowered.includes(repository.name.toLowerCase())) {
+    if (namesRepository(lowered, repository.name.toLowerCase())) {
       score += 3 / RRF_K;
       via.add("name");
     }
