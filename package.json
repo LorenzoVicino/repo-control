@@ -78,6 +78,10 @@
     "@fastify/static": "^8.3.0",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "fastify": "^5.11.0",
+    "graphology": "^0.26.0",
+    "graphology-layout": "^0.6.1",
+    "graphology-layout-forceatlas2": "^0.10.1",
+    "sigma": "^3.0.3",
     "simple-git": "^3.25.0",
     "zod": "^3.25.76"
   },
@@ -108,6 +112,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.8.0",
+    "graphology-types": "^0.24.8",
     "i18next": "^26.4.0",
     "jsdom": "^29.1.1",
     "motion": "^12.43.0",

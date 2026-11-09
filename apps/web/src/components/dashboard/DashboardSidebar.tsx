@@ -1,6 +1,7 @@
 import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import AutoStoriesOutlinedIcon from "@mui/icons-material/AutoStoriesOutlined";
+import BubbleChartOutlinedIcon from "@mui/icons-material/BubbleChartOutlined";
 import type { SvgIconProps } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -34,6 +35,7 @@ import { WorkspaceToolbarPicker } from "./WorkspaceToolbarPicker";
 export type DashboardSection =
   | "assistant"
   | "knowledge"
+  | "graph"
   | "overview"
   | "agents"
   | "automations"
@@ -53,6 +55,7 @@ const NAV_ITEMS: Array<{
 }> = [
   { id: "assistant", labelKey: "navigation.sections.assistant", icon: <AutoAwesomeOutlinedIcon /> },
   { id: "knowledge", labelKey: "navigation.sections.knowledge", icon: <AutoStoriesOutlinedIcon /> },
+  { id: "graph", labelKey: "navigation.sections.graph", icon: <BubbleChartOutlinedIcon /> },
   { id: "overview", labelKey: "navigation.sections.overview", icon: <DashboardOutlinedIcon /> },
   { id: "repositories", labelKey: "navigation.sections.repositories", icon: <AccountTreeOutlinedIcon /> },
   { id: "favorites", labelKey: "navigation.sections.favorites", icon: <StarBorderOutlinedIcon /> },
@@ -170,6 +173,7 @@ function SidebarContent({
   const counts: Record<DashboardSection, number | null> = {
     assistant: null,
     knowledge: null,
+    graph: null,
     overview: null,
     agents: null,
     automations: null,

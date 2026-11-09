@@ -4,6 +4,7 @@ import type { WorkflowDefinition, WorkflowRun } from "../types/workflows";
 import type { UserPreferences } from "../types/workspace";
 import type { AgentEvent } from "../types/agent";
 import { createDemoAgent } from "./agent";
+import { demoWorkspaceGraph } from "./graph";
 import { demoKnowledgeRepositories, demoKnowledgeSearch, demoKnowledgeStatus } from "./knowledge";
 import {
   createDemoDetails,
@@ -161,6 +162,7 @@ export async function demoRequest(
   if (route === "/api/projects") return reply({ root: DEMO_ROOT, projects });
   if (route === "/api/knowledge" || route === "/api/knowledge/reindex")
     return reply(demoKnowledgeStatus(projects));
+  if (route === "/api/knowledge/graph") return reply(demoWorkspaceGraph(projects));
   if (route === "/api/knowledge/repositories")
     return reply({ repositories: demoKnowledgeRepositories(projects) });
   if (route === "/api/knowledge/search") {

@@ -46,6 +46,7 @@ import {
 } from "./PreferenceSyncNotice";
 import { RepositoryCommandPalette } from "./RepositoryCommandPalette";
 import { FavoriteProjects, WorkspaceMap } from "./WorkspaceMap";
+import { conversationStore } from "../assistant/conversationStore";
 import { ProjectWorkspaceTabs } from "../project/ProjectWorkspaceTabs";
 import { getProjectPanelId } from "../project/projectWorkspaceIds";
 import { SettingsPage } from "../settings/SettingsPage";
@@ -108,6 +109,10 @@ const AppMotionBackdrop = React.lazy(async () => {
 const AssistantPage = React.lazy(async () => {
   const module = await import("../assistant/AssistantPage");
   return { default: module.AssistantPage };
+});
+const GraphPage = React.lazy(async () => {
+  const module = await import("../graph/GraphPage");
+  return { default: module.GraphPage };
 });
 const KnowledgePage = React.lazy(async () => {
   const module = await import("../knowledge/KnowledgePage");
@@ -593,6 +598,20 @@ export function ProjectsDashboard({
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [dockerAvailable]);
 
+  // Hands a question to the agent: switch to its section and start the conversation there.
+  const askAgent = React.useCallback(
+    (prompt: string) => {
+      navigateToSection("assistant");
+      void conversationStore.send(prompt, {
+        startFailed: t("assistant.errors.startFailed"),
+        streamLost: t("assistant.errors.streamLost"),
+        decisionFailed: t("assistant.errors.decisionFailed"),
+        cancelFailed: t("assistant.errors.cancelFailed")
+      });
+    },
+    [navigateToSection, t]
+  );
+
   const openProject = React.useCallback((projectId: string) => {
     void loadProjectDetailPanel();
     setIsCommandPaletteOpen(false);
@@ -932,6 +951,14 @@ export function ProjectsDashboard({
             <ViewEntrance>
               <React.Suspense fallback={<SectionLoading label={t("loading.knowledge")} />}>
                 <KnowledgePage onOpenProject={openProject} />
+              </React.Suspense>
+            </ViewEntrance>
+          ) : null}
+
+          {!activeProject && !isWorkspaceUnavailable && activeSection === "graph" ? (
+            <ViewEntrance>
+              <React.Suspense fallback={<SectionLoading label={t("loading.graph")} />}>
+                <GraphPage onOpenProject={openProject} onAskAgent={askAgent} />
               </React.Suspense>
             </ViewEntrance>
           ) : null}
