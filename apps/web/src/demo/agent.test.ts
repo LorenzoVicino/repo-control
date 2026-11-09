@@ -124,3 +124,30 @@ describe("demo agent", () => {
     expect(texts(events)).toEqual(["All 1 repositories are clean and in sync. Nothing needs you right now."]);
   });
 });
+
+describe("demo agent impact questions", () => {
+  it("answers what a change would affect from the workspace relations", async () => {
+    const projects = [createProjectFixture("shared-utils"), createProjectFixture("atlas-web", { ahead: 1 }), createProjectFixture("lonely")];
+    const agent = createDemoAgent({
+      listProjects: () => projects,
+      runGitAction: vi.fn(),
+      relationsOf: (name) =>
+        name === "shared-utils"
+          ? { usedBy: [{ name: "atlas-web", evidence: "depends on @atlas/shared-utils" }], mentionedBy: [{ name: "docs", evidence: "README.md mentions shared-utils" }] }
+          : { usedBy: [], mentionedBy: [] },
+      pace: 0
+    });
+
+    const run = agent.start("What would a change to shared-utils affect?");
+    const { events, ended } = follow(agent, run.id);
+    await ended;
+    expect(events.filter((event) => event.type === "tool_call").map((event) => (event.type === "tool_call" ? event.name : ""))).toEqual(["repository_relations", "get_repository"]);
+    expect(texts(events).at(-1)).toMatch(/^A change to \*\*shared-utils\*\* reaches 1 repository that depends on it, and 1 more mention it\./);
+    expect(texts(events).at(-1)).toMatch(/Release shared-utils first, then bump it in atlas-web\.$/);
+
+    const lonely = agent.start("what depends on lonely?");
+    const second = follow(agent, lonely.id);
+    await second.ended;
+    expect(texts(second.events).at(-1)).toBe("Nothing else in the workspace depends on or mentions lonely, so a change stays local to it.");
+  });
+});

@@ -46,6 +46,17 @@ const sessions = new Map<string, ContainerSessionRead>();
 // or push changes the demo workspace exactly as clicking Pull or Push would.
 const agent = createDemoAgent({
   listProjects: () => projects,
+  relationsOf(projectName) {
+    const graph = demoWorkspaceGraph(projects);
+    const nameOf = new Map(graph.nodes.map((node) => [node.id, node.name]));
+    const id = graph.nodes.find((node) => node.type === "repository" && node.name === projectName)?.id;
+    const incoming = (type: string) =>
+      graph.edges
+        .filter((edge) => edge.type === type && edge.target === id)
+        .map((edge) => ({ name: nameOf.get(edge.source) ?? edge.source, evidence: edge.evidence[0] ?? "" }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    return { usedBy: incoming("depends_on"), mentionedBy: incoming("references") };
+  },
   async runGitAction(projectId, action) {
     const response = await demoRequest(`/api/projects/${projectId}/git/${action}`, { method: "POST", body: "{}" });
     const payload = (await response.json()) as { ok?: boolean; output?: string; message?: string };

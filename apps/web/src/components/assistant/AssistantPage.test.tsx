@@ -120,4 +120,27 @@ describe("AssistantPage", () => {
     expect(screen.getByRole("textbox", { name: "Message the agent" })).toBeDisabled();
     expect(screen.getByRole("button", { name: /What needs me today\?/ })).toBeDisabled();
   });
+
+  it("follows a streaming answer while the reader is at the bottom, and stops when they scroll up", async () => {
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    const { fake, user } = setup();
+    const composer = await screen.findByRole("textbox", { name: "Message the agent" });
+    await waitFor(() => expect(composer).toBeEnabled());
+    await user.type(composer, "Status?{Enter}");
+    await waitFor(() => expect(scrollTo).toHaveBeenCalled());
+
+    // The reader scrolls up to reread: jsdom has no layout, so the page reports a tall document.
+    Object.defineProperty(document.documentElement, "scrollHeight", { configurable: true, value: 5000 });
+    window.dispatchEvent(new Event("scroll"));
+    scrollTo.mockClear();
+    fake.emit({ type: "text", text: "More output." });
+    expect(await screen.findByText("More output.")).toBeVisible();
+    expect(scrollTo).not.toHaveBeenCalled();
+
+    Object.defineProperty(document.documentElement, "scrollHeight", { configurable: true, value: 0 });
+    window.dispatchEvent(new Event("scroll"));
+    fake.emit({ type: "text", text: "Even more." });
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 0 }));
+    scrollTo.mockRestore();
+  });
 });

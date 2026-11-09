@@ -4,9 +4,9 @@
 
 <h1 align="center">repo-control</h1>
 
-<p align="center"><strong>A local-first command center for multi-repository workspaces.</strong></p>
+<p align="center"><strong>An AI-first command center for multi-repository workspaces, running on your machine.</strong></p>
 
-When work spans several repositories, the important state is scattered across terminal tabs, Git clients, Docker commands and local AI-agent sessions. repo-control turns one workspace folder into a live operational view: what is clean, what is drifting, what needs attention and which action is safe to run next.
+Ask what needs you across every repository, in plain language. repo-control runs Claude Code headless against its own MCP tools. It reads Git and Docker state freely, and every change (a pull, a commit, a push, a Compose restart, a workflow run) waits for your approval in the conversation. Underneath, a local knowledge index labels each repository and a workspace graph shows how they relate, for you and for the agent. Nothing leaves your machine except the model calls Claude Code already makes.
 
 ```bash
 npx repo-control ~/projects
@@ -22,15 +22,34 @@ Replace the folder with your own workspace. Setup helps you confirm it, check op
 
 Using `npx.cmd` avoids PowerShell script-policy errors; changing your execution policy is unnecessary. After installing Node.js or Git, open a new terminal so it picks up the updated PATH.
 
-**[Visit the project page](https://lorenzovicino.github.io/repo-control/)** — then open the interactive demo, a fictional workspace that stays entirely in your browser.
+**[Visit the project page](https://lorenzovicino.github.io/repo-control/)**, then open the interactive demo: a fictional workspace that stays entirely in your browser, with a scripted agent you can approve and deny.
 
 <p align="center">
   <a href="docs/repo-control-demo.webm">
-    <img src="docs/repo-control-demo.gif" alt="repo-control v0.14.0 demo: the widget dashboard with its attention queue and workspace ring, customizing the layout, opening a repository that is behind, its branches and scoped terminal, then Ctrl+P search" width="100%" />
+    <img src="docs/repo-control-demo.gif" alt="repo-control demo: the agent triages a seven-repository workspace and pulls the safe repository after approval, the Knowledge section filters by label and searches, the workspace graph shows what uses shared-utils, and the agent explains what a change to it would affect" width="100%" />
   </a>
 </p>
 
-<p align="center"><sub>Dashboard triage → customize the widgets → open the repository that is behind → branches → scoped terminal → Ctrl+P search → back to the dashboard. Captured from the live v0.14.0 application on a small demonstration workspace of seven repositories with realistic states (dirty trees, a branch behind, a commit to push); click the GIF for the full-quality video.</sub></p>
+<p align="center"><sub>The agent triages the demo workspace and pulls the safe repository once approved → Knowledge labels and search → the workspace graph → "what would a change to shared-utils affect?". Recorded from the online demo with <code>npm run record:demo</code>; click the GIF for the video.</sub></p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/agent-approval.png" alt="The agent's triage of the workspace with an approval card for a fast-forward pull" /><br /><sub><b>Agent.</b> Triage in plain language; a change waits for your approval.</sub></td>
+    <td width="50%"><img src="docs/screenshots/agent-impact.png" alt="The agent explaining which repositories a change to shared-utils would affect" /><br /><sub><b>Impact.</b> "What would a change to shared-utils affect?", answered from the graph.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/knowledge.png" alt="Knowledge section with labels grouped by kind and a search with highlighted matches" /><br /><sub><b>Knowledge.</b> Labels with evidence, and search over READMEs, docs, manifests and commits.</sub></td>
+    <td width="50%"><img src="docs/screenshots/graph.png" alt="Workspace graph with shared-utils selected and the three repositories that depend on it" /><br /><sub><b>Graph.</b> Dependencies, mentions and shared labels, each with its evidence.</sub></td>
+  </tr>
+</table>
+
+## How it works
+
+- **The agent is Claude Code, locked down.** The dashboard runs `claude -p --output-format stream-json` with no built-in tools (`--tools ""`), none of your Claude Code settings, and a single MCP server: repo-control's own `/mcp`, reached with a token that lives as long as the run. Read tools are pre-allowed. Every write tool goes through `--permission-prompt-tool` to an approval card in the conversation, and a declined action is not retried. Answers stream over server-sent events; a conversation continues across messages through the Claude Code session.
+- **One tool catalog, two ways in.** The same 25 tools cover repositories and Git, the knowledge index, Docker Compose, saved workflows and past agent sessions. They serve the in-app agent and any MCP client: `repo-control mcp` over stdio for Claude Code or Claude Desktop, or `/mcp` over Streamable HTTP with a bearer token. They are read-only unless writes are enabled, keep the dashboard's guards (fast-forward-only pulls, no forced pushes, no branch switch on a dirty tree), and include no shell or workflow-editing tool. See [docs/mcp.md](docs/mcp.md).
+- **A knowledge index of the workspace.** Each repository's manifests, README, docs and commit subjects (only files Git does not ignore) become labels with evidence: what it is, its languages, frameworks and tooling. A BM25 full-text index covers the same text. Optional local embeddings add search by meaning and topic labels, fused with full-text results by reciprocal rank fusion. Everything is stored in SQLite through Node's built-in `node:sqlite`, indexed incrementally, and never sent anywhere.
+- **A graph of how repositories relate.** Internal dependencies (a manifest using a package another repository publishes), mentions in docs and commits, shared labels and similar meaning, each edge with the reason it exists. The agent asks it through `repository_relations`; you explore it as an interactive WebGL map.
+- **The operations underneath.** Git with diffs, staging and branches, a scoped terminal, Docker Compose and container consoles, visual workflows with dry runs, and search across local Codex, Claude Code and Gemini CLI sessions. The agent drives these through the tools; you can always do the same by hand.
 
 ## The problem
 
@@ -38,33 +57,26 @@ A normal multi-repository workflow creates three recurring costs:
 
 - **State is fragmented.** Dirty trees, ahead/behind branches, recent activity, running containers and agent conversations live in different tools.
 - **Context switching is expensive.** Routine work means repeatedly finding a folder, opening a terminal and reconstructing the repository context.
-- **Automation can become unsafe.** Broad scripts are fast, but a command executed in the wrong directory can be destructive.
+- **Automation can become unsafe.** Broad scripts and unconstrained AI agents are fast, but a command executed in the wrong directory can be destructive.
 
-repo-control keeps the convenience of a dashboard without moving control to a remote service.
-
-| Without repo-control | With repo-control |
-| --- | --- |
-| Inspect repositories one at a time | Triage the entire workspace from one live health view |
-| Rebuild context before every command | Open Git, branches, terminal and Docker already scoped to a repository |
-| Search each AI CLI's history separately | Find and resume local Codex, Claude Code and Gemini CLI sessions together |
-| Rely on ad-hoc scripts for repeated work | Compose explicit, inspectable workflows with dry runs, live progress and history |
+repo-control gives you an agent that knows the whole workspace without giving it the keys: it can look at everything, and it has to ask before changing anything.
 
 ## The core workflow
 
-1. Point repo-control at a workspace folder. It discovers Git repositories recursively while skipping common dependency and build directories.
-2. Triage clean, modified, behind and ahead repositories from the Dashboard.
-3. Jump to a project with `Ctrl+P`; its Overview surfaces working-tree health, sync drift, Docker state and recent commits before any action is needed.
-4. Inspect a file diff, prepare a commit, work with branches, run a terminal command or operate Docker without leaving the selected repository boundary.
-5. Find a local agent conversation associated with a discovered repository and resume it in a native terminal.
-6. Turn repeated operations into visual workflows that can be previewed, monitored and cancelled.
+1. Point repo-control at a workspace folder. It discovers Git repositories recursively, skipping dependency and build directories, and indexes what each one is about.
+2. Ask the agent what needs you, or pick a suggestion built from the live workspace state.
+3. Watch it inspect repositories with read-only tools, then approve or deny each change it proposes.
+4. Use Knowledge and the graph to find where something lives and what a change would touch, then hand the question back to the agent.
+5. Open any repository for hands-on work: diffs, commits, branches, a scoped terminal, Docker.
+6. Turn repeated operations into visual workflows that the agent can preview and run, and that you can watch and cancel.
 
 ## Why this is more than a dashboard
 
-- **Local-first safety boundary.** The Fastify API binds to `127.0.0.1` by default, resolves project identifiers server-side and scopes project commands to discovered repositories.
-- **Real developer operations.** The UI reads actual Git and Docker state and exposes explicit actions instead of simulating a project-management view.
-- **Private session discovery.** Agent history is read from the CLI files already on the machine, filtered to the active workspace and searched locally.
-- **Failure-aware automation.** Background runs expose live step results, can be cancelled, and drop a repository that fails out of the steps that follow while the rest of the workspace carries on.
-- **Verifiable engineering quality.** Server tests, React Testing Library, 80% coverage thresholds and Playwright browser flows run in CI across Node.js 22 and 24.
+- **Agent with a safety boundary.** The agent has no shell and no file access, sees only repositories under the workspace, and cannot change anything without an approval it cannot grant itself. The guards are in the tool layer, so they hold for every MCP client too.
+- **Local-first by construction.** The API binds to `127.0.0.1`, resolves project identifiers server-side and checks the `Host` header against DNS rebinding. The knowledge index, the graph and the embeddings run locally.
+- **Explainable results.** Labels, search hits and graph edges each say why they exist, such as "dependency fastify", "README.md mentions billing-worker" or "depends on @atlas/shared-utils".
+- **Real developer operations.** Actual Git and Docker state and explicit actions, not a simulated project-management view.
+- **Verifiable engineering quality.** Server tests on real Git repositories, React Testing Library, 80% coverage thresholds, Playwright browser flows, and an installed-package smoke test on Windows, Linux and macOS. CI exercises the agent through a stand-in CLI that calls the real `/mcp` endpoint; agent changes are also tried by hand against the real Claude Code CLI.
 
 ## Main capabilities
 
@@ -106,17 +118,21 @@ A step that fails removes **that repository** from the steps that follow, and th
 
 ```mermaid
 flowchart LR
-    UI[React + TanStack Query] -->|localhost /api| API[Fastify API]
-    API --> Boundary[Workspace and project boundary]
-    Boundary --> Scan[Git repository scanner]
-    Boundary --> Git[Git services]
-    Boundary --> Commands[Terminal, Docker and VS Code]
-    API --> Agents[Local agent session index]
-    API --> Workflow[Workflow runner]
-    Workflow --> Git
-    Workflow --> Commands
-    API --> Local[(Local preferences, command and run history)]
-    Agents --> CLIs[(Existing CLI histories)]
+    UI[React dashboard] -->|/api + SSE| API[Fastify API]
+    API --> Runner[Agent runner]
+    Runner -->|stream-json| Claude[claude -p<br/>headless, no built-in tools]
+    Claude -->|MCP + run token| MCP[/mcp endpoint/]
+    Clients[Claude Code, Claude Desktop,<br/>other MCP clients] -->|stdio or HTTP| MCP
+    MCP --> Tools[Tool catalog<br/>read freely, write on approval]
+    Runner -. approval cards .-> UI
+    Tools --> Boundary[Workspace and project boundary]
+    Boundary --> Git[Git actions]
+    Boundary --> Docker[Docker Compose]
+    Tools --> Workflow[Workflow runner]
+    Tools --> Knowledge[Knowledge index<br/>labels, BM25, embeddings, graph]
+    Knowledge --> SQLite[(node:sqlite)]
+    API --> Knowledge
+    API --> Boundary
 ```
 
 The browser never chooses an arbitrary working directory for a project command. It sends a project identifier; the server resolves and validates the corresponding path under the active workspace. See [Architecture](docs/architecture.md) for module boundaries, persistence and placement conventions.
