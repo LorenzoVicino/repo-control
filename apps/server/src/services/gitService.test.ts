@@ -93,6 +93,7 @@ test("reads Git details, changes, branches, stashes and paginated activity from 
     const untrackedDiff = await readGitFileDiff(repositoryPath, "untracked.ts", null, false);
     assert.match(untrackedDiff.patch, /new file mode/);
     assert.match(untrackedDiff.patch, /\+new/);
+    assert.equal(untrackedDiff.additions, 1, "a one-line file with a final newline is one added line");
     assert.match(await getDirtyCheckoutMessage(repositoryPath) ?? "", /Checkout blocked/);
 
     await git(repositoryPath, "reset", "--hard", "HEAD");
@@ -139,4 +140,14 @@ test("validates Git refs and relative paths used by mutation routes", () => {
   assert.deepEqual(getGitPathArgs("new.ts", "old.ts"), ["--", "old.ts", "new.ts"]);
   assert.deepEqual(getGitPathArgs("new.ts", null), ["--", "new.ts"]);
   assert.deepEqual(getGitPathArgs("new.ts", undefined), ["--", "new.ts"]);
+});
+
+test("a new file's patch matches git: final newline, missing newline and empty file", async () => {
+  const { untrackedFilePatch } = await import("./gitService.js");
+  const header = "diff --git a/a.txt b/a.txt\nnew file mode 100644\n--- /dev/null\n+++ b/a.txt";
+  assert.equal(untrackedFilePatch("a.txt", "one\n"), `${header}\n@@ -0,0 +1 @@\n+one`);
+  assert.equal(untrackedFilePatch("a.txt", "one\ntwo\n"), `${header}\n@@ -0,0 +1,2 @@\n+one\n+two`);
+  assert.equal(untrackedFilePatch("a.txt", "one\ntwo"), `${header}\n@@ -0,0 +1,2 @@\n+one\n+two\n\\ No newline at end of file`);
+  assert.equal(untrackedFilePatch("a.txt", "\n"), `${header}\n@@ -0,0 +1 @@\n+`);
+  assert.equal(untrackedFilePatch("a.txt", ""), header);
 });
