@@ -2,7 +2,7 @@ import type { ChunkKind } from "./chunk.js";
 import { cosine, type EmbeddingProvider } from "./embeddings.js";
 import type { KnowledgeStore, StoredRepository } from "./store.js";
 
-// Hybrid retrieval. Full-text search (BM25 over FTS5) finds exact words, names and
+// Hybrid retrieval. Full-text search (BM25, see bm25.ts) finds exact words, names and
 // identifiers; vector search, when an embedding provider is present, finds the same meaning
 // in other words or another language. The two rankings are merged with reciprocal rank
 // fusion, which needs no score calibration between them, and chunk hits are rolled up into
@@ -19,12 +19,6 @@ export type RepositoryHit = {
 
 const RRF_K = 60;
 const CANDIDATES = 40;
-
-/** Turns free text into an FTS5 query: each word as a prefix term, OR-ed, quotes escaped. */
-export function toFtsQuery(query: string): string {
-  const words = (query.toLowerCase().match(/[\p{L}\p{N}_]+/gu) ?? []).filter((word) => word.length > 1).slice(0, 12);
-  return [...new Set(words)].map((word) => `"${word.replace(/"/g, '""')}"*`).join(" OR ");
-}
 
 function snippetOf(text: string, length = 220): string {
   const body = text.includes(" · ") ? text.slice(text.indexOf(" · ") + 3) : text;
@@ -53,7 +47,7 @@ export async function searchKnowledge(
   const repositories = new Map(store.listRepositories(root).map((repository) => [repository.id, repository]));
   const chunkScores = new Map<number, { repositoryId: string; score: number; match: SearchMatch; via: Set<string> }>();
 
-  const textHits = store.searchText(root, toFtsQuery(query), CANDIDATES);
+  const textHits = store.searchText(root, query, CANDIDATES);
   textHits.forEach((hit, rank) => {
     chunkScores.set(hit.rowid, {
       repositoryId: hit.repositoryId,

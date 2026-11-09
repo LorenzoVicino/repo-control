@@ -2,12 +2,14 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { Chunk, ChunkKind } from "./chunk.js";
+import { buildTextIndex, type TextIndex } from "./bm25.js";
 import { fromBlob, toBlob } from "./embeddings.js";
 import type { RepositoryLabel } from "./labels.js";
 
 // The knowledge index lives in one SQLite file in the configuration directory, using the
-// SQLite built into Node (node:sqlite) with FTS5 for full-text search. Rows are scoped by
-// workspace root, so switching workspaces keeps each one's index.
+// SQLite built into Node (node:sqlite). It stores; ranking happens in bm25.ts, because FTS5
+// is not compiled into every Node release. Rows are scoped by workspace root, so switching
+// workspaces keeps each one's index.
 
 export type StoredRepository = {
   root: string;
@@ -26,21 +28,27 @@ export type TextHit = {
   path: string;
   kind: ChunkKind;
   snippet: string;
-  /** bm25 score: lower is better. */
+  /** BM25 score: higher is better. */
   score: number;
 };
 
+type StoredChunk = { rowid: number; repositoryId: string; path: string; kind: ChunkKind; text: string };
+
 export type StoredVector = { rowid: number; repositoryId: string; vector: Float32Array };
 
-const SCHEMA_VERSION = "1";
+// Version 2 replaced the FTS5 table with a plain one. The index is a cache of the workspace,
+// so an older file is simply rebuilt.
+const SCHEMA_VERSION = "2";
 
 export function openKnowledgeStore(file: string) {
   if (file !== ":memory:") mkdirSync(path.dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
+  db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 3000; CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);");
+  const schema = (db.prepare("SELECT value FROM meta WHERE key = 'schema'").get() as { value?: string } | undefined)?.value;
+  if (schema !== SCHEMA_VERSION) {
+    db.exec("DROP TABLE IF EXISTS chunks; DROP TABLE IF EXISTS chunk_texts; DROP TABLE IF EXISTS chunk_vectors; DROP TABLE IF EXISTS repositories; DELETE FROM meta;");
+  }
   db.exec(`
-    PRAGMA journal_mode = WAL;
-    PRAGMA busy_timeout = 3000;
-    CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS repositories (
       root TEXT NOT NULL,
       id TEXT NOT NULL,
@@ -52,14 +60,15 @@ export function openKnowledgeStore(file: string) {
       summary TEXT NOT NULL,
       PRIMARY KEY (root, id)
     );
-    CREATE VIRTUAL TABLE IF NOT EXISTS chunks USING fts5(
-      text,
-      path UNINDEXED,
-      kind UNINDEXED,
-      repository_id UNINDEXED,
-      root UNINDEXED,
-      tokenize = 'unicode61 remove_diacritics 2'
+    CREATE TABLE IF NOT EXISTS chunk_texts (
+      rowid INTEGER PRIMARY KEY AUTOINCREMENT,
+      root TEXT NOT NULL,
+      repository_id TEXT NOT NULL,
+      path TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      text TEXT NOT NULL
     );
+    CREATE INDEX IF NOT EXISTS chunk_texts_repository ON chunk_texts (root, repository_id);
     CREATE TABLE IF NOT EXISTS chunk_vectors (
       chunk_rowid INTEGER PRIMARY KEY,
       root TEXT NOT NULL,
@@ -68,7 +77,7 @@ export function openKnowledgeStore(file: string) {
     );
     CREATE INDEX IF NOT EXISTS chunk_vectors_repository ON chunk_vectors (root, repository_id);
   `);
-  db.prepare("INSERT OR IGNORE INTO meta (key, value) VALUES ('schema', ?)").run(SCHEMA_VERSION);
+  db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('schema', ?)").run(SCHEMA_VERSION);
 
   const statements = {
     getRepository: db.prepare("SELECT * FROM repositories WHERE root = ? AND id = ?"),
@@ -78,13 +87,12 @@ export function openKnowledgeStore(file: string) {
       ON CONFLICT (root, id) DO UPDATE SET name = excluded.name, relative_path = excluded.relative_path, fingerprint = excluded.fingerprint,
         indexed_at = excluded.indexed_at, labels = excluded.labels, summary = excluded.summary`),
     deleteRepository: db.prepare("DELETE FROM repositories WHERE root = ? AND id = ?"),
-    deleteChunks: db.prepare("DELETE FROM chunks WHERE root = ? AND repository_id = ?"),
+    deleteChunks: db.prepare("DELETE FROM chunk_texts WHERE root = ? AND repository_id = ?"),
     deleteVectors: db.prepare("DELETE FROM chunk_vectors WHERE root = ? AND repository_id = ?"),
-    insertChunk: db.prepare("INSERT INTO chunks (text, path, kind, repository_id, root) VALUES (?, ?, ?, ?, ?)"),
+    insertChunk: db.prepare("INSERT INTO chunk_texts (text, path, kind, repository_id, root) VALUES (?, ?, ?, ?, ?)"),
     insertVector: db.prepare("INSERT INTO chunk_vectors (chunk_rowid, root, repository_id, vector) VALUES (?, ?, ?, ?)"),
-    search: db.prepare(`SELECT rowid, repository_id, path, kind, snippet(chunks, 0, '«', '»', '…', 16) AS snippet, bm25(chunks) AS score
-      FROM chunks WHERE chunks MATCH ? AND root = ? ORDER BY score LIMIT ?`),
-    chunkText: db.prepare("SELECT rowid, repository_id, path, kind, text FROM chunks WHERE rowid = ?"),
+    chunksOf: db.prepare("SELECT rowid, repository_id, path, kind, text FROM chunk_texts WHERE root = ?"),
+    chunkText: db.prepare("SELECT rowid, repository_id, path, kind, text FROM chunk_texts WHERE rowid = ?"),
     vectors: db.prepare("SELECT chunk_rowid, repository_id, vector FROM chunk_vectors WHERE root = ?"),
     getMeta: db.prepare("SELECT value FROM meta WHERE key = ?"),
     setMeta: db.prepare("INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value"),
@@ -93,6 +101,25 @@ export function openKnowledgeStore(file: string) {
   };
 
   const vectorCache = new Map<string, StoredVector[]>();
+  const textCache = new Map<string, { chunks: Map<number, StoredChunk>; index: TextIndex }>();
+  const invalidate = (root: string) => {
+    vectorCache.delete(root);
+    textCache.delete(root);
+  };
+
+  function textIndex(root: string) {
+    const cached = textCache.get(root);
+    if (cached) return cached;
+    const chunks = new Map(
+      (statements.chunksOf.all(root) as Array<Record<string, unknown>>).map((row) => [
+        Number(row.rowid),
+        { rowid: Number(row.rowid), repositoryId: String(row.repository_id), path: String(row.path), kind: String(row.kind) as ChunkKind, text: String(row.text) }
+      ])
+    );
+    const built = { chunks, index: buildTextIndex([...chunks.values()].map((chunk) => ({ id: chunk.rowid, text: chunk.text }))) };
+    textCache.set(root, built);
+    return built;
+  }
 
   function rowToRepository(row: Record<string, unknown>): StoredRepository {
     return {
@@ -150,7 +177,7 @@ export function openKnowledgeStore(file: string) {
           if (vector) statements.insertVector.run(Number(lastInsertRowid), repository.root, repository.id, toBlob(vector));
         });
       });
-      vectorCache.delete(repository.root);
+      invalidate(repository.root);
     },
 
     /** Drops repositories that are no longer in the workspace. Returns how many were removed. */
@@ -164,20 +191,16 @@ export function openKnowledgeStore(file: string) {
           statements.deleteRepository.run(root, repository.id);
         }
       });
-      vectorCache.delete(root);
+      invalidate(root);
       return stale.length;
     },
 
-    searchText(root: string, ftsQuery: string, limit: number): TextHit[] {
-      if (!ftsQuery) return [];
-      return (statements.search.all(ftsQuery, root, limit) as Array<Record<string, unknown>>).map((row) => ({
-        rowid: Number(row.rowid),
-        repositoryId: String(row.repository_id),
-        path: String(row.path),
-        kind: String(row.kind) as ChunkKind,
-        snippet: String(row.snippet),
-        score: Number(row.score)
-      }));
+    searchText(root: string, query: string, limit: number): TextHit[] {
+      const { chunks, index } = textIndex(root);
+      return index.search(query, limit).flatMap((match) => {
+        const chunk = chunks.get(match.id);
+        return chunk ? [{ rowid: chunk.rowid, repositoryId: chunk.repositoryId, path: chunk.path, kind: chunk.kind, snippet: match.snippet, score: match.score }] : [];
+      });
     },
 
     chunk(rowid: number): { rowid: number; repositoryId: string; path: string; kind: ChunkKind; text: string } | null {
@@ -211,6 +234,7 @@ export function openKnowledgeStore(file: string) {
         statements.setMeta.run("embedding_model", next);
       });
       vectorCache.clear();
+      textCache.clear();
       return true;
     },
 

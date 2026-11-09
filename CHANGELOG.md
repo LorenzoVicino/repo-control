@@ -16,7 +16,7 @@ This project follows semantic versioning where practical.
 
 - Workspace knowledge index. Every repository gets labels with recorded evidence: its kind
   (api, web app, cli, library, monorepo, mobile, documentation…), languages, frameworks and
-  tooling. A local full-text index (SQLite FTS5) covers READMEs, docs, manifests and commit
+  tooling. A local full-text index (BM25, stored in SQLite) covers READMEs, docs, manifests and commit
   subjects. The agent gets `search_workspace` and a label filter on `list_repositories`, and
   `/api/knowledge` serves status, labels and search. Indexing is incremental and only reads
   files Git does not ignore. Optional local embeddings, used when transformers.js is

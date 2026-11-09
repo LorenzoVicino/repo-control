@@ -9,7 +9,7 @@ import { scanProjects } from "../../gitScanner.js";
 import { runProjectCommand } from "../../lib/commandRunner.js";
 import type { EmbeddingProvider } from "./embeddings.js";
 import { createKnowledgeIndex } from "./index.js";
-import { namesRepository, toFtsQuery } from "./search.js";
+import { namesRepository } from "./search.js";
 import { openKnowledgeStore } from "./store.js";
 
 const execFileAsync = promisify(execFile);
@@ -139,11 +139,6 @@ test("only a distinctive name or the whole query counts as naming a repository",
   assert.equal(namesRepository("a.b", "a.b"), true);
 });
 
-test("free text becomes a safe FTS5 query", () => {
-  assert.equal(toFtsQuery('Where is "billing" (v2)? a'), '"where"* OR "is"* OR "billing"* OR "v2"*');
-  assert.equal(toFtsQuery("NEAR(x y) OR -z"), '"near"* OR "or"*');
-  assert.equal(toFtsQuery("??"), "");
-});
 
 test("semantic search is enabled on request: install, load, re-index, or report the failure", async (context) => {
   const root = await workspace(context);
