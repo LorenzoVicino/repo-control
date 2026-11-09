@@ -15,11 +15,13 @@ import { registerAgentRoutes } from "./routes/agentRoutes.js";
 import { registerAgentSessionRoutes } from "./routes/agentSessionRoutes.js";
 import { registerDockerRoutes } from "./routes/dockerRoutes.js";
 import { registerGitRoutes } from "./routes/gitRoutes.js";
+import { registerKnowledgeRoutes } from "./routes/knowledgeRoutes.js";
 import { registerMcpRoutes } from "./routes/mcpRoutes.js";
 import { registerTerminalRoutes } from "./routes/terminalRoutes.js";
 import { registerWorkflowRoutes } from "./routes/workflowRoutes.js";
 import { createAgentRunner } from "./services/agent/runner.js";
 import { isExecutableAvailable } from "./services/agentSessionService.js";
+import { createLazyKnowledgeIndex } from "./services/knowledge/runtime.js";
 import { createAuthGuard } from "./services/authService.js";
 import { createMcpAccessControl } from "./services/mcp/access.js";
 import { createToolkit } from "./services/tools/index.js";
@@ -168,11 +170,13 @@ export async function createServer(): Promise<{
   await registerGitRoutes(app, context);
   await registerTerminalRoutes(app, context);
   await registerWorkflowRoutes(app, context);
-  const toolkit = createToolkit({ ...projectResolver, runProjectCommand, runShellCommand });
+  const knowledge = createLazyKnowledgeIndex({ getActiveRootPath: projectResolver.getActiveRootPath, runProjectCommand });
+  const toolkit = createToolkit({ ...projectResolver, runProjectCommand, runShellCommand, knowledge });
   const mcpAccess = createMcpAccessControl({ externalToken: env.REPO_CONTROL_MCP_TOKEN, externalWrites: env.REPO_CONTROL_MCP_WRITE });
   const claudeCommand = process.env.REPO_CONTROL_CLAUDE?.trim() || "claude";
 
   await registerMcpRoutes(app, { toolkit, version: appVersion, mcpAccess });
+  await registerKnowledgeRoutes(app, { knowledge });
   await registerAgentRoutes(app, {
     agentRunner: createAgentRunner({
       claudeCommand,

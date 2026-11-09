@@ -46,6 +46,7 @@ const unused = async (): Promise<never> => {
 // Tools that act on the workspace or the app as a whole rather than on one repository.
 const WORKSPACE_TOOLS = new Set([
   "list_repositories",
+  "search_workspace",
   "list_containers",
   "list_workflows",
   "preview_workflow",

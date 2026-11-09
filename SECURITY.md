@@ -25,6 +25,8 @@ The in-app agent runs the local Claude Code CLI under your own Claude account, s
 
 Depending on the features used, repo-control stores favorites, terminal command history, workflow definitions, workflow step output and legacy task records in its local configuration directory. The default path is `%APPDATA%\repo-control` on Windows, `~/Library/Application Support/repo-control` on macOS and `${XDG_CONFIG_HOME:-~/.config}/repo-control` on Linux/WSL. `REPO_CONTROL_CONFIG_DIR` overrides it.
 
+The workspace knowledge index stores labels and excerpts of each repository's README, docs, manifests and recent commit subjects in `knowledge.sqlite` in the configuration directory. It reads only files tracked or allowed by Git, so ignored files such as `.env` are never indexed. Semantic search, when enabled, embeds that text with a local model; nothing is sent to a remote service.
+
 The Agent sessions page reads existing Codex, Claude Code and Gemini CLI histories to build workspace-scoped results and content-search snippets. repo-control does not copy those transcripts into its own configuration directory, but anyone able to access the running local API can query the indexed content visible to the app.
 
 Command arguments, command output and agent transcript snippets may contain secrets or private source material. Do not publish local configuration files, E2E artifacts, screenshots or logs without reviewing them.
