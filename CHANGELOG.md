@@ -23,6 +23,14 @@ This project follows semantic versioning where practical.
   messages and survive switching sections. After an approved change the workspace is
   rescanned. The online demo replays scripted conversations over the demo workspace:
   triage, pull, push and review, with real approval cards whose effects stay in the browser.
+- Workspace knowledge index. Every repository gets labels with recorded evidence: its kind
+  (api, web app, cli, library, monorepo, mobile, documentation…), languages, frameworks and
+  tooling. A local full-text index (BM25, stored in SQLite) covers READMEs, docs, manifests and commit
+  subjects. The agent gets `search_workspace` and a label filter on `list_repositories`, and
+  `/api/knowledge` serves status, labels and search. Indexing is incremental and only reads
+  files Git does not ignore. Optional local embeddings, used when transformers.js is
+  installed, add search by meaning and topic labels, merged with full-text results by
+  reciprocal rank fusion.
 - In-app agent API. repo-control runs Claude Code headless (`claude -p`) with no built-in
   tools and no user settings, connected only to its own MCP endpoint through a token that
   lasts as long as the run. Read tools run freely; every write tool raises an approval that
