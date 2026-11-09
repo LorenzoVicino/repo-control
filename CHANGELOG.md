@@ -14,6 +14,13 @@ This project follows semantic versioning where practical.
 
 ### Added
 
+- Graph section. An interactive WebGL view (sigma.js, ForceAtlas2 layout) of the workspace
+  graph: repositories coloured by kind and sized by their relations, label nodes that
+  cluster them, and edges for dependencies, mentions and similar meaning, each of which
+  can be toggled. Hovering a node highlights its neighbourhood. Finding or clicking a
+  repository opens a panel with every relation and its evidence, with buttons to open the
+  repository or ask the agent what a change to it would affect. Without WebGL the search
+  and the panel still work. The online demo has a graph with internal dependencies.
 - Workspace graph. The knowledge index links repositories by internal dependencies (a
   manifest using a package another repository publishes, Maven artifactIds included), by
   mentions in READMEs, docs, manifests and commits, by shared labels and, with semantic

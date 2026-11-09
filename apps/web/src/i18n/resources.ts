@@ -58,6 +58,7 @@ export const en = {
     sections: {
       assistant: "Agent",
       knowledge: "Knowledge",
+      graph: "Graph",
       overview: "Dashboard",
       repositories: "Repositories",
       favorites: "Favorites",
@@ -475,6 +476,7 @@ export const en = {
   loading: {
     assistant: "Loading the agent",
     knowledge: "Loading the knowledge index",
+    graph: "Loading the graph",
     agents: "Detecting agent sessions",
     automations: "Loading automations"
   },
@@ -682,6 +684,39 @@ export const en = {
     cliUnavailable: "CLI unavailable",
     notDetected: "not detected",
     unknownDate: "Unknown date"
+  },
+  graph: {
+    title: "Graph",
+    subtitle: "{{repositories}} repositories and {{relations}} relations: dependencies, mentions and shared labels.",
+    loading: "Building the workspace graph…",
+    find: "Find a repository",
+    matches: "Matching repositories",
+    filters: "Relations to show",
+    edges: { depends_on: "Dependencies", references: "Mentions", similar: "Similar meaning", labelled: "Labels" },
+    labels: "Label nodes",
+    similarHint: "Enable semantic search in Knowledge to link repositories by meaning.",
+    canvas_one: "Graph of {{count}} repository and its relations",
+    canvas_other: "Graph of {{count}} repositories and their relations",
+    empty: "No repositories indexed yet.",
+    noWebgl: "This browser cannot draw the graph because WebGL is unavailable. Find a repository above to see its relations.",
+    legend: "Legend",
+    labelNode: "label",
+    details: "Relations of {{name}}",
+    close: "Close",
+    open: "Open repository",
+    ask: "Ask the agent",
+    askPrompt: "What would a change to {{name}} affect? Use repository_relations and check the repositories that depend on it or mention it.",
+    relations: {
+      dependsOn: "Depends on",
+      usedBy: "Used by",
+      mentions: "Mentions",
+      mentionedBy: "Mentioned by",
+      similar: "Similar in meaning",
+      labels: "Labels",
+      carriedBy_one: "{{count}} repository",
+      carriedBy_other: "{{count}} repositories"
+    },
+    errors: { load: "Could not build the workspace graph." }
   },
   knowledge: {
     title: "Knowledge",
@@ -1337,6 +1372,7 @@ export const it: TranslationSchema<typeof en> = {
     sections: {
       assistant: "Agente",
       knowledge: "Knowledge",
+      graph: "Grafo",
       overview: "Dashboard",
       repositories: "Repository",
       favorites: "Preferiti",
@@ -1754,6 +1790,7 @@ export const it: TranslationSchema<typeof en> = {
   loading: {
     assistant: "Caricamento dell'agente",
     knowledge: "Caricamento dell'indice",
+    graph: "Caricamento del grafo",
     agents: "Rilevamento sessioni agent",
     automations: "Caricamento automazioni"
   },
@@ -1961,6 +1998,39 @@ export const it: TranslationSchema<typeof en> = {
     cliUnavailable: "CLI non disponibile",
     notDetected: "non rilevato",
     unknownDate: "Data sconosciuta"
+  },
+  graph: {
+    title: "Grafo",
+    subtitle: "{{repositories}} repository e {{relations}} relazioni: dipendenze, menzioni ed etichette condivise.",
+    loading: "Costruzione del grafo del workspace…",
+    find: "Trova un repository",
+    matches: "Repository corrispondenti",
+    filters: "Relazioni da mostrare",
+    edges: { depends_on: "Dipendenze", references: "Menzioni", similar: "Significato simile", labelled: "Etichette" },
+    labels: "Nodi etichetta",
+    similarHint: "Attiva la ricerca semantica in Knowledge per collegare i repository per significato.",
+    canvas_one: "Grafo di {{count}} repository e delle sue relazioni",
+    canvas_other: "Grafo di {{count}} repository e delle loro relazioni",
+    empty: "Nessun repository ancora indicizzato.",
+    noWebgl: "Questo browser non può disegnare il grafo perché WebGL non è disponibile. Cerca un repository qui sopra per vederne le relazioni.",
+    legend: "Legenda",
+    labelNode: "etichetta",
+    details: "Relazioni di {{name}}",
+    close: "Chiudi",
+    open: "Apri repository",
+    ask: "Chiedi all'agente",
+    askPrompt: "Cosa toccherebbe una modifica a {{name}}? Usa repository_relations e controlla i repository che ne dipendono o lo citano.",
+    relations: {
+      dependsOn: "Dipende da",
+      usedBy: "Usato da",
+      mentions: "Cita",
+      mentionedBy: "Citato da",
+      similar: "Significato simile",
+      labels: "Etichette",
+      carriedBy_one: "{{count}} repository",
+      carriedBy_other: "{{count}} repository"
+    },
+    errors: { load: "Impossibile costruire il grafo del workspace." }
   },
   knowledge: {
     title: "Knowledge",

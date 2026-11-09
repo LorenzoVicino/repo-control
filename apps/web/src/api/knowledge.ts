@@ -1,4 +1,5 @@
 import type { KnowledgeHit, KnowledgeRepository, KnowledgeStatus } from "../types/knowledge";
+import type { WorkspaceGraph } from "../types/graph";
 import { jsonRequest, requestJson } from "./http";
 
 export function fetchKnowledgeStatus(fallbackMessage: string): Promise<KnowledgeStatus> {
@@ -19,4 +20,8 @@ export function fetchKnowledgeRepositories(fallbackMessage: string): Promise<{ r
 
 export function searchKnowledge(query: string, fallbackMessage: string): Promise<{ query: string; hits: KnowledgeHit[] }> {
   return requestJson(`/api/knowledge/search?${new URLSearchParams({ q: query, limit: "12" }).toString()}`, fallbackMessage);
+}
+
+export function fetchWorkspaceGraph(fallbackMessage: string): Promise<WorkspaceGraph> {
+  return requestJson("/api/knowledge/graph", fallbackMessage);
 }

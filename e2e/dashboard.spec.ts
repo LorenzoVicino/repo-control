@@ -294,6 +294,24 @@ test("labels the workspace and searches it from the Knowledge section", async ({
   expect(browserErrors).toEqual([]);
 });
 
+test("draws the workspace graph and shows a repository's relations", async ({ page }) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  await page.goto("/");
+  await page.locator('[data-dashboard-section="graph"]').first().click();
+
+  await expect(page.getByRole("heading", { name: "Graph", exact: true })).toBeVisible();
+  // Either the WebGL canvas or, on a browser without WebGL, the explanation.
+  await expect(page.getByRole("img", { name: /^Graph of 1 repository/ }).or(page.getByText(/WebGL is unavailable/))).toBeVisible({ timeout: 60_000 });
+
+  await page.getByRole("textbox", { name: "Find a repository" }).fill(workspaceRepositoryName.slice(0, 4));
+  await page.getByRole("option", { name: workspaceRepositoryName }).click();
+  const panel = page.getByRole("complementary", { name: `Relations of ${workspaceRepositoryName}` });
+  await expect(panel.getByRole("button", { name: "fastify" })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Open repository" })).toBeVisible();
+  expect(browserErrors).toEqual([]);
+});
+
 test("navigates between lazy dashboard sections without browser errors", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));

@@ -156,3 +156,14 @@ it("serves a demo knowledge index with labels and highlighted search", async () 
   expect((await (await request("/api/knowledge/search?q=?")).json()).hits).toEqual([]);
   expect((await request("/api/knowledge/semantic", post())).status).toBe(409);
 });
+
+it("serves a demo workspace graph with dependencies, mentions and label nodes", async () => {
+  const graph = await (await request("/api/knowledge/graph")).json();
+  const name = (id: string) => graph.nodes.find((node: { id: string; name: string }) => node.id === id)?.name;
+  const relations = graph.edges.filter((edge: { type: string }) => edge.type !== "labelled").map((edge: { type: string; source: string; target: string }) => `${edge.type} ${name(edge.source)}->${name(edge.target)}`);
+  expect(relations).toContain("depends_on atlas-web->shared-utils");
+  expect(relations).toContain("references documentation->billing-worker");
+  expect(graph.nodes.filter((node: { type: string }) => node.type === "repository")).toHaveLength(7);
+  expect(graph.nodes.some((node: { type: string; name: string }) => node.type === "label" && node.name === "typescript")).toBe(true);
+  expect(graph.nodes.some((node: { name: string }) => node.name === "tests")).toBe(false);
+});
