@@ -447,6 +447,24 @@ function parseDiffSummary(
   return { files: fileCount, additions, deletions, binaryFiles, untrackedFiles };
 }
 
+/**
+ * The patch git itself would show for a new file. A final newline ends the last line rather
+ * than starting an empty one, so "new\n" is one added line, not two; a file without one gets
+ * git's "\\ No newline at end of file" marker, and an empty file has no hunk at all.
+ */
+export function untrackedFilePatch(filePath: string, text: string): string {
+  const header = [`diff --git a/${filePath} b/${filePath}`, "new file mode 100644", "--- /dev/null", `+++ b/${filePath}`];
+  if (!text) return header.join("\n");
+  const endsWithNewline = text.endsWith("\n");
+  const lines = (endsWithNewline ? text.slice(0, -1) : text).split("\n");
+  return [
+    ...header,
+    `@@ -0,0 +1${lines.length === 1 ? "" : `,${lines.length}`} @@`,
+    ...lines.map((line) => `+${line}`),
+    ...(endsWithNewline ? [] : ["\\ No newline at end of file"])
+  ].join("\n");
+}
+
 async function readUntrackedFile(
   projectPath: string,
   filePath: string
@@ -464,19 +482,7 @@ async function readUntrackedFile(
     return { patch: `Binary file ${filePath}`, binary: true };
   }
 
-  const text = content.toString("utf8");
-  const lines = text.split("\n");
-  return {
-    binary: false,
-    patch: [
-      `diff --git a/${filePath} b/${filePath}`,
-      "new file mode 100644",
-      "--- /dev/null",
-      `+++ b/${filePath}`,
-      `@@ -0,0 +1,${lines.length} @@`,
-      ...lines.map((line) => `+${line}`)
-    ].join("\n")
-  };
+  return { binary: false, patch: untrackedFilePatch(filePath, content.toString("utf8")) };
 }
 
 function countPatchChanges(patch: string): { additions: number; deletions: number } {

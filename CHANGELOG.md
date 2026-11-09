@@ -96,6 +96,9 @@ This project follows semantic versioning where practical.
 
 ### Fixed
 
+- The diff of a new, untracked file now matches git: a one-line file counts as one added
+  line instead of two, a file without a final newline shows git's marker, and an empty file
+  has no hunk.
 - Resolve `~` and `~\\` workspace paths through the operating system home directory so
   typed paths work on native Windows, where `HOME` is commonly unset.
 - Describe the optional sign-in layer accurately in CLI help.
