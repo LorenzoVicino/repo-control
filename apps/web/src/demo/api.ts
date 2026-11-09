@@ -4,6 +4,7 @@ import type { WorkflowDefinition, WorkflowRun } from "../types/workflows";
 import type { UserPreferences } from "../types/workspace";
 import type { AgentEvent } from "../types/agent";
 import { createDemoAgent } from "./agent";
+import { demoKnowledgeRepositories, demoKnowledgeSearch, demoKnowledgeStatus } from "./knowledge";
 import {
   createDemoDetails,
   createDemoProjects,
@@ -158,6 +159,14 @@ export async function demoRequest(
     });
   }
   if (route === "/api/projects") return reply({ root: DEMO_ROOT, projects });
+  if (route === "/api/knowledge" || route === "/api/knowledge/reindex")
+    return reply(demoKnowledgeStatus(projects));
+  if (route === "/api/knowledge/repositories")
+    return reply({ repositories: demoKnowledgeRepositories(projects) });
+  if (route === "/api/knowledge/search") {
+    const query = url.searchParams.get("q") ?? "";
+    return reply({ query, hits: demoKnowledgeSearch(projects, query) });
+  }
   if (route === "/api/agent") return reply(agent.status());
   if (route === "/api/agent/runs" && method === "POST")
     return Response.json(agent.start(String(body.prompt ?? "").trim()), { status: 202 });

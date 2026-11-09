@@ -14,6 +14,12 @@ This project follows semantic versioning where practical.
 
 ### Added
 
+- Knowledge section. Labels from the knowledge index are grouped by kind with counts, and
+  picking one filters the repositories. A search box over READMEs, docs, manifests and
+  commits highlights the matching words and says how each repository matched (words,
+  meaning, label, name). The index status shows progress and a re-index button, and a card
+  turns on semantic search with one click. The online demo includes labels and search for
+  its fictional workspace.
 - The dashboard now opens on the agent, in the glass, AI-first design. You ask in plain
   language and see the agent's tool calls grouped as it works, its answer stream in, and an
   approval card for every change it wants to make. The closing summary shows time, steps and

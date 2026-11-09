@@ -30,6 +30,7 @@ import type { DashboardSection } from "./DashboardSidebar";
 
 const SECTION_LABEL_KEYS: Record<DashboardSection, `navigation.sections.${DashboardSection}`> = {
   assistant: "navigation.sections.assistant",
+  knowledge: "navigation.sections.knowledge",
   overview: "navigation.sections.overview",
   agents: "navigation.sections.agents",
   automations: "navigation.sections.automations",

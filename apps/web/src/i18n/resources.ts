@@ -57,6 +57,7 @@ export const en = {
     collapseSidebar: "Collapse sidebar",
     sections: {
       assistant: "Agent",
+      knowledge: "Knowledge",
       overview: "Dashboard",
       repositories: "Repositories",
       favorites: "Favorites",
@@ -473,6 +474,7 @@ export const en = {
   },
   loading: {
     assistant: "Loading the agent",
+    knowledge: "Loading the knowledge index",
     agents: "Detecting agent sessions",
     automations: "Loading automations"
   },
@@ -680,6 +682,49 @@ export const en = {
     cliUnavailable: "CLI unavailable",
     notDetected: "not detected",
     unknownDate: "Unknown date"
+  },
+  knowledge: {
+    title: "Knowledge",
+    subtitle: "What every repository is about: labels with evidence and a search over READMEs, docs, manifests and commits.",
+    reindex: "Re-index",
+    searchLabel: "Search the workspace",
+    searchPlaceholder: "Search what your repositories are about: \"fastify\", \"billing\", \"docker compose\"…",
+    searching: "Searching",
+    noResults: "No repository matches \"{{query}}\".",
+    resultsLabel: "Repositories matching {{query}}",
+    open: "Open {{name}}",
+    status: {
+      indexed_one: "{{count}} repository indexed",
+      indexed_other: "{{count}} repositories indexed",
+      indexing: "Indexing {{done}} of {{total}}",
+      progress: "Indexing progress"
+    },
+    mode: { text: "Full-text search", hybrid: "Full-text + semantic" },
+    labels: { title: "Labels", clear: "Show all", empty: "No labels yet. Indexing gives every repository its labels." },
+    kinds: { kind: "Kind", language: "Languages", framework: "Frameworks", topic: "Topics", tooling: "Tooling" },
+    repositories: {
+      title_one: "{{count}} repository",
+      title_other: "{{count}} repositories",
+      withLabel_one: "{{count}} repository labelled {{label}}",
+      withLabel_other: "{{count}} repositories labelled {{label}}"
+    },
+    via: { text: "words", semantic: "meaning", label: "label", name: "name" },
+    chunkKinds: { summary: "summary", readme: "README", doc: "docs", manifest: "manifest", commits: "commits" },
+    semantic: {
+      title: "Search by meaning",
+      off: "Semantic search finds repositories by what they mean, in any language, and adds topic labels such as payments or authentication. It runs a local model: about 450 MB to download once, and nothing leaves this machine.",
+      on: "On. Searches combine words and meaning, and repositories carry topic labels.",
+      enable: "Enable semantic search",
+      installing: "Downloading and indexing…",
+      unavailable: "Install @huggingface/transformers in the extensions folder of the configuration directory to turn it on."
+    },
+    errors: {
+      status: "Could not read the knowledge index status.",
+      repositories: "Could not load repository labels.",
+      search: "Search failed.",
+      reindex: "Could not start indexing.",
+      semantic: "Could not enable semantic search."
+    }
   },
   assistant: {
     greeting: {
@@ -1291,6 +1336,7 @@ export const it: TranslationSchema<typeof en> = {
     collapseSidebar: "Comprimi sidebar",
     sections: {
       assistant: "Agente",
+      knowledge: "Knowledge",
       overview: "Dashboard",
       repositories: "Repository",
       favorites: "Preferiti",
@@ -1707,6 +1753,7 @@ export const it: TranslationSchema<typeof en> = {
   },
   loading: {
     assistant: "Caricamento dell'agente",
+    knowledge: "Caricamento dell'indice",
     agents: "Rilevamento sessioni agent",
     automations: "Caricamento automazioni"
   },
@@ -1914,6 +1961,49 @@ export const it: TranslationSchema<typeof en> = {
     cliUnavailable: "CLI non disponibile",
     notDetected: "non rilevato",
     unknownDate: "Data sconosciuta"
+  },
+  knowledge: {
+    title: "Knowledge",
+    subtitle: "Di cosa si occupa ogni repository: etichette motivate e una ricerca su README, documenti, manifest e commit.",
+    reindex: "Reindicizza",
+    searchLabel: "Cerca nel workspace",
+    searchPlaceholder: "Cerca di cosa si occupano i repository: \"fastify\", \"fatturazione\", \"docker compose\"…",
+    searching: "Ricerca in corso",
+    noResults: "Nessun repository corrisponde a \"{{query}}\".",
+    resultsLabel: "Repository che corrispondono a {{query}}",
+    open: "Apri {{name}}",
+    status: {
+      indexed_one: "{{count}} repository indicizzato",
+      indexed_other: "{{count}} repository indicizzati",
+      indexing: "Indicizzazione {{done}} di {{total}}",
+      progress: "Avanzamento dell'indicizzazione"
+    },
+    mode: { text: "Ricerca testuale", hybrid: "Testuale + semantica" },
+    labels: { title: "Etichette", clear: "Mostra tutti", empty: "Ancora nessuna etichetta. L'indicizzazione assegna le etichette a ogni repository." },
+    kinds: { kind: "Tipo", language: "Linguaggi", framework: "Framework", topic: "Argomenti", tooling: "Strumenti" },
+    repositories: {
+      title_one: "{{count}} repository",
+      title_other: "{{count}} repository",
+      withLabel_one: "{{count}} repository con l'etichetta {{label}}",
+      withLabel_other: "{{count}} repository con l'etichetta {{label}}"
+    },
+    via: { text: "parole", semantic: "significato", label: "etichetta", name: "nome" },
+    chunkKinds: { summary: "riepilogo", readme: "README", doc: "documenti", manifest: "manifest", commits: "commit" },
+    semantic: {
+      title: "Ricerca per significato",
+      off: "La ricerca semantica trova i repository per significato, in qualsiasi lingua, e aggiunge etichette di argomento come pagamenti o autenticazione. Usa un modello locale: circa 450 MB da scaricare una volta, e nulla lascia questo computer.",
+      on: "Attiva. Le ricerche combinano parole e significato, e i repository hanno etichette di argomento.",
+      enable: "Attiva la ricerca semantica",
+      installing: "Download e indicizzazione…",
+      unavailable: "Installa @huggingface/transformers nella cartella extensions della configurazione per attivarla."
+    },
+    errors: {
+      status: "Impossibile leggere lo stato dell'indice.",
+      repositories: "Impossibile caricare le etichette dei repository.",
+      search: "Ricerca non riuscita.",
+      reindex: "Impossibile avviare l'indicizzazione.",
+      semantic: "Impossibile attivare la ricerca semantica."
+    }
   },
   assistant: {
     greeting: {
