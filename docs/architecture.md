@@ -71,7 +71,7 @@ The catalog covers four areas:
 | Area | Read | Write |
 | --- | --- | --- |
 | Repositories and Git | `list_repositories` (with a label filter), `get_repository`, `git_log`, `git_diff`, `list_branches` | `git_fetch`, `git_pull`, `git_push`, `git_checkout`, `git_create_branch`, `git_commit` |
-| Workspace knowledge | `search_workspace` | none |
+| Workspace knowledge | `search_workspace`, `repository_relations` | none |
 | Docker Compose | `list_containers`, `compose_status`, `compose_logs` | `compose_up`, `compose_stop`, `compose_restart_service` |
 | Workflows | `list_workflows`, `preview_workflow`, `get_workflow_run` | `run_workflow`, `cancel_workflow_run` |
 | Coding-agent sessions | `list_agent_sessions` | none |
@@ -89,6 +89,13 @@ Compose tools first check that the repository has a Compose file, and service na
 - **Rank** (`bm25.ts`). Full-text ranking is BM25 over an in-memory inverted index, built per workspace on the first query and dropped when anything is saved. Words are lower-cased with accents removed, and each query word also matches as a prefix (invoice → invoices). Snippets centre on the first match. SQLite's FTS5 would do the same, but whether it is compiled into `node:sqlite` depends on the Node release (22.13 ships without it). A workspace has a few thousand chunks at most, so the in-memory index is fast and behaves the same on every supported Node.
 - **Search** (`search.ts`). Full-text hits and, when available, cosine-similarity hits are merged with reciprocal rank fusion (k = 60). The best three chunks of each repository add up to its score, and a query that names a repository or one of its labels gets a boost.
 - **Index** (`index.ts`). Runs four repositories at a time and skips any whose fingerprint (HEAD, file count, manifests, README, docs, Compose services) has not changed. Repositories that left the workspace are pruned. The first search of an empty index builds it.
+
+- **Graph** (`graph.ts`). The index also yields a graph of the workspace. Repositories are nodes, and the kind, language, framework and topic labels are shared nodes, which cluster repositories without drawing an edge between every pair. Every edge records its evidence:
+  - `depends_on`: a manifest of one repository lists a package another publishes. The index stores each repository's facts, the packages it publishes (npm, Python, Rust and Go names, the Maven artifactId, .NET, PHP) and its dependencies.
+  - `references`: a README, doc, manifest or commit subject names another repository. Only distinctive names count (with `-`, `_` or `.`, or camelCase), and never inside a path, a longer name or a handle. A dependency between the same pair replaces the mention. Summaries are skipped because they repeat the README.
+  - `similar`: summary embeddings at least 0.62 apart in cosine, each repository's three nearest neighbours. Only with semantic search.
+
+  `relationsOf` groups what the graph says about one repository (depends on, used by, mentions, mentioned by, similar, shares labels). It answers the `repository_relations` agent tool, and `/api/knowledge/graph` serves the whole graph to the dashboard.
 
 Semantic search is optional because its runtime, transformers.js with ONNX Runtime, adds several hundred megabytes. `embeddings.ts` defines the provider interface and loads transformers.js only when it is installed in `<config>/extensions`, then embeds locally with `REPO_CONTROL_EMBEDDING_MODEL` (default `Xenova/paraphrase-multilingual-MiniLM-L12-v2`, which handles Italian as well as English). Without it, labels come from rules and search is full-text only. No text leaves the machine in either mode. The index opens lazily, so starting repo-control creates no database until the index is used.
 

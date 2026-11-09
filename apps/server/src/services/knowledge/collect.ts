@@ -123,8 +123,16 @@ export function parseManifest(file: string, text: string): Manifest | null {
       return { ...empty, path: file, kind: "go", name: /^module\s+(\S+)/m.exec(text)?.[1] ?? null, dependencies };
     }
     if (base === "pom.xml" || base === "build.gradle" || base === "build.gradle.kts") {
-      const dependencies = [...text.matchAll(/<artifactId>([^<]+)<\/artifactId>|["']([a-z0-9.-]+:[a-z0-9.-]+)(?::[^"']*)?["']/gi)].map((match) => (match[1] ?? match[2]).toLowerCase());
-      return { ...empty, path: file, kind: "java", dependencies: [...new Set(dependencies)] };
+      // The project's own artifactId is the first one outside <parent>, <dependencies>,
+      // <dependencyManagement>, <build> and <plugins>; the rest are dependencies.
+      const own = base === "pom.xml"
+        ? /<artifactId>([^<]+)<\/artifactId>/.exec(text.replace(/<(parent|dependencies|dependencyManagement|build|plugins|profiles)>[\s\S]*?<\/\1>/g, ""))?.[1] ?? null
+        : null;
+      const dependencies = [...text.matchAll(/<artifactId>([^<]+)<\/artifactId>|["']([a-z0-9.-]+:[a-z0-9.-]+)(?::[^"']*)?["']/gi)]
+        .map((match) => (match[1] ?? match[2]).toLowerCase())
+        .filter((name) => name !== own?.toLowerCase());
+      const description = base === "pom.xml" ? /<description>([^<]+)<\/description>/.exec(text)?.[1]?.trim() ?? null : null;
+      return { ...empty, path: file, kind: "java", name: own, description, dependencies: [...new Set(dependencies)] };
     }
     if (base.endsWith(".csproj")) {
       const dependencies = [...text.matchAll(/PackageReference\s+Include="([^"]+)"/g)].map((match) => match[1]);

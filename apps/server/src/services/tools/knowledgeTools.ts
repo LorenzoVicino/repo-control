@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { repositoryInput } from "./repositoryTools.js";
 import { defineTool, ToolError, type ToolRuntime } from "./types.js";
 
 function requireKnowledge(runtime: ToolRuntime) {
@@ -46,4 +47,50 @@ export const searchWorkspace = defineTool({
   }
 });
 
-export const knowledgeTools = [searchWorkspace];
+export const repositoryRelations = defineTool({
+  name: "repository_relations",
+  title: "Repository relations",
+  description:
+    "Show how one repository relates to the others in the workspace: which repositories it depends on and which depend on it " +
+    "(through published packages), which it mentions and which mention it (in READMEs, docs, manifests or commits), which mean " +
+    'something similar, and which share its frameworks and topics. Use it for "who depends on X?" or "what would a change to X touch?".',
+  effect: "read",
+  inputShape: { repository: repositoryInput },
+  async run(runtime, input) {
+    const knowledge = requireKnowledge(runtime);
+    const { project } = await runtime.resolveRepository(input.repository);
+    const relations = await knowledge.relations(project.id);
+    if (!relations) throw new ToolError(`${project.name} is not in the knowledge index yet. Try again after indexing finishes.`);
+
+    const section = (title: string, entries: Array<{ repository: { name: string }; evidence: string[] }>) =>
+      entries.length ? `${title} (${entries.length}):\n${entries.map((entry) => `  - ${entry.repository.name}: ${entry.evidence.join("; ")}`).join("\n")}` : `${title}: none.`;
+    const text = [
+      `${project.name} [${relations.repository.labels.slice(0, 6).map((label) => label.id).join(", ")}]`,
+      section("Depends on", relations.dependsOn),
+      section("Used by", relations.usedBy),
+      section("Mentions", relations.mentions),
+      section("Mentioned by", relations.mentionedBy),
+      relations.similar.length ? section("Similar in meaning", relations.similar) : "",
+      relations.sharesLabels.length
+        ? `Shares frameworks or topics with: ${relations.sharesLabels.map((entry) => `${entry.repository.name} (${entry.labels.join(", ")})`).join("; ")}.`
+        : "Shares no frameworks or topics with other repositories."
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const brief = (entries: Array<{ repository: { id: string; name: string }; evidence: string[] }>) => entries.map((entry) => ({ id: entry.repository.id, name: entry.repository.name, evidence: entry.evidence }));
+    return {
+      text,
+      data: {
+        dependsOn: brief(relations.dependsOn),
+        usedBy: brief(relations.usedBy),
+        mentions: brief(relations.mentions),
+        mentionedBy: brief(relations.mentionedBy),
+        similar: brief(relations.similar),
+        sharesLabels: relations.sharesLabels.map((entry) => ({ id: entry.repository.id, name: entry.repository.name, labels: entry.labels }))
+      }
+    };
+  }
+});
+
+export const knowledgeTools = [searchWorkspace, repositoryRelations];

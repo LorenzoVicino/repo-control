@@ -11,6 +11,14 @@ import type { RepositoryLabel } from "./labels.js";
 // is not compiled into every Node release. Rows are scoped by workspace root, so switching
 // workspaces keeps each one's index.
 
+/** What a repository publishes and uses, for the dependency edges of the workspace graph. */
+export type RepositoryFacts = {
+  /** Package names the repository publishes: npm, Python, Rust, Go module, Maven, .NET, PHP. */
+  packages: string[];
+  /** Every dependency named in its manifests. */
+  dependencies: string[];
+};
+
 export type StoredRepository = {
   root: string;
   id: string;
@@ -20,7 +28,10 @@ export type StoredRepository = {
   indexedAt: string;
   labels: RepositoryLabel[];
   summary: string;
+  facts: RepositoryFacts;
 };
+
+export type StoredChunk = { rowid: number; repositoryId: string; path: string; kind: ChunkKind; text: string };
 
 export type TextHit = {
   rowid: number;
@@ -32,13 +43,11 @@ export type TextHit = {
   score: number;
 };
 
-type StoredChunk = { rowid: number; repositoryId: string; path: string; kind: ChunkKind; text: string };
-
 export type StoredVector = { rowid: number; repositoryId: string; vector: Float32Array };
 
-// Version 2 replaced the FTS5 table with a plain one. The index is a cache of the workspace,
-// so an older file is simply rebuilt.
-const SCHEMA_VERSION = "2";
+// Version 2 replaced the FTS5 table with a plain one; version 3 added repository facts. The
+// index is a cache of the workspace, so an older file is simply rebuilt.
+const SCHEMA_VERSION = "3";
 
 export function openKnowledgeStore(file: string) {
   if (file !== ":memory:") mkdirSync(path.dirname(file), { recursive: true });
@@ -58,6 +67,7 @@ export function openKnowledgeStore(file: string) {
       indexed_at TEXT NOT NULL,
       labels TEXT NOT NULL,
       summary TEXT NOT NULL,
+      facts TEXT NOT NULL,
       PRIMARY KEY (root, id)
     );
     CREATE TABLE IF NOT EXISTS chunk_texts (
@@ -82,10 +92,10 @@ export function openKnowledgeStore(file: string) {
   const statements = {
     getRepository: db.prepare("SELECT * FROM repositories WHERE root = ? AND id = ?"),
     listRepositories: db.prepare("SELECT * FROM repositories WHERE root = ? ORDER BY name"),
-    upsertRepository: db.prepare(`INSERT INTO repositories (root, id, name, relative_path, fingerprint, indexed_at, labels, summary)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    upsertRepository: db.prepare(`INSERT INTO repositories (root, id, name, relative_path, fingerprint, indexed_at, labels, summary, facts)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT (root, id) DO UPDATE SET name = excluded.name, relative_path = excluded.relative_path, fingerprint = excluded.fingerprint,
-        indexed_at = excluded.indexed_at, labels = excluded.labels, summary = excluded.summary`),
+        indexed_at = excluded.indexed_at, labels = excluded.labels, summary = excluded.summary, facts = excluded.facts`),
     deleteRepository: db.prepare("DELETE FROM repositories WHERE root = ? AND id = ?"),
     deleteChunks: db.prepare("DELETE FROM chunk_texts WHERE root = ? AND repository_id = ?"),
     deleteVectors: db.prepare("DELETE FROM chunk_vectors WHERE root = ? AND repository_id = ?"),
@@ -130,7 +140,8 @@ export function openKnowledgeStore(file: string) {
       fingerprint: String(row.fingerprint),
       indexedAt: String(row.indexed_at),
       labels: JSON.parse(String(row.labels)) as RepositoryLabel[],
-      summary: String(row.summary)
+      summary: String(row.summary),
+      facts: JSON.parse(String(row.facts)) as RepositoryFacts
     };
   }
 
@@ -169,7 +180,8 @@ export function openKnowledgeStore(file: string) {
           repository.fingerprint,
           repository.indexedAt,
           JSON.stringify(repository.labels),
-          repository.summary
+          repository.summary,
+          JSON.stringify(repository.facts)
         );
         chunks.forEach((chunk, index) => {
           const { lastInsertRowid } = statements.insertChunk.run(chunk.text, chunk.path, chunk.kind, repository.id, repository.root);
@@ -201,6 +213,11 @@ export function openKnowledgeStore(file: string) {
         const chunk = chunks.get(match.id);
         return chunk ? [{ rowid: chunk.rowid, repositoryId: chunk.repositoryId, path: chunk.path, kind: chunk.kind, snippet: match.snippet, score: match.score }] : [];
       });
+    },
+
+    /** Every chunk of a workspace, for analyses that read text, such as cross-references. */
+    chunks(root: string): StoredChunk[] {
+      return [...textIndex(root).chunks.values()];
     },
 
     chunk(rowid: number): { rowid: number; repositoryId: string; path: string; kind: ChunkKind; text: string } | null {

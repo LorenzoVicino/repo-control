@@ -50,7 +50,15 @@ test("manifests of every supported ecosystem yield names, descriptions and depen
   assert.deepEqual(parseManifest("requirements.txt", "# comment\nDjango==5.0\n-r other.txt\nrequests>=2 ; python_version>'3'\n")?.dependencies, ["django", "requests"]);
   assert.deepEqual(parseManifest("Cargo.toml", '[package]\nname = "cache"\n[dependencies]\ntokio = "1"\nserde = { version = "1" }')?.dependencies.slice(-2), ["tokio", "serde"]);
   assert.deepEqual(parseManifest("go.mod", "module example.com/api\n\nrequire (\n\tgithub.com/gin-gonic/gin v1.9.1\n)\n")?.dependencies, ["github.com/gin-gonic/gin"]);
-  assert.ok(parseManifest("pom.xml", "<dependency><artifactId>spring-boot-starter-web</artifactId></dependency>")?.dependencies.includes("spring-boot-starter-web"));
+  const pom = parseManifest(
+    "pom.xml",
+    "<project><parent><artifactId>spring-boot-starter-parent</artifactId></parent><artifactId>orders-service</artifactId>" +
+      "<description>Orders</description><dependencies><dependency><artifactId>spring-boot-starter-web</artifactId></dependency>" +
+      "<dependency><artifactId>shared-model</artifactId></dependency></dependencies></project>"
+  );
+  assert.equal(pom?.name, "orders-service", "the project's own artifactId, not the parent's");
+  assert.equal(pom?.description, "Orders");
+  assert.deepEqual(pom?.dependencies, ["spring-boot-starter-parent", "spring-boot-starter-web", "shared-model"]);
   assert.deepEqual(parseManifest("src/Api.csproj", '<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8" />')?.dependencies, ["Microsoft.AspNetCore.OpenApi"]);
   assert.deepEqual(parseManifest("composer.json", JSON.stringify({ require: { "laravel/framework": "^11" } }))?.dependencies, ["laravel/framework"]);
   assert.deepEqual(parseManifest("Gemfile", "gem 'rails', '~> 7'\ngem \"pg\"")?.dependencies, ["rails", "pg"]);

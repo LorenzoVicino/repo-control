@@ -34,6 +34,9 @@ export async function registerKnowledgeRoutes(app: FastifyInstance, context: Kno
     repositories: context.knowledge().repositories().map(({ id, name, relativePath, labels, summary, indexedAt }) => ({ id, name, relativePath, labels, summary, indexedAt }))
   }));
 
+  // Repositories, label nodes and their relations, for the dashboard's graph view.
+  app.get("/api/knowledge/graph", async () => context.knowledge().graph());
+
   app.get("/api/knowledge/search", async (request, reply) => {
     const parsed = searchQuerySchema.safeParse(request.query);
     if (!parsed.success) return reply.code(400).send({ ok: false, code: "INVALID_INPUT", message: "Search for at least two characters." });
