@@ -24,6 +24,8 @@ export type DemoAgentDependencies = {
   listProjects: () => ProjectSummary[];
   /** Applies a Git action to the demo workspace; resolves to the command output. */
   runGitAction: (projectId: string, action: "pull" | "push") => Promise<{ ok: boolean; output: string }>;
+  /** How a repository relates to the others, for questions about what a change would affect. */
+  relationsOf?: (projectName: string) => { usedBy: Array<{ name: string; evidence: string }>; mentionedBy: Array<{ name: string; evidence: string }> };
   /** Milliseconds between streamed chunks; tests pass 0. */
   pace?: number;
 };
@@ -32,7 +34,7 @@ const TOOL_TITLES: Record<string, string> = { git_pull: "Pull (fast-forward only
 
 class Cancelled extends Error {}
 
-export function createDemoAgent({ listProjects, runGitAction, pace = 1 }: DemoAgentDependencies) {
+export function createDemoAgent({ listProjects, runGitAction, relationsOf, pace = 1 }: DemoAgentDependencies) {
   const runs = new Map<string, DemoRun>();
   let counter = 0;
 
@@ -198,10 +200,40 @@ export function createDemoAgent({ listProjects, runGitAction, pace = 1 }: DemoAg
     );
   }
 
+  async function impact(run: DemoRun, project: ProjectSummary) {
+    const relations = relationsOf?.(project.name) ?? { usedBy: [], mentionedBy: [] };
+    const lines = [
+      `${project.name}`,
+      relations.usedBy.length ? `Used by (${relations.usedBy.length}):\n${relations.usedBy.map((entry) => `  - ${entry.name}: ${entry.evidence}`).join("\n")}` : "Used by: none.",
+      relations.mentionedBy.length ? `Mentioned by (${relations.mentionedBy.length}):\n${relations.mentionedBy.map((entry) => `  - ${entry.name}: ${entry.evidence}`).join("\n")}` : "Mentioned by: none."
+    ];
+    await tool(run, "repository_relations", { repository: project.name }, lines.join("\n"));
+    if (!relations.usedBy.length && !relations.mentionedBy.length) {
+      return say(run, `Nothing else in the workspace depends on or mentions ${project.name}, so a change stays local to it.`);
+    }
+    const dependents = relations.usedBy.map((entry) => entry.name);
+    if (dependents[0]) {
+      const first = listProjects().find((candidate) => candidate.name === dependents[0]);
+      if (first) await tool(run, "get_repository", { repository: first.name }, `${first.name} on ${first.branch} → ${first.upstream}: ${stateOf(first)}.`);
+    }
+    await say(
+      run,
+      [
+        `A change to **${project.name}** reaches ${dependents.length ? `${dependents.length} ${dependents.length === 1 ? "repository that depends" : "repositories that depend"} on it` : "no dependent repositories"}${relations.mentionedBy.length ? `, and ${relations.mentionedBy.length} more mention it` : ""}.`,
+        dependents.length ? `\n**Rebuild and test**\n${relations.usedBy.map((entry) => `- **${entry.name}**: ${entry.evidence}`).join("\n")}` : "",
+        relations.mentionedBy.length ? `\n**Check the docs**\n${relations.mentionedBy.map((entry) => `- **${entry.name}**: ${entry.evidence}`).join("\n")}` : "",
+        dependents.length ? `\nRelease ${project.name} first, then bump it in ${dependents.join(", ")}.` : ""
+      ]
+        .filter(Boolean)
+        .join("\n")
+    );
+  }
+
   async function script(run: DemoRun) {
     const prompt = run.prompt.toLowerCase();
     // Longest names first, so "atlas-web" is not mistaken for a shorter prefix.
     const project = [...listProjects()].sort((a, b) => b.name.length - a.name.length).find((candidate) => prompt.includes(candidate.name.toLowerCase()));
+    if (project && /\b(affect|impact|depend|depends|dependent|touch|tocchere|dipend)/.test(prompt)) return impact(run, project);
     if (project && /\bpush\b/.test(prompt)) return push(run, project);
     if (project && /\bpull\b/.test(prompt)) return pull(run, project);
     if (project) return review(run, project);

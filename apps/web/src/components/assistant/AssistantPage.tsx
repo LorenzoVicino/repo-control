@@ -65,6 +65,23 @@ export function AssistantPage({ projects, workspaceRoot, store = defaultStore }:
   const turnViews = React.useMemo(() => conversation.turns.map((turn) => ({ turn, view: buildTurnView(turn.events) })), [conversation.turns]);
   const repositories = [...new Set(turnViews.flatMap(({ view }) => view.repositories))];
 
+  // Follow the conversation like a chat: while the reader is at the bottom, new content keeps
+  // them there, so the sticky composer never covers the latest answer or an approval card.
+  // Scrolling up to reread stops the following until they return to the bottom.
+  const following = React.useRef(true);
+  React.useEffect(() => {
+    const update = () => {
+      following.current = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 160;
+    };
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, []);
+  const contentSize = conversation.turns.reduce((total, turn) => total + turn.events.length + (turn.error ? 1 : 0), conversation.turns.length);
+  React.useEffect(() => {
+    if (!contentSize || !following.current) return;
+    window.scrollTo({ top: document.documentElement.scrollHeight });
+  }, [contentSize]);
+
   // A finished turn that carried out an approved change has altered the workspace: rescan, so
   // the rest of the dashboard and the next suggestions reflect it.
   React.useEffect(() => {

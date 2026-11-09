@@ -8,11 +8,18 @@ This project follows semantic versioning where practical.
 
 ### Changed
 
+- The agent conversation follows new content while you are at the bottom, so the composer
+  never covers the latest answer or an approval card. Scrolling up to reread pauses this.
 - **Breaking:** require Node.js 22.13+ or 24+. Node.js 20 reached end of life in April
   2026, and the planned local knowledge index uses the `node:sqlite` module that Node 20
   does not have. The CLI and the install check now reject Node 20 with a clear message.
 
 ### Added
+
+- New README story, product tour and landing copy for the AI-first product: a GIF and video of
+  the agent, Knowledge and the graph, four screenshots, a "how it works" section and an
+  updated architecture diagram. `npm run record:demo` regenerates every one of these from the
+  online demo. In the demo, the agent also answers what a change to a repository would affect.
 
 - Graph section. An interactive WebGL view (sigma.js, ForceAtlas2 layout) of the workspace
   graph: repositories coloured by kind and sized by their relations, label nodes that

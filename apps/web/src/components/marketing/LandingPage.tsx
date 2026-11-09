@@ -7,10 +7,10 @@ import { Box, Button, Container, Stack, Typography } from "@mui/material";
 const githubUrl = "https://github.com/LorenzoVicino/repo-control";
 const installUrl = `${githubUrl}#try-it-in-one-command`;
 const stories = [
-  ["See", "Dirty trees, branch drift, containers and recent work across the entire workspace."],
-  ["Decide", "Know which repository needs attention and understand its state before taking action."],
-  ["Act", "Open Git, branches, a scoped terminal or Compose controls without reconstructing context."],
-  ["Resume", "Find local Codex, Claude Code and Gemini CLI sessions by repository and continue in a native terminal."],
+  ["Ask", "Ask what needs you across every repository. The agent reads Git, Docker and your docs with read-only tools and answers in plain language."],
+  ["Approve", "Every change it proposes, a pull, a commit, a push or a Compose restart, waits for your approval. It has no shell and no file access."],
+  ["Understand", "Each repository gets labels with evidence, a search over its READMEs, docs and commits, and a place in a graph of what depends on what."],
+  ["Act", "Open Git, branches, a scoped terminal or Compose controls without reconstructing context, or hand the next step back to the agent."],
 ];
 
 function Mark() {
@@ -46,16 +46,16 @@ export function LandingPage() {
 
       <Box component="main">
         <Box component="section" sx={{ minHeight: "100dvh", position: "relative", display: "grid", alignItems: "end", isolation: "isolate" }}>
-          <Box component="video" autoPlay muted loop playsInline preload="auto" poster={asset("marketing/repo-control-demo-poster.png")} aria-label="repo-control navigating a sample multi-repository workspace" sx={{ position: "absolute", inset: 0, zIndex: -2, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}>
+          <Box component="video" autoPlay muted loop playsInline preload="auto" poster={asset("marketing/repo-control-demo-poster.png")} aria-label="The repo-control agent triaging a sample workspace, then the Knowledge section and the workspace graph" sx={{ position: "absolute", inset: 0, zIndex: -2, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}>
             <source src={asset("marketing/repo-control-demo.webm")} type="video/webm" />
           </Box>
           <Box sx={{ position: "absolute", inset: 0, zIndex: -1, background: "linear-gradient(180deg, rgba(7,9,14,.34) 0%, rgba(7,9,14,.22) 30%, rgba(7,9,14,.94) 88%, #0b0e14 100%)" }} />
           <Container maxWidth="lg" sx={{ pb: { xs: 7, md: 9 }, pt: 14 }}>
             <Box sx={{ maxWidth: 960, animation: "rcHeroIn .9s cubic-bezier(.16,1,.3,1) both", "@media (prefers-reduced-motion: reduce)": { animation: "none" } }}>
-              <Typography sx={{ mb: 2, color: "#9bc6ff", fontFamily: "var(--rc-font-mono)", fontSize: 11, fontWeight: 700, letterSpacing: ".11em", textTransform: "uppercase" }}>Local-first workspace control</Typography>
+              <Typography sx={{ mb: 2, color: "#9bc6ff", fontFamily: "var(--rc-font-mono)", fontSize: 11, fontWeight: 700, letterSpacing: ".11em", textTransform: "uppercase" }}>AI-first, local-first workspace control</Typography>
               <Typography component="h1" sx={{ fontSize: { xs: "3.5rem", sm: "5.4rem", lg: "7rem" }, lineHeight: .88, letterSpacing: "-.07em", fontWeight: 760, textShadow: "0 4px 32px rgba(0,0,0,.55)" }}>Every repo.<br />Under control.</Typography>
               <Box sx={{ mt: { xs: 3, md: 4 }, display: "grid", gridTemplateColumns: { xs: "1fr", md: "6fr 6fr" }, gap: 3, alignItems: "end" }}>
-                <Typography sx={{ maxWidth: 520, color: "#d0d7e2", fontSize: { xs: 17, md: 20 }, lineHeight: 1.5 }}>See what needs attention. Take the next safe action. Stay on your machine.</Typography>
+                <Typography sx={{ maxWidth: 520, color: "#d0d7e2", fontSize: { xs: 17, md: 20 }, lineHeight: 1.5 }}>Ask what needs you. Approve what changes. Stay on your machine.</Typography>
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} justifyContent={{ md: "flex-end" }}>
                   <Button href="#/demo" variant="contained" endIcon={<PlayArrowRounded />} sx={{ minHeight: 50, px: 2.7, whiteSpace: "nowrap", bgcolor: "var(--rc-accent)", color: "#0a1422", borderRadius: "10px", textTransform: "none", fontWeight: 800, boxShadow: "none", transition: "transform .2s ease", "&:hover": { bgcolor: "#8cbdff", boxShadow: "none", transform: "translateY(-2px)" }, "&:active": { transform: "translateY(1px)" } }}>Try demo</Button>
                   <Button href={installUrl} target="_blank" rel="noreferrer" variant="outlined" endIcon={<ArrowForwardRounded />} sx={{ minHeight: 50, px: 2.7, whiteSpace: "nowrap", color: "#f0f3f8", borderColor: "rgba(255,255,255,.42)", borderRadius: "10px", textTransform: "none", fontWeight: 700, bgcolor: "rgba(11,14,20,.32)" }}>Install</Button>
