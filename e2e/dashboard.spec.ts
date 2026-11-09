@@ -275,6 +275,25 @@ test("opens on the agent and renders a streamed conversation", async ({ page }) 
   expect(browserErrors).toEqual([]);
 });
 
+test("labels the workspace and searches it from the Knowledge section", async ({ page }) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  await page.goto("/");
+  await page.locator('[data-dashboard-section="knowledge"]').first().click();
+
+  // The first visit indexes the workspace, which here is this repository.
+  await expect(page.getByText(/^1 repository indexed/)).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("button", { name: "fastify · 1" }).click();
+  await expect(page.getByRole("heading", { name: "1 repository labelled fastify" })).toBeVisible();
+  await expect(page.getByRole("button", { name: `Open ${workspaceRepositoryName}` })).toBeVisible();
+
+  await page.getByRole("textbox", { name: "Search the workspace" }).fill("approval card");
+  const results = page.getByRole("list", { name: "Repositories matching approval card" });
+  await expect(results.getByRole("button", { name: `Open ${workspaceRepositoryName}` })).toBeVisible();
+  await expect(results.locator("mark").first()).toBeVisible();
+  expect(browserErrors).toEqual([]);
+});
+
 test("navigates between lazy dashboard sections without browser errors", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
