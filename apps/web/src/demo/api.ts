@@ -2,6 +2,8 @@ import type { AgentSessionsResponse } from "../types/agentSessions";
 import type { DockerContainer, ContainerSessionRead } from "../types/docker";
 import type { WorkflowDefinition, WorkflowRun } from "../types/workflows";
 import type { UserPreferences } from "../types/workspace";
+import type { AgentEvent } from "../types/agent";
+import { createDemoAgent } from "./agent";
 import {
   createDemoDetails,
   createDemoProjects,
@@ -38,6 +40,24 @@ const containers: DockerContainer[] = projects
     composeWorkingDir: project.path,
   }));
 const sessions = new Map<string, ContainerSessionRead>();
+// The agent acts through the same handlers as the dashboard's buttons, so an approved pull
+// or push changes the demo workspace exactly as clicking Pull or Push would.
+const agent = createDemoAgent({
+  listProjects: () => projects,
+  async runGitAction(projectId, action) {
+    const response = await demoRequest(`/api/projects/${projectId}/git/${action}`, { method: "POST", body: "{}" });
+    const payload = (await response.json()) as { ok?: boolean; output?: string; message?: string };
+    return { ok: response.ok && payload.ok !== false, output: payload.output ?? payload.message ?? "" };
+  },
+});
+
+export function demoSubscribeToAgentRun(
+  runId: string,
+  after: number,
+  handlers: { onEvent: (event: AgentEvent) => void; onEnd: () => void; onError: () => void },
+): () => void {
+  return agent.subscribe(runId, after, handlers);
+}
 const success = (
   command: string,
   output = "Simulated operation completed.",
@@ -138,6 +158,19 @@ export async function demoRequest(
     });
   }
   if (route === "/api/projects") return reply({ root: DEMO_ROOT, projects });
+  if (route === "/api/agent") return reply(agent.status());
+  if (route === "/api/agent/runs" && method === "POST")
+    return Response.json(agent.start(String(body.prompt ?? "").trim()), { status: 202 });
+  const agentRunMatch = route.match(/^\/api\/agent\/runs\/([^/]+)\/(?:approvals\/([^/]+)|(cancel))$/);
+  if (agentRunMatch && method === "POST") {
+    const [, runId, approvalId] = agentRunMatch;
+    const accepted = approvalId
+      ? agent.decide(runId, approvalId, body.behavior === "allow" ? { behavior: "allow" } : { behavior: "deny" })
+      : agent.cancel(runId);
+    return accepted
+      ? reply({ ok: true })
+      : Response.json({ ok: false, code: "APPROVAL_NOT_PENDING", message: "That request is no longer pending." }, { status: 409 });
+  }
   if (route === "/api/preferences") {
     if (method === "PUT") preferences = { ...preferences, ...body };
     return reply(preferences);

@@ -105,6 +105,10 @@ const AppMotionBackdrop = React.lazy(async () => {
   const module = await loadAppMotionBackdrop();
   return { default: module.AppMotionBackdrop };
 });
+const AssistantPage = React.lazy(async () => {
+  const module = await import("../assistant/AssistantPage");
+  return { default: module.AssistantPage };
+});
 const AgentSessionsPage = React.lazy(async () => {
   const module = await loadAgentSessionsPage();
   return { default: module.AgentSessionsPage };
@@ -133,13 +137,16 @@ type ProjectsDashboardProps = {
   fontScale: FontScale;
   onColorPaletteChange: (colorPalette: ColorPalette) => void;
   onFontScaleChange: (fontScale: FontScale) => void;
+  /** The section shown first. The agent is the product's front door, so it is the default. */
+  initialSection?: DashboardSection;
 };
 
 export function ProjectsDashboard({
   colorPalette,
   fontScale,
   onColorPaletteChange,
-  onFontScaleChange
+  onFontScaleChange,
+  initialSection = "assistant"
 }: ProjectsDashboardProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -148,7 +155,7 @@ export function ProjectsDashboard({
   const [repositorySort, setRepositorySort] = React.useState<RepositorySort>("attention");
   const [repositoryGrouping, setRepositoryGrouping] = React.useState<RepositoryGrouping>("folder");
   const [repositoryDensity, setRepositoryDensity] = React.useState<RepositoryDensity>("comfortable");
-  const [activeSection, setActiveSection] = React.useState<DashboardSection>("overview");
+  const [activeSection, setActiveSection] = React.useState<DashboardSection>(initialSection);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(
     () => window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true"
   );
@@ -277,7 +284,7 @@ export function ProjectsDashboard({
   const isWorkspaceStale = Boolean(projectsError && data && !isWorkspaceSnapshotInvalid);
   const needsGenericWorkspaceLoading = !activeProject
     && (isInitialWorkspaceLoading || isScanningRoot)
-    && ["agents", "automations", "docker"].includes(activeSection);
+    && ["assistant", "agents", "automations", "docker"].includes(activeSection);
   const visiblePreferenceFailure: PreferenceFailure | null = preferencesError
     ? { kind: "load", error: preferencesError }
     : preferenceFailure;
@@ -906,6 +913,14 @@ export function ProjectsDashboard({
                   </Box>
                 ))}
               </Box>
+            </ViewEntrance>
+          ) : null}
+
+          {!activeProject && data && !isScanningRoot && activeSection === "assistant" ? (
+            <ViewEntrance>
+              <React.Suspense fallback={<SectionLoading label={t("loading.assistant")} />}>
+                <AssistantPage projects={projects} workspaceRoot={workspaceRoot} />
+              </React.Suspense>
             </ViewEntrance>
           ) : null}
 

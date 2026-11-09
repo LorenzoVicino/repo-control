@@ -14,6 +14,15 @@ This project follows semantic versioning where practical.
 
 ### Added
 
+- The dashboard now opens on the agent, in the glass, AI-first design. You ask in plain
+  language and see the agent's tool calls grouped as it works, its answer stream in, and an
+  approval card for every change it wants to make. The closing summary shows time, steps and
+  cost. Suggestions come from the workspace scan (a safe fast-forward, changes to review,
+  commits to push). A context panel lists the repositories involved, the permissions and the
+  command to resume the Claude Code session in a terminal. Conversations continue across
+  messages and survive switching sections. After an approved change the workspace is
+  rescanned. The online demo replays scripted conversations over the demo workspace:
+  triage, pull, push and review, with real approval cards whose effects stay in the browser.
 - Workspace knowledge index. Every repository gets labels with recorded evidence: its kind
   (api, web app, cli, library, monorepo, mobile, documentation…), languages, frameworks and
   tooling. A local full-text index (BM25, stored in SQLite) covers READMEs, docs, manifests and commit

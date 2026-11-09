@@ -83,6 +83,7 @@ test("keeps the application backdrop static and lightweight", async ({ page }) =
 test("customizes the dashboard widgets and stores the layout in the local preferences", async ({ page, request }) => {
   await request.put(`${apiBaseUrl}/api/preferences`, { data: { dashboard: null } });
   await page.goto("/");
+  await page.locator('[data-dashboard-section="overview"]').first().click();
 
   // The default arrangement leads with what needs attention and draws the workspace ring.
   const grid = page.locator("[data-dashboard-grid]");
@@ -106,6 +107,7 @@ test("customizes the dashboard widgets and stores the layout in the local prefer
   }).toBe("workspace,attention|true");
 
   await page.reload();
+  await page.locator('[data-dashboard-section="overview"]').first().click();
   await expect(grid.locator("[data-widget-id]").first()).toHaveAttribute("data-widget-id", "workspace");
   await expect(page.getByRole("region", { name: "Shortcuts" })).toHaveCount(0);
 
@@ -225,6 +227,52 @@ test("opens settings from the profile tab and scales the interface text", async 
   expect(
     await page.evaluate(() => window.localStorage.getItem("repo-control-color-palette"))
   ).toBe("red");
+});
+
+test("opens on the agent and renders a streamed conversation", async ({ page }) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  const runId = "4f6c2a9e-8b1d-4e7a-9c3f-2d5b6a7e8f90";
+  const at = new Date(0).toISOString();
+  const events = [
+    { type: "status", status: "running" },
+    { type: "session", sessionId: "6d1f0c8e-6b3b-4c55-9d43-1f4f3c2b9a10", model: "sonnet", tools: [] },
+    { type: "tool_call", toolUseId: "t-1", name: "list_repositories", input: { state: "needs-attention" } },
+    { type: "tool_result", toolUseId: "t-1", isError: false, text: "1 of 1 repositories (needs-attention)." },
+    { type: "text", text: "One repository needs you:\n\n- **repo-control**: local changes" },
+    { type: "result", ok: true, text: "One repository needs you.", sessionId: "6d1f0c8e-6b3b-4c55-9d43-1f4f3c2b9a10", costUsd: 0.004, durationMs: 2100, turns: 2 },
+    { type: "status", status: "completed" }
+  ].map((event, seq) => ({ ...event, seq, at }));
+
+  await page.route("**/api/agent", (route) => route.fulfill({ json: { available: true, command: "claude", model: "sonnet" } }));
+  await page.route("**/api/agent/runs", (route) =>
+    route.fulfill({ status: 202, json: { id: runId, status: "running", prompt: "What needs me?", sessionId: null, createdAt: at, events: events.slice(0, 1) } })
+  );
+  await page.route(`**/api/agent/runs/${runId}/events*`, (route) =>
+    route.fulfill({
+      contentType: "text/event-stream",
+      body: events.slice(1).map((event) => `id: ${event.seq}\nevent: agent\ndata: ${JSON.stringify(event)}\n\n`).join("") + "event: end\ndata: {}\n\n"
+    })
+  );
+
+  await page.goto("/");
+  await expect(page.locator('[data-dashboard-section="assistant"]').first()).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("heading", { name: "What should we do in your workspace?" })).toBeVisible();
+
+  const composer = page.getByRole("textbox", { name: "Message the agent" });
+  await expect(composer).toBeEnabled();
+  await composer.fill("What needs me?");
+  await composer.press("Enter");
+
+  const log = page.getByRole("log");
+  await expect(log.getByText("What needs me?")).toBeVisible();
+  await expect(log.getByText("Used 1 tool")).toBeVisible();
+  await expect(log.getByRole("listitem").filter({ hasText: "local changes" })).toBeVisible();
+  await expect(page.getByText("Done in 2.1 s · 2 steps · 0.0040 USD")).toBeVisible();
+  await expect(page.getByRole("button", { name: "New conversation" })).toBeEnabled();
+  // Hidden screen-reader labels once used `width: 1`, which MUI reads as 100%, and widened the page.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
+  expect(browserErrors).toEqual([]);
 });
 
 test("navigates between lazy dashboard sections without browser errors", async ({ page }) => {

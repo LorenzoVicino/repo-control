@@ -113,6 +113,8 @@ The `approve` tool exists only on MCP servers created for an agent token. It tur
 
 `services/agent/events.ts` reduces stream-json to the events the dashboard renders: session, text deltas, full text blocks, tool calls and results, approvals, the result with cost and turns, errors and status. Each event carries a sequence number. `routes/agentRoutes.ts` starts runs (`POST /api/agent/runs`, which takes `sessionId` to continue a conversation through `--resume`), streams events over server-sent events with replay from `Last-Event-ID`, and accepts approvals and cancellation. Runs live in memory: one at a time, with the last 20 kept for replay.
 
+The dashboard side lives in `apps/web/src/components/assistant/`. `conversationStore.ts` keeps the conversation outside React, so a run keeps streaming while another section is open. It starts runs, follows them with `EventSource`, which reconnects and resumes from the last event ID, and drops replayed events by sequence number. `turnView.ts` turns one run's events into the blocks the page renders: grouped tool activity, text that replaces its streamed deltas, approval cards with their outcome, errors and the closing summary. Agent answers are rendered from a small Markdown parser (`markdown.ts`) into React elements, so no HTML from the model is interpreted.
+
 ### Container sessions
 
 `createContainerSessionStore` owns the processes behind the container console. A session is a long-lived `docker` client - `docker exec -i <id> <shell>` or `docker logs --follow <id>` - which the one-shot command runner cannot represent, because that runner resolves only once a process has exited.
