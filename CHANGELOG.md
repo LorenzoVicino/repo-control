@@ -14,6 +14,12 @@ This project follows semantic versioning where practical.
 
 ### Added
 
+- Workspace graph. The knowledge index links repositories by internal dependencies (a
+  manifest using a package another repository publishes, Maven artifactIds included), by
+  mentions in READMEs, docs, manifests and commits, by shared labels and, with semantic
+  search, by similar meaning. Every link records why it exists. The agent gets
+  `repository_relations` ("who depends on shared-utils?"), and `/api/knowledge/graph` serves
+  the graph.
 - Knowledge section. Labels from the knowledge index are grouped by kind with counts, and
   picking one filters the repositories. A search box over READMEs, docs, manifests and
   commits highlights the matching words and says how each repository matched (words,

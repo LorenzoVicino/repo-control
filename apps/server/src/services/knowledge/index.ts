@@ -6,11 +6,13 @@ import { chunkRepository, type Chunk } from "./chunk.js";
 import { collectRepositoryDocuments, type RepositoryDocuments } from "./collect.js";
 import { cosine, type EmbeddingProvider } from "./embeddings.js";
 import { deriveLabels, TOPICS, type RepositoryLabel } from "./labels.js";
+import { buildWorkspaceGraph, relationsOf, type RepositoryRelations, type WorkspaceGraph } from "./graph.js";
 import { searchKnowledge, type RepositoryHit } from "./search.js";
 import type { KnowledgeStore, StoredRepository } from "./store.js";
 
 export type { RepositoryHit } from "./search.js";
 export type { RepositoryLabel } from "./labels.js";
+export type { GraphEdge, GraphNode, RepositoryRelations, WorkspaceGraph } from "./graph.js";
 
 export type KnowledgeStatus = {
   state: "idle" | "indexing";
@@ -116,6 +118,10 @@ export function createKnowledgeIndex({
     const chunks: Chunk[] = chunkRepository(project.name, docs, labels);
     if (active) vectors = await active.embed(chunks.map((chunk) => chunk.text));
 
+    const facts = {
+      packages: [...new Set(docs.manifests.map((manifest) => manifest.name).filter((name): name is string => Boolean(name)))],
+      dependencies: [...new Set(docs.manifests.flatMap((manifest) => manifest.dependencies))]
+    };
     const record: StoredRepository = {
       root,
       id: project.id,
@@ -124,7 +130,8 @@ export function createKnowledgeIndex({
       fingerprint: print,
       indexedAt: now().toISOString(),
       labels,
-      summary: chunks[0].text
+      summary: chunks[0].text,
+      facts
     };
     store.saveRepository(record, chunks, vectors);
     return "updated";
@@ -216,6 +223,24 @@ export function createKnowledgeIndex({
 
     repositories(): StoredRepository[] {
       return store.listRepositories(getActiveRootPath());
+    },
+
+    /** The workspace graph; builds the index first if the workspace was never indexed. */
+    async graph(): Promise<WorkspaceGraph> {
+      const root = getActiveRootPath();
+      if (!store.listRepositories(root).length) await this.reindex();
+      const chunks = store.chunks(root);
+      const summaries = new Map(chunks.filter((chunk) => chunk.kind === "summary").map((chunk) => [chunk.rowid, chunk.repositoryId]));
+      const summaryVectors = new Map<string, Float32Array>();
+      for (const stored of store.vectors(root)) {
+        const repositoryId = summaries.get(stored.rowid);
+        if (repositoryId) summaryVectors.set(repositoryId, stored.vector);
+      }
+      return buildWorkspaceGraph(store.listRepositories(root), chunks, summaryVectors);
+    },
+
+    async relations(repositoryId: string): Promise<RepositoryRelations | null> {
+      return relationsOf(await this.graph(), store.listRepositories(getActiveRootPath()), repositoryId);
     },
 
     async search(query: string, limit = 8): Promise<RepositoryHit[]> {

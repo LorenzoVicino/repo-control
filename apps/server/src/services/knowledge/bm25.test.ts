@@ -52,7 +52,7 @@ test("a store from the FTS5 era is rebuilt rather than misread", async (context)
   context.after(() => store.close());
   assert.deepEqual(store.listRepositories("/workspace"), []);
   store.saveRepository(
-    { root: "/workspace", id: "a", name: "atlas", relativePath: "atlas", fingerprint: "f", indexedAt: "2026-11-09T00:00:00.000Z", labels: [], summary: "atlas" },
+    { root: "/workspace", id: "a", name: "atlas", relativePath: "atlas", fingerprint: "f", indexedAt: "2026-11-09T00:00:00.000Z", labels: [], summary: "atlas", facts: { packages: [], dependencies: [] } },
     [{ path: "README.md", kind: "readme", text: "atlas · orders" }],
     null
   );
