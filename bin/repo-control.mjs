@@ -8,11 +8,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 // skips the preinstall check entirely, so the binary repeats it. An unsupported Node is
 // the most likely first-run failure and deserves a real message rather than a stack trace.
 const [major, minor] = process.versions.node.split(".").map(Number);
-const nodeSupported = (major === 20 && minor >= 19) || (major === 22 && minor >= 13) || major >= 24;
+const nodeSupported = (major === 22 && minor >= 13) || major >= 24;
 
 if (!nodeSupported) {
   console.error(`\nrepo-control cannot run with Node.js ${process.versions.node}.`);
-  console.error("Use Node.js 20.19+, 22.13+, or 24+ (Node 24 recommended).\n");
+  console.error("Use Node.js 22.13+ or 24+ (Node 24 recommended).\n");
   process.exit(1);
 }
 
