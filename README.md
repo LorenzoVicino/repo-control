@@ -70,6 +70,7 @@ repo-control keeps the convenience of a dashboard without moving control to a re
 
 | Area | Outcome |
 | --- | --- |
+| Agent | The landing page. Ask in plain language and Claude Code, running headless on your machine, works through repo-control's own tools: it reads repositories freely, and every change (commit, push, pull, branch, Compose, workflow run) waits for your approval in the conversation. Suggestions come from the live workspace scan. |
 | Dashboard | A widget home that leads with what needs attention, then where to resume: recent repositories, AI conversations, Docker health, automation runs and shortcuts. Widgets are dragged, resized, hidden and restored in an explicit edit mode; the layout is saved with the workspace preferences. |
 | Agent sessions | Search local Codex, Claude Code and Gemini CLI conversations by title or content, filter by provider and resume them from the matching repository. |
 | Repository overview | Triage attention items, working-tree health, upstream drift, Compose services and recent commits from one full-width landing view. |

@@ -101,3 +101,43 @@ it("previews, executes and cancels the sample automation", async () => {
     vi.useRealTimers();
   }
 });
+
+it("serves the scripted agent and applies an approved pull to the demo workspace", async () => {
+  const fetch = vi.fn();
+  vi.stubGlobal("fetch", fetch);
+  vi.useFakeTimers();
+  try {
+    const { demoSubscribeToAgentRun } = await import("./api");
+    expect(await (await request("/api/agent")).json()).toEqual({ available: true, command: "claude", model: "demo replay" });
+    const started = await request("/api/agent/runs", post({ prompt: "pull documentation" }));
+    expect(started.status).toBe(202);
+    const run = await started.json();
+
+    let approvalId = "";
+    let ended = false;
+    demoSubscribeToAgentRun(run.id, -1, {
+      onEvent: (event) => {
+        if (event.type === "approval_request") approvalId = event.approvalId;
+      },
+      onEnd: () => (ended = true),
+      onError: () => {}
+    });
+    await vi.waitFor(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+      expect(approvalId).not.toBe("");
+    });
+    expect((await request(`/api/agent/runs/${run.id}/approvals/other`, post({ behavior: "allow" }))).status).toBe(409);
+    expect((await request(`/api/agent/runs/${run.id}/approvals/${approvalId}`, post({ behavior: "allow" }))).status).toBe(200);
+    await vi.waitFor(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+      expect(ended).toBe(true);
+    });
+
+    const { projects } = await (await request("/api/projects")).json();
+    expect(projects.find((project: { name: string }) => project.name === "documentation").behind).toBe(0);
+    expect((await request(`/api/agent/runs/${run.id}/cancel`, post())).status).toBe(409);
+    expect(fetch).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
+});

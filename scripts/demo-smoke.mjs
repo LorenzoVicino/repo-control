@@ -62,6 +62,16 @@ try {
   await page
     .getByText("Demo workspace · Changes stay in this browser")
     .waitFor();
+  // The demo opens on the agent, which replays a scripted conversation over the demo
+  // workspace; approving its pull changes that workspace for the rest of the session.
+  await page
+    .getByRole("heading", { name: "What should we do in your workspace?" })
+    .waitFor();
+  await page.getByRole("button", { name: /What needs me today\?/ }).click();
+  await page.getByRole("button", { name: "Approve", exact: true }).click();
+  await page.getByText("documentation is up to date now.", { exact: false }).waitFor();
+  await page.getByText(/^Done in /).waitFor();
+  await page.locator('[data-dashboard-section="overview"]').first().click();
   await page
     .getByRole("button", { name: "Open atlas-api", exact: true })
     .first()
@@ -89,6 +99,10 @@ try {
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("button", { name: "Reset demo", exact: true }).click();
   await page
+    .getByRole("heading", { name: "What should we do in your workspace?" })
+    .waitFor();
+  await page.locator('[data-dashboard-section="overview"]').first().click();
+  await page
     .getByRole("button", { name: "Open atlas-api", exact: true })
     .first()
     .waitFor();
@@ -110,7 +124,7 @@ try {
   assert.deepEqual(errors, []);
   assert.deepEqual(failures, []);
   console.log(
-    "PASS: static demo, staging/commit/push, sessions, automation navigation, install instructions, reset, mobile layout; no network API calls or missing assets.",
+    "PASS: static demo, staging/commit/push, scripted agent with approval, sessions, automation navigation, install instructions, reset, mobile layout; no network API calls or missing assets.",
   );
 } finally {
   await browser?.close();
